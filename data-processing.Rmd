@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "corpus-caesarianum-authorship"
 output:
   html_document:
     df_print: paged
@@ -13,6 +13,7 @@ execute code within the notebook, the results appear beneath the code.
 
 ```{r include=TRUE}
 knitr::opts_chunk$set(results = "hold")
+knitr::opts_knit$set(root.dir = 'C:/Users/T470s/Documents/GitHub/corpus-caesarianum-authorship')
 ```
 
 # Data Preparation
@@ -43,10 +44,19 @@ library(ggtext)
 <https://github.com/slowkow/ggrepel>)
 
 ```{r Get postagged_only.csv. Big data!}
-setwd("~/GitHub/cltk-2025-atticus")
 
 dims <- c(
-  "title", "author", "path", "form", "lemma", "tag", "Aspect", "Mood", "Number",
+  "title", 
+  "author", 
+  "cite1",
+  "cite2",
+  "path",
+  "form",
+  "lemma",
+  "tag",
+  "Aspect",
+  "Mood",
+  "Number",
   "Person",
   "Tense",
   "VerbForm",
@@ -56,7 +66,8 @@ dims <- c(
   "Gender",
   "Polarity",
   "Degree",
-  "NumType"
+  "NumType",
+  "Deprel"
 )
 
 data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
@@ -155,20 +166,49 @@ shorten them to 12 characters max.
 # Removed punctuation because PCA showed that it was an "important" variable
 final.frame <- subset(final.frame, select = c(-PUNCT, -X, -VERB, -Sing, -Plur))
 
-# Move Pliny's letters close to the top
-row.one <- final.frame[final.frame$title %in% c("Letters"), ]
-other.rows <- final.frame[final.frame$title %in% c("Letters") == FALSE, ]
-final.frame <- rbind(row.one, other.rows)
-rownames(final.frame) <- 1:length(final.frame$title)
+#Create function for moving a work to a specific spot
+move_row <- function(title, index) {
+  #The index is the row before which to move the work
+  ## @param title: a string with the title of the work. Can be a partial match for the beginning of the string if it isn't ambiguous
+  ## @param index: an integer with the index just after the final destination for the work, i.e. 1 places it in first place just before the previous first work, and, if the data frame is 55 rows long, 56 puts it in last place (NEEDS DEBUGGING FOR THAT CASE)
+  row.one <- final.frame[final.frame$title %in% c(title), ]
+  other.rows <- final.frame[final.frame$title %in% c(title) == FALSE, ]
+  
+  if (index > 1) {
+    
+    if (index > length(other.rows[,1])) { #If the index is greater than the length of the data frame, just put the work at the end
+      return_value <- rbind(other.rows, row.one)
+    }
+    else {
+      #Get the first part from one through the index
+      pre_work_frame <- other.rows[1:index,]
+      
+      #Get the last part, from one after the index to the end
+      post_work_frame <- other.rows[(index + 1):length(other.rows[,1]),]
+      
+      return_value <- rbind(pre_work_frame, row.one, post_work_frame)
+    }
+  }
+  else {
+    return_value <- rbind(row.one, other.rows)
+  }
+  
+  rownames(return_value) <- 1:length(return_value$title)
+  
+  return(return_value)
+}
+
 
 # Move letters to Atticus to the top
-row.one <- final.frame[final.frame$title %in% c("Letters to Atticus"), ]
-other.rows <- final.frame[final.frame$title %in% c("Letters to Atticus") == FALSE, ]
-final.frame <- rbind(row.one, other.rows)
-rownames(final.frame) <- 1:length(final.frame$title) # Replace the rownames with the new correct number
-remove(other.rows)
-remove(row.one)
+final.frame <- move_row(title = "Letters to Atticus", index = 0)
 
+# Move Pliny's letters close to the top
+final.frame <- move_row(title = "Letters", index = 1)
+
+final.frame <- move_row(title = "De bello Gallico", index = 2)
+final.frame <- move_row(title = "Bellum Hispaniense", index = 3)
+final.frame <- move_row(title = "Bellum Alexandrinum", index = 4)
+final.frame <- move_row(title = "Bellum Africum", index = 5)
 
 # Clean up NAs and filter out Cicero's works that are not the Letters to Atticus
 final.frame[is.na(final.frame)] <- 0
@@ -291,6 +331,8 @@ amount, looking at the fviz_nbclust results with the wss method.
 
 # Principal component analysis
 
+setwd("~/GitHub/cltk-2025-atticus")
+
 pca <- prcomp(df_clust)
 
 summary(pca)
@@ -358,9 +400,16 @@ ggsave(filename = "Images/cluster-diagram-kmeans-LARGEPRINT.png", dpi = "print")
 
 str(kmeans_basic_cluster)
 
+```
+
+```{r}
+
 
 distance <- get_dist(df_scaled)
-fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
+
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
+
 ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
 ```
 
@@ -501,958 +550,3 @@ ggplot(dist_df, aes(var, distance)) +
 
 ggsave(filename = "Images/atticus-vs-comedy-means.png", dpi = "print")
 ```
-
-I commented this out because I'm done with it, but I saved the results
-in a data table. Because K-means has an element of randomness, the
-results aren't identical every time, but Hartigan-Wong, the default
-algorithm, either had the lowest or tied for the lowest total wihin sum
-of squares.
-
-+---------------------+-------------------+
-| a l g orithm        | t o t . w i       |
-|                     | thinss            |
-| \                   |                   |
-| \<chr\>             | \                 |
-|                     | \<dbl\>           |
-+:====================+==================:+
-| H a r t i g a       | 3 9 88.635        |
-| n-Wong              |                   |
-+---------------------+-------------------+
-| Lloyd               | 3 9 89.989        |
-+---------------------+-------------------+
-| Forgy               | 3 9 93.158        |
-+---------------------+-------------------+
-| M a cQueen          | 3 9 89.989        |
-+---------------------+-------------------+
-
-```{r}
-#
-# algorithms <- c("Hartigan-Wong", "Lloyd", "Forgy", "MacQueen")
-#
-# algorithms.tot.withinss <- vector(mode = "double")
-# for (i in 1:length(algorithms)) {
-#   algorithms.tot.withinss[i] <- kmeans(df_scaled, centers=k, nstart=25, algorithm = algorithms[i])$tot.withinss
-# }
-#
-# data.frame(algorithm = algorithms, tot.withinss = algorithms.tot.withinss)
-```
-
-But, let's look at the cluster that contains the letters to Atticus.
-Maybe a bar chart showing facets of each?
-
-```{r}
-att_clust <- kmeans_basic_df$Clusters[rownames(kmeans_basic_df) == "22 Letters t"]
-
-# df.barplot <- data.frame(names = dimnames(kmeans_basic_df)[[2]][-1], attclust = sapply(X=kmeans_basic_df[kmeans_basic_df$Clusters == att_clust,], sum)[-1])
-
-# df.barplot$poetclust <-  sapply(X=kmeans_basic_df[kmeans_basic_df$Clusters == 2,], sum)[-1]
-
-df.barplot <- data.frame(cluster = 1, var = dimnames(kmeans_basic_df)[[2]][-1], clustersum = scale(sapply(X = kmeans_basic_df[kmeans_basic_df$Clusters == 1, ], mean)[-1]))
-for (i in 2:max(kmeans_basic_df$Clusters)) {
-  temp <- data.frame(cluster = i, var = dimnames(kmeans_basic_df)[[2]][-1], clustersum = scale(sapply(X = kmeans_basic_df[kmeans_basic_df$Clusters == i, ], mean)[-1]))
-  df.barplot <- rbind(df.barplot, temp)
-}
-
-
-ggplot(data = df.barplot, aes(var, clustersum)) +
-  labs(title = "Z-scores of mean number of tags per cluster category") +
-  facet_wrap(~cluster) +
-  geom_col() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 4))
-
-ggsave(filename = "./Images/cluster_vals.png", dpi = "print")
-```
-
-2/15/2026: Interesting to note that all POS's tagged as Singular are
-higher in Cluster 3, which Att. belongs to. Verbs also look farthest
-above the mean in the same cluster, so that is worth investigating as
-well. Present tense is by far the most common in Cluster 3, and it only
-comes close in cluster 5.
-
--   Cluster 3 contains only comedy, Sulpicia, and the Letters to Atticus
-
-We also want to know in what ways the letters to Atticus are similar and
-different. We need to know what p-value to select, though, because of
-multiple testing. We'll be doing 10 tests for 10 variables. The
-Bonferroni correction suggests a p-value of \<0.005, because we're doing
-10 tests (alpha p-value = 0.05 / number of tests = 10). If this doesn't
-work, lets try the Holm-Sidak correction instead.
-
-```{r}
-# Start with 2nd person verbs as an example.
-
-
-cluster4 <- kmeans_basic_df |>
-  filter(Clusters == 4)
-
-cluster4 <- rbind(kmeans_basic_df[1, ], cluster4)
-
-# Let's not used the scaled values, because we're comparing means, and the mean would be 0.
-att <- cluster4$X2[1] # Atticus is always first
-colloquial.non.att <- cluster4$X2[2:length(cluster4$X2)]
-
-print("2nd person:")
-
-
-# DIFFERENCE IS SIGNIFICANT
-
-# Let's make this a function.
-##### The structure will be:
-# list$lowertail
-# list$uppertail
-
-norm_tails <- function(att, colloquial.non.att, plotname) {
-  # Boxplot
-  boxplot(colloquial.non.att, att)
-
-  # Perform a t-test
-  # Hypothesis: The mean number of second-person verbs is significantly different in the letters to Atticus
-  # Null: The mean number of second-person verbs isn't significantly different
-
-  fit <- fitdistr(x = colloquial.non.att, densfun = "normal")
-
-  mean <- fit$estimate["mean"]
-  sd <- fit$estimate["sd"]
-
-  X <- seq(from = min(colloquial.non.att), to = max(colloquial.non.att), by = 0.5)
-  Y <- dnorm(X, mean = mean, sd = sd)
-  {
-    hist(colloquial.non.att, freq = FALSE, main = plotname)
-    lines(X, Y)
-    abline(v = att, col = "red")
-  }
-
-  # Percentage of density function above
-  # Chances a value is greater
-  low <- pnorm(att, mean = mean, sd = sd, lower.tail = FALSE)
-  # Chances a value is smaller
-  up <- pnorm(att, mean = mean, sd = sd, lower.tail = TRUE)
-
-  return(c(lowertail = low, uppertail = up))
-}
-
-norm_tails(att, colloquial.non.att, "2nd person verbs")
-
-
-# Let's compare the letters to Atticus with Comedy
-map(
-  cluster4,
-  \(x) norm_tails(x[1], x[-1], "")
-)
-
-# The result is significant with p < 0.0025 in Present tense, Imperatives, 2nd person, Past and Perfect tense, Finite verbs, Nominative nouns, ablative nouns, adjectives, genitive nouns, prepositions (which are higher in Comedy), passive verbs, and relative pronouns.
-# The result is not significantly different in determiners, participles, accusative nouns, personal pronouns, pronouns, 3rd person verbs, and nouns
-
-# Lets compare the letters to Atticus with its own cluster
-cluster1 <- kmeans_basic_df |>
-  filter(Clusters == 1)
-
-map(
-  cluster1,
-  \(x) norm_tails(x[1], x[-1], "")
-)
-# The result is significant with p < 0.0025 in participles, which are lower than the others, pronouns, which are higher.
-
-print("2nd person:")
-
-# remove(cluster4)
-
-# Letters to Atticus can't
-```
-
-## CLARA
-
-Clara is another clustering algorithm like K-means, but which uses
-medoids instead of means. The medoid is an actual data point at the
-center instead of a mean center.
-
-```{r echo=TRUE}
-set.seed(126126)
-
-clara.res <- clara(df_clust, k = k, metric = hc_metric, samples = 50, pamLike = TRUE)
-
-fviz_cluster(clara.res,
-  data = df_clust, stand = FALSE, palette = c("red", "green", "blue", "purple", "yellow", "magenta", "gray", "cyan"),
-  geom = geom,
-  ellipse.type = ellipse.type,
-  ggtheme = ggtheme,
-) + geom_text_repel(aes(label = rownames(df_clust)), vjust = "inward", hjust = "inward", max.overlaps = 12, size = 1)
-
-ggsave(filename = "Images/clara-results.png", dpi = "print")
-```
-
-## AGNES
-
-But it might be a good idea to look at other methods of clustering as
-well. The graphs above seem to show that K-means gets some well-defined
-groupings, but let's test out hcut. I do know that there are many
-methods of hclust, so the next step after some more experimentation is
-to try that.
-
-We also want to see what creates the tightest clusters. We have a few
-parameters we can change:
-
-1.  The number of variables under consideration, like above
-
-2.  The function (hclust, agnes, or diana)
-
-3.  The agglomeration method (ward.D2 is oft-recommended, but it's worth
-    seeing what works best)
-
-4.  The metric (I've only seen Euclidean and Manhattan mentioned, I
-    don't know which is best)
-
-**Note:** AGNES apparently comes with a value telling us how tight the
-clusters are, according to [this
-article](https://uc-r.github.io/hc_clustering).
-
-```{r Hierarchical clustering}
-# df_clust2 <- df_clust[sample(nrow(df_clust), 80),]
-df_clust2 <- df_clust # I've commented out the one above because sometimes I want a sample
-
-hcut_results <- hcut(df_clust2, k = k, hc_func = hc_func, hc_method = hc_method) # k is defined in the first section in Analysis
-```
-
-Let's compare different results visually.
-
-```{r}
-hcut_res2 <- hcut(df_clust2, k = k, hc_func = "hclust", hc_method = hc_method)
-
-dend1 <- as.dendrogram(hcut_results)
-dend2 <- as.dendrogram(hcut_res2)
-
-dendlist <- dendlist(dend1, dend2)
-
-# Align and plot two dendrograms side by side
-dendlist(dend1, dend2) %>%
-  untangle(method = "step1side") %>% # Find the best alignment layout
-  tanglegram(lab.cex = 0.2) %>%
-  entanglement() # Draw the two dendrograms
-
-dev.copy(png, "tanglegram.png")
-dev.off()
-```
-
-```{r}
-fviz_nbclust(df_clust2, hcut, method = "wss")
-fviz_nbclust(df_clust2, hcut, method = "silhouette")
-fviz_nbclust(df_clust2, hcut, method = "gap_stat")
-
-agnes_results <- hcut(df_scaled[, colnames(df_scaled) %in% c("ADP", "2", "Pres", "Fin", "Pass", "Gen")], stand = FALSE, k = 5, hc_func = hc_func, hc_method = hc_method, hc_metric = hc_metric)
-
-rownames(df_scaled) <- rownames(final.frame)
-agnes_results <- hcut(df_scaled, stand = FALSE, k = 4, hc_func = hc_func, hc_method = hc_method, hc_metric = hc_metric)
-
-fviz_dend(agnes_results,
-  palette = palette,
-  geom = geom,
-  ellipse.type = ellipse.type,
-  type = "rectangle",
-  rect = TRUE,
-  # horiz=TRUE,
-  ggtheme = theme_bw(),
-  cex = cex
-)
-
-
-ggsave(filename = "Images/dendrogram_10vars.png", dpi = "print")
-```
-
-***Not sure where the rest of this section got transposed from, but I'll
-need to fix this later:***
-
-Now, let's do tests to see what the best variables to study are. It
-seems that principal component analysis is the way to go for this.
-
-Here are some of the results of looking at PCA. It looks like Person,
-Pronouns, Adjectives, Prepositions, Particles, Personal Pronouns,
-Tenses, and AUX are very important. The Ablative too might be a good
-idea to include
-
--   Pass one: c("1", "2", "AUX", "Pres", "Part", "Prs") = 0.88916
-
--   Pass two: c("1", "2", "PROPN", "Fut", "Fin", "Pass") = 0.87284
-
--   Pass three: c("1", "2", "3", "AUX", "Pres", "Abl") = 0.88998
-
--   Pass four: c("1", "ADJ", "SCONJ", "Pres", "Pass", "Prs") = 0.87152
-
--   Pass five: c("1", "ADP", "Fut", "Pres", "Part", "Pass") = 0.88226
-
--   
-
-    ```         
-    c("2", "PART", "Imp", "Pres", "Part", "Abl") = 0.90210
-    ```
-
-This last one has the best results, but what if I add a few more? It
-doesn't include Pass, Fut., first person, Prs. I'll try it out in the
-PCA testing section.
-
-c("2", "PART", "Imp", "Pres", "Part", "Abl", "Pass", "Fut", "1", "Prs")
-
-## Visualization and Significance Testing
-
-```{r}
-# Lets look at boxplots for each cluster:
-# Cluster 4 is Att
-
-kmeans_basic_df$Clusters <- as.factor(kmeans_basic_df$Clusters)
-
-ggplot(kmeans_basic_df, aes(Clusters, X2)) +
-  geom_boxplot()
-
-ggplot(kmeans_basic_df, aes(Clusters, Prs)) +
-  geom_boxplot()
-
-ggplot(kmeans_basic_df, aes(Clusters, Pres)) +
-  geom_boxplot()
-
-ggplot(kmeans_basic_df, aes(Clusters, Imp)) +
-  geom_boxplot()
-
-ggplot(kmeans_basic_df, aes(Clusters, Part)) +
-  geom_boxplot()
-
-ggplot(kmeans_basic_df, aes(Clusters, Abl)) +
-  geom_boxplot()
-
-ggplot(kmeans_basic_df, aes(Clusters, Pass)) +
-  geom_boxplot()
-```
-
-## Testing
-
-This section is for a variety of tests. I look at which parameters
-generate the tightest clusters in this first section, and then I select
-random variables and see which combinations give the highest Proportion
-of Variance in the first 2 principal components. I use this to try and
-identify the best subset of variables to look at. Then, I use PCA again,
-this time manually looking at the rotations and removing variables which
-have the lowest value. This method actually seems to have less success
-than my try-random-variables method, as the best PoV I could explain was
-in the 70s%, as opposed to the random selection was in the 80s% or even
-around 90%.
-
-```{r}
-### TESTING WITH AGNES############################
-# methods to assess
-m <- c("average", "single", "complete", "ward") # note that 'ward' = hclust's 'ward.D2
-names(m) <- m
-
-funcs <- c("agnes")
-names(funcs) <- funcs
-
-metrics <- c("euclidean", "manhattan", "maximum")
-names(metrics) <- metrics
-
-
-# function to compute coefficient
-ac_method <- function(metric, func) {
-  as.data.frame(map_df(m, ac_final, metric = metric, func = func))
-}
-
-ac_final <- function(method, metric, func) {
-  as.data.frame(hcut(df_clust2, hc_func = func, hc_method = method, hc_metric = metric)$ac)
-}
-
-past_vals <- function(func, metric, method) {
-  strings <- vector(mode = "character")
-  for (f in 1:length(func)) {
-    for (metr in 1:length(metric)) {
-      for (meth in 1:length(method)) {
-        strings <- append(strings, paste(func[f], metric[metr], method[meth]))
-      }
-    }
-  }
-  return(strings)
-}
-
-
-ac_metric <- function(func) {
-  as.data.frame(map_df(metrics, ac_method, func = func))
-}
-
-ac <- map_df(funcs, ac_metric)
-ac$names <- past_vals(funcs, metrics, m)
-View(ac)
-
-# This seems to show that Ward is always the best, no matter the distance measure. If we use agnes, that is.
-
-#   average    single  complete      ward  weighted
-# 0.7851783 0.7154408 0.8671490 0.9637023 0.8008371
-# As expected, ward got the best results
-
-
-#############################################
-# Test groups of two variables
-
-# Test groups of three variables
-
-# Test groups of four variables
-
-# Test groups of five variables
-
-# (We'll stop there, a permutation sampling 5 from 15 already has over 300,000 variations)
-
-# INDEX is a character vector including columns to select
-get_ac <- function(INDEX) {
-  agnes(df_scaled[, colnames(df_scaled) %in% INDEX], metric = "euclidean", stand = FALSE, method = "ward")$ac
-}
-
-# Start testing combinations.
-
-# This function accepts as a parameter the number of variables to sample from the total. It looks at every combination possible with that sample, and picks the top 25 which have the highest ac (see agnes.object in the help pages for more details). To summarize, ac = i - m(i), with i being an observation, and m(i) = d(C1) / d(Cn), with d(C1) being the dissimilarity with the first singleton cluster, and d(Cn) being the dissimilarity with the final, agglomerated cluster. The interpretation of ac is the higher the value, the better the model fit the data into clusters
-lowest_spread <- function(sample_var) {
-  combination <- combn(colnames(df_scaled), sample_var, simplify = FALSE)
-  combination <- sample(combination, 190)
-  ac_list <- lapply(X = combination, FUN = get_ac)
-  names(ac_list) <- combination
-  ac_vec <- unlist(ac_list)
-  sort(ac_vec, decreasing = TRUE)[1:25]
-}
-
-#### !NOTE that the following items will get slightly different results every time!###
-
-# Pick groups of 2 variables
-lowest_spread(2)
-
-# Pick groups of 3 variables
-three.sample <- lowest_spread(sample_var = 3)
-
-# Pick groups of 4 variables
-four.sample <- lowest_spread(4)
-
-# Pick groups of 5 variables
-five.sample <- lowest_spread(5)
-
-# Pick groups of 6 variables
-six.sample <- lowest_spread(6)
-
-#############################################
-
-# Now, let's check the pca and see whether we can get a higher value
-
-get_pca <- function(INDEX) {
-  pca.data <- prcomp(df_scaled[, colnames(df_scaled) %in% INDEX])
-  return(summary(pca.data)$importance[3, 2])
-}
-
-highest_pca <- function(sample_var) {
-  combination <- combn(colnames(df_scaled), sample_var, simplify = FALSE)
-  combination <- sample(combination, 300)
-  ac_list <- lapply(X = combination, FUN = get_pca)
-  names(ac_list) <- combination
-  ac_vec <- unlist(ac_list)
-  sort(ac_vec, decreasing = TRUE)[1:25]
-}
-
-six.sample <- highest_pca(6)
-six.sample
-
-seven.sample <- highest_pca(7)
-seven.sample
-```
-
-Now that I've read up a bit more in PCA in R, I know that I can actually
-see the strength of correlation for each individual variable
-
-```{r}
-#
-# pca <- prcomp(df_scaled) #NOTE: Should try making the rank. argument smaller, maybe 5?
-#
-# View(pca$rotation)
-#
-# pca <- df_scaled %>% select(-Rcp, -Tot, -Cmp, -Con, -Art, -Voc, -Prosp, -PROPN, -NUM) %>% prcomp
-# summary(pca)
-#
-# View(pca$rotation)
-#
-# pca <- df_scaled %>% select(-Rcp, -Tot, -Cmp, -Con, -Art, -Voc, -Prosp, -PROPN, -NUM, -Masc, -Fem, -Neut, -CCONJ) %>% prcomp
-# summary(pca)
-# View(pca$rotation)
-#
-# #Combine the correlation strength from the first two principal components, let's see if we can remove more
-# cor <- abs(as.data.frame(pca$rotation)$PC1) + abs(as.data.frame(pca$rotation)$PC2)
-# names(cor) <- rownames(as.data.frame(pca$rotation))
-# sort(cor)
-#
-# remove(cor)
-#
-# #Try with just the top 10 variables
-# pca <- df_scaled %>% select(NOUN, PRON, Rel, Sub, Dem, Past) %>% prcomp
-# summary(pca)
-# View(pca$rotation)
-#
-# pca <- df_scaled %>% select(-Rcp, -Tot, -Cmp, -Con, -Art, -Voc, -Prosp, -PROPN, -NUM, -Masc, -Fem, -Neut, -CCONJ, -ADV, -Acc, -Loc, -Dat, -Nom) %>% prcomp
-# summary(pca)
-# View(pca$rotation)
-#
-# pca <- df_scaled %>% select(c(`2`, "PART", "Imp", "Pres", "Part", "Abl", "Pass", "Fut", "1", "Prs")) %>% prcomp(rank. = 2)
-# summary(pca)
-# View(pca$rotation)
-#
-# #Try with the same variables as above
-# #df_test <- df_scaled %>% select(-Rcp, -Tot, -Cmp, -Con, -Art, -Voc, -Prosp, -PROPN, -NUM, -Masc, -Fem, -Neut, -CCONJ, -ADV, -Acc, -Loc, -Dat, -Nom)
-#
-# #Try this with a new subset of variables
-# df_test <- df_scaled %>% select(c(`2`, "PART", "Imp", "Pres", "Part", "Abl", "Pass", "Fut", "1", "Prs"))
-#
-# fviz_cluster(kmeans(df_test, centers = k, nstart = 50), data=df_test, stand = FALSE, palette = c("red", "green", "blue", "purple", "yellow", "magenta", "gray", "cyan"),
-#              geom = geom,
-#              ellipse.type = ellipse.type,
-#              ggtheme = ggtheme,
-#              ) + geom_text_repel(aes(label=rownames(df_clust)), vjust="inward", hjust="inward", max.overlaps = 12, size=2)
-#
-# km.test <- kmeans(df_test, centers = 8, nstart = 50)
-# df.test <- data.frame(clusters = km.test$cluster, df_test)
-# df.test$title <- final.frame$title
-#
-#
-# remove(km.test)
-# remove(df.test)
-#
-#
-# ggsave(filename = "Images/pca_test_cluster.png", dpi="print")
-```
-
-Given the previous section, let's only remove the following items:
-
--   VERB
-
--   CCONJ
-
--   X
-
--   NOUN
-
--   ADJ
-
--   Sing
-
--   Plur
-
--   Act
-
--   All cases but Abl
-
--   Degree
-
--   Neg
-
-```{r}
-fviz_nbclust(df_clust2, hcut, method = "wss")
-fviz_nbclust(df_clust2, hcut, method = "silhouette")
-fviz_nbclust(df_clust2, hcut, method = "gap_stat")
-
-agnes_results <- hcut(df_scaled[, colnames(df_scaled) %in% c("ADP", "2", "Pres", "Fin", "Pass", "Gen")], stand = FALSE, k = 5, hc_func = hc_func, hc_method = hc_method, hc_metric = hc_metric)
-
-rownames(df_scaled) <- rownames(final.frame)
-agnes_results <- hcut(df_scaled, stand = FALSE, k = 4, hc_func = hc_func, hc_method = hc_method, hc_metric = hc_metric)
-
-fviz_dend(agnes_results,
-  palette = palette,
-  geom = geom,
-  ellipse.type = ellipse.type,
-  type = "rectangle",
-  rect = TRUE,
-  # horiz=TRUE,
-  ggtheme = theme_bw(),
-  cex = cex
-)
-
-
-ggsave(filename = "Images/dendrogram_10vars.png", dpi = "print")
-```
-
-### Significance testing
-
-```{r}
-cluster.aov <- kmeans_basic_df
-
-# F-test
-f_tests <- cluster.aov |>
-  dplyr::select(-Clusters) |>
-  map_dfr(
-    \(x) var.test(
-      x = x[cluster.aov$Clusters == 1],
-      y = x[cluster.aov$Clusters == 4],
-      alternative = "two.sided"
-    ),
-    .id = TRUE
-  )
-# Only Participles, Passive verbs, and Future tense verbs are significantly different, with a lot more variance in participles in cluster 4
-
-
-# Did this without apply() for some reason, this looks at anovas
-# cluster.aov <- kmeans_basic_df[kmeans_basic_df$Clusters %in% c(2,4),] #only look at clusters 1 and 4
-# cluster.aov$Clusters <- as.character(cluster.aov$Clusters)
-#
-# aov.res <- aov(X2 ~ Clusters, data = cluster.aov)
-#
-# summary(aov.res)
-#
-#
-# aov.res <- aov(PART ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(Imp ~ Clusters, data = cluster.aov)
-# summary(aov.res)
-#
-# aov.res <- aov(Pres ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(Part ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(Abl ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(Pass ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(Fut ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(X1 ~ Clusters, data = cluster.aov)
-#
-# aov.res <- aov(Prs ~ Clusters, data = cluster.aov)
-
-# T-test
-# Use map, because I was an idiot not to do that up above
-t_tests <- cluster.aov |>
-  dplyr::select(-Clusters) |>
-  map_dfr(
-    \(x) t.test(
-      x = x[cluster.aov$Clusters == 1],
-      y = x[cluster.aov$Clusters == 4],
-      alternative = "two.sided"
-    ),
-    .id = TRUE
-  )
-
-# Means are significantly different in all cases except in Determiners, Accusative nouns, and Nominative nouns. What about effect size? Can't do that with differently sized samples.
-```
-
-### Better variable selection
-
-At the beginning of this section, I used PCA to get my best guess at a
-selection of variables. However, I want a better method, and I've been
-reading Moisl 2015 in order to get a better method. On p. 69, he says
-*frequency, variability* and *nonrandomness* are the best criteria for
-variables.
-
-First, lets look at frequency.
-
-```{r Frequency}
-final.frame |>
-  dplyr::select(-title) |>
-  map(sum) |>
-  unlist() |>
-  sort(decreasing = TRUE)
-
-#############
-# top 30
-# NOUN         Masc          Nom          Imp          Fin          Acc          Act          Fem            3
-# 4.435668e+05 4.147746e+05 3.100554e+05 2.736535e+05 2.730731e+05 2.730541e+05 2.627717e+05 2.541429e+05 2.259616e+05
-#         Neut          Abl         Pres         Perf          ADJ         PRON          DET         Pass         Part
-# 2.008808e+05 1.945355e+05 1.621975e+05 1.401730e+05 1.358719e+05 1.119248e+05 1.106535e+05 1.093912e+05 1.014122e+05
-#          ADP         Past          Gen          ADV          Prs        CCONJ          Rel        SCONJ            2
-# 9.528447e+04 9.236044e+04 9.118092e+04 8.923980e+04 8.155264e+04 7.987062e+04 7.248893e+04 7.220167e+04 6.811335e+04
-```
-
-Then the variance, since every variable is just measured by frequency,
-i.e. on the same scale:
-
-```{r}
-final.frame |>
-  dplyr::select(-title) |>
-  map(var) |>
-  unlist() |>
-  sort(decreasing = TRUE)
-
-########################
-# Top 30
-# Pres         NOUN         Masc          Imp            2          Act          Fin          Nom          Abl
-# 2.831353e+05 2.716960e+05 2.637017e+05 2.084504e+05 1.756891e+05 1.259599e+05 1.175200e+05 1.033145e+05 1.003215e+05
-#         Past          Fem         Perf            3         PRON         Neut          Prs          Acc            1
-# 9.743705e+04 9.480298e+04 9.071634e+04 8.927443e+04 6.354106e+04 5.912976e+04 5.849000e+04 5.831359e+04 5.334554e+04
-#          ADJ          Gen          ADP         Part         Pass        CCONJ          DET          Rel          Sub
-# 4.641446e+04 3.933973e+04 3.639815e+04 2.903627e+04 2.749880e+04 2.301436e+04 2.004029e+04 1.736851e+04 1.405187e+04
-```
-
-Now, for the non-randomness parameter:
-
-```{r}
-final.frame |>
-  dplyr::select(-title) |>
-  map(\(x) var(x) / mean(x)) |>
-  unlist() |>
-  sort(decreasing = TRUE)
-```
-
-## Notes on Specific Tags
-
-I want to see whether some of my observations from the thesis bear out.
-For example, what if we only look at participles? Here are the lowest 25
-texts by participle count:
-
-```{r}
-final.frame %>%
-  slice_min(Part, n = 25) %>%
-  tidytable::select(title) %>%
-  print(n = 25)
-```
-
-Notice how it's just comedy and the letters to Atticus!!!
-
-But what about other letters? Let's look at Pliny's letters
-
-```{r}
-final.frame %>%
-  slice_min(Part, n = 229) %>%
-  tidytable::select(title) %>%
-  print(n = 229)
-```
-
-## QA of Postags
-
-I took a selection of about 250 random words from the corpus. For each
-field, I put a '1' if the tag was correct for that word and a '0' if the
-tag was incorrect. If the TAG was incorrect, messing with the rest of
-the results, I put a 0 for the rest. This means the results will
-actually be harsher than they ought to be, as there will probably be
-more incorrect "NumType" arguments, for example, than there are even
-instances of the "NumType" field being used.
-
-Anecdotally, the biggest challenges were confusing dative and ablative
-(usually counting as ablative when it should be dative), or the
-algorithm struggled to get the correct lemma, often making one up when
-it did make a mistake. Usually, getting the wrong lemma didn't actually
-cause the parsing to be incorrect. It only did so when the algorithm
-thought a word was a part of speech that it simply wasn't, saying a noun
-was a verb for example. So, it might say "terra" is from some lemma
-"terrum", but it still says it's Nominative, Singular, feminine. Words
-with two forms were sometimes a problem; *cum* got mistagged once.
-*Modo* was mistagged as *modus* instead of the adverb.
-
-Another major challenge is the fact Stanza doesn't recognize enclitics
-like -que and -ve as the old CLTK did.
-
-Unfortunately, I had to do some reprocessing. Even though the index of
-the row in the original data is saved(in the data frame in the code
-snippet below, it is the \$index column), it might not correspond
-anymore. For many of them it still should, but possibly not all,
-especially in Livy.
-
-Note: If I were to do the QA again, I would make sure to better consider
-these situations:
-
--   Select even numbers of each part of speech (n / number of parts of
-    speech = sample to select from each)
-
--   Mark use of *sum* as AUX as correct. I've been saying it's
-    incorrect, based on the way LDT works, not UD
-
--   If the TAG is completely wrong, then there needs to be a third NA
-    option for the rest of the tags. The mistagging will invalidate
-    whether the other fields are useful.
-
-    -   What about circumstances like *liberi,* where it means
-        "children." It might get the lemma and the tag wrong, but I
-        still would consider it a success if it gets the result *masc.,
-        nom., plur.*
-
--   Tag for when a tag is correctly left off, like having an empty TENSE
-    tag on a noun
-
--   Save the value of the TAG. That way, I can see how many NOUNS had
-    correct number. Currently, looking at the correct tags for number
-    looks at nouns, verbs, adjectives, pronouns.
-
--   Make sure I'm consistent about tagging Tense correctly when it's
-    empty for infinitives. A present infinitive always gets Imperfective
-    aspect, and a perfect infinitive gets Perfective.
-
-    Another potential issue is where it tags correctly, but the
-    limitation is really in the tagging system itself. For example, *ius
-    iurandum* is really a single noun. To treat *iurandum* as an example
-    of a gerund really ignores the fact that the phrase works together.
-    However, it's not incorrect to tag it that way morphologically.
-
-```{r}
-setwd("~/GitHub/cltk-2025-atticus")
-qa <- read.csv("postag-tests.csv", header = TRUE)
-
-qa |>
-  dplyr::select(-path, -index, -context) |>
-  map(\(x) prop.table(table(x)) * 100)
-```
-
-# Misc Tests
-
-I want to understand K-means clustering better, so I'm gonna play around
-with it here
-
-```{r Kmeans tests}
-frame <- data.frame(a = rnorm(10, mean = 10), b = rnorm(10, mean = 20))
-
-scaled <- scale(frame)
-
-scaled
-
-km_result <- kmeans(scaled, centers = 2, nstart = 5)
-km_table <- data.frame(km_result$cluster, km_result$centers)
-
-fviz_cluster(km_result,
-  data = scaled, palette = c("gray", "red"),
-  geom = "point",
-  ellipse.type = "convex",
-  ggtheme = theme_bw(),
-)
-```
-
-And some ggplot2 experiments based on the book. Here's some of my
-playing around with ch. 8.
-
-```{r}
-df <- data.frame(x = 1, y = 3:1, family = c("sans", "serif", "mono"))
-
-df
-
-ggplot(df, aes(x, y)) +
-  geom_text(aes(label = family, family = family))
-
-fviz_cluster(kmeans_basic_cluster,
-  data = df_clust, palette = c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray"),
-  geom = "point",
-  ellipse.type = "convex",
-  ggtheme = theme_bw(),
-) + geom_text_repel(aes(label = rownames(df_clust)), vjust = "inward", hjust = "inward", check_overlap = TRUE, size = 3)
-
-fviz_dend(hcut_results,
-  palette = c("#2E9FDF", "#00AFBB", "#E7B800", "red"),
-  geom = "point",
-  ellipse.type = "convex",
-  type = "rectangle",
-  # type = "phylogenic",
-  # repel = TRUE,
-  rect = TRUE,
-  cex = 0.4,
-  ggtheme = theme_bw()
-)
-
-fviz_dend(hcut_results,
-  k = 4, palette = c("#2E9FDF", "#00AFBB", "#E7B800", "red"),
-  ellipse.type = "convex",
-  type = "phylogenic",
-  repel = TRUE,
-  cex = 0.7,
-  ggtheme = theme_bw()
-)
-```
-
-Some crucial notes on the previous section:
-
--   Adding the check_overlap argument to geom_text() in fviz_cluster()
-    is very useful. It removes overlapping labels, privileging those
-    that are higher in the data frame (meaning the letters to Atticus
-    are usually visible)
-
--   Reduce cex to 0.7 for readability
-
-## How K-Means Clustering Works
-
-K-Means clustering itself is relatively simple. The computer has a set
-of data, and it wants to determine which observations are closer to each
-other than another.
-
-Let's first imagine we're talking about actual distance
-
-| Point | X Coordinate | Y Coordinate |
-|-------|--------------|--------------|
-| A     | 1            | 0            |
-| B     | 2            | 0            |
-| C     | 1            | 10           |
-| D     | 2            | 10           |
-| E     | 3            | 10           |
-
-Let's graph these points:
-
-```{r}
-df <- data.frame(X.Coordinate = c(1, 2, 1, 2, 3), Y.Coordinate = c(0, 0, 10, 10, 10), row.names = LETTERS[1:5])
-
-ggplot(data = df, aes(x = X.Coordinate, y = Y.Coordinate)) +
-  geom_point()
-```
-
-Okay, so we want the computer to recognize that there are two groups of
-points close together, the ones at the top and the bottom.
-
-The K-means algorithm lets the computer recognize there are two
-clusters.
-
-```{r}
-km <- kmeans(df, centers = 2, nstart = 5)
-
-fviz_cluster(km, data = df)
-```
-
-But we're not looking at distances, we're looking at data. However, we
-can apply the same method to data that doesn't represent an actual
-distance.
-
-Let's say we have a bunch of students, and each take two classes. We
-want to sort the students into groups, but how do we do that when they
-have two grades in different classes? We could do it by eye, but what if
-they were taking 4 classes? 5 classes? How can we objectively sort them
-into groups?
-
-Starting with the simplest case, here are some grades:
-
-| Student | English | Math |
-|---------|---------|------|
-| Sally   | 95      | 89   |
-| Susan   | 96      | 72   |
-| Sam     | 55      | 78   |
-| Shelly  | 76      | 75   |
-| Stu     | 40      | 96   |
-
-We can plot these values in space, even though they are
-
-```{r}
-df <- data.frame(English = c(95, 96, 55, 76, 40), Math = c(89, 72, 78, 75, 96), row.names = c("Sally", "Susan", "Sam", "Shelly", "Stu"))
-
-ggplot(df, aes(x = English, y = Math)) +
-  geom_point() +
-  geom_text(aes(label = rownames(df)), nudge_y = -2)
-```
-
-Well, let's do the same clustering algorithm again.
-
-NOTE: I tried it again without scaling, the results are similar, but
-different. Now, Stu is matched up with Sam. (The eagle-eyed among you
-might notice there's an extra step in here. If you're curious, we needed
-to scale the values (subtract the mean and divide by the standard
-deviation) so that they're comparable with each other.)
-
-```{r}
-# scaled_df = scale(df)
-
-km <- kmeans(df, centers = 2, nstart = 2)
-
-fviz_cluster(km, data = df)
-```
-
-Notice how the other students are similar to each other because they're
-scores in their two classes are pretty close together. Stu, however, has
-one high and one low value (he really doesn't like English), so he's
-very different from the others.
-
-R is great because it also handles data with more than two dimensions.
-If each student had many classes (Math, English, History, Science,
-Music, Art), then we could use principal component analysis to plot
-differences between these datasets in 2D space. That way, K-means works
-even for large datasets.
-
-| Student | English | Math | History | Science |
-|---------|---------|------|---------|---------|
-| Sally   | 95      | 89   | ..      | ..      |
-| Susan   | 96      | 72   | ..      | ..      |
-| Sam     | 55      | 78   | ..      | ..      |
-| Shelly  | 76      | 75   | ..      | ..      |
-| Stu     | 40      | 96   | ..      | ..      |
