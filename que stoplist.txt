@@ -1,0 +1,15 @@
+atque
+undique
+uterque (all forms: utraque, utrumque, utriusque...)
+neque
+quicumque (all forms)
+namque
+#cumque is ambiguous
+itaque
+quinque
+quandocumque
+plerumque (all forms)
+utrimque
+denique
+quoque #This form is ambiguous, might leave this to manual review
+INCOMPLETE
