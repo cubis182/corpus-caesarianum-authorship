@@ -13,3 +13,4 @@ utrimque
 denique
 quoque #This form is ambiguous, might leave this to manual review
 INCOMPLETE
+aeque #All adverbs for words with a stem ending in -qu- that has an adverb form

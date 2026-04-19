@@ -75,18 +75,36 @@ data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, strin
 summary(data)
 ```
 
-One thing I want to note is that not every value is relevant. I'll do
-this further below and not here, but I want to go one at a time and see
-whether Degree [c("Abs", "Cmp")], Gender [c("Fem", "Masc", "Neut")], or
-Case (c("Nom", "Acc", "Abl", "Gen", "Dat", "Loc", "Voc", "Abs")) make
-any difference. Some potential issues are also that there are
-redundancies in the variables. If we want to do significance testing, we
-want to know each variable is independent. So, if we get rid of POS
-tags, we should still keep SCONJ, ADP, CCONJ,
+Add book numbers, if applicable. I add them to a separate column and the title; a bit unclean, but I'll have to fix it later.
 
 ```{r}
-# data <- data[rowSums(data == 'M. Tullius Cicero', na.rm = TRUE) == 0 | data$title %in% c("Letters to Atticus"),]
-data <- data[rowSums(data == "M. Tullius Cicero", na.rm = TRUE) == 0 | data$title %in% c("Letters to Atticus", "Epistulae ad Familiares", "Letters to and from Brutus", "Letters to and from Quintus"), ] # This version includes Cicero's other letters
+
+get_book <- function(title, cite1, cite2) {
+  if (title == "De bello Gallico") {
+    return(substr(x=cite2, start=1, stop=1))
+  }
+  else if (title == "De Bello Civili") {
+    return(cite1)
+  }
+  else {
+    return(0)
+  }
+}
+
+data <- data |>
+  rowwise() |>
+  mutate(book = get_book(title, cite1, cite2))
+
+data <- data |>
+  rowwise() |>
+  mutate(title = paste(title, "_", book))
+
+data <- tidytable::select(data, -book)
+```
+
+
+
+```{r}
 
 # Rename "Imp" to "Imperative" in mood category
 levels(data$Mood) <- c(levels(data$Mood), "Imperative")
@@ -102,6 +120,7 @@ num_words <- table(data$title)
 final.frame <- data.frame(title = titles)
 ```
 
+
 Now that we have the data, what we're *really* interested in is how many
 of each tag appears in each work (how many of each POS, how many perfect
 verbs, whatever). The point is, we're not interested in every individual
@@ -115,9 +134,9 @@ and every row is a unique work.
 ```{r Create final.frame}
 for (i in 1:length(titles)) {
   frame <- data[data$title == titles[i], ]
-  frame <- subset(frame, select = c(-form, -path, -NumType, -author, -lemma))
+  frame <- subset(frame, select = c(-form, -path, -NumType, -author, -lemma, -cite1, -cite2))
   for (n in 2:length(frame)) {
-    t <- table(frame[, n])
+    t <- table(frame[, ..n])
     # t <- prop.table(t)
     names <- names(t)
 
@@ -140,19 +159,6 @@ because that'll gum up the clustering. We'll replace any missing values
 with 0, because 0 occurrences of a variable is the only reason there
 would be NA values at this stage.
 
-I have a *hopefully* temporary measure where I replace row 46's title
-with Apocolocynthosis. The title is given as "Petronius. Seneca
-Apocolocynthosis" because it's based off a Loeb edition of that name.
-However, when I abbreviate the names at the end of this block, this
-makes it ambiguous with the other Perseus text which contains just
-Petronius, and **rownames()** doesn't allow duplicates.
-
-I also remove Cicero's works other than the Letters to Atticus. The
-reason is that the clustering algorithm greatly prefers to put works by
-the same author together. This is great, but we're not interested in the
-authorship of the Letters. We're interested in how similar it is to
-other texts of the same genre. So, Cicero has to go.
-
 The numbers aren't normalized according to the size of their respective
 works yet, so I've divided each number by the total number of words in
 the given work in the next chunk. I multiplied each by 100,000 too, just
@@ -164,77 +170,21 @@ shorten them to 12 characters max.
 
 ```{r Clean up final.frame}
 # Removed punctuation because PCA showed that it was an "important" variable
-final.frame <- subset(final.frame, select = c(-PUNCT, -X, -VERB, -Sing, -Plur))
+final.frame <- subset(final.frame, select = c(-PUNCT, -X))
 
-#Create function for moving a work to a specific spot
-move_row <- function(title, index) {
-  #The index is the row before which to move the work
-  ## @param title: a string with the title of the work. Can be a partial match for the beginning of the string if it isn't ambiguous
-  ## @param index: an integer with the index just after the final destination for the work, i.e. 1 places it in first place just before the previous first work, and, if the data frame is 55 rows long, 56 puts it in last place (NEEDS DEBUGGING FOR THAT CASE)
-  row.one <- final.frame[final.frame$title %in% c(title), ]
-  other.rows <- final.frame[final.frame$title %in% c(title) == FALSE, ]
-  
-  if (index > 1) {
-    
-    if (index > length(other.rows[,1])) { #If the index is greater than the length of the data frame, just put the work at the end
-      return_value <- rbind(other.rows, row.one)
-    }
-    else {
-      #Get the first part from one through the index
-      pre_work_frame <- other.rows[1:index,]
-      
-      #Get the last part, from one after the index to the end
-      post_work_frame <- other.rows[(index + 1):length(other.rows[,1]),]
-      
-      return_value <- rbind(pre_work_frame, row.one, post_work_frame)
-    }
-  }
-  else {
-    return_value <- rbind(row.one, other.rows)
-  }
-  
-  rownames(return_value) <- 1:length(return_value$title)
-  
-  return(return_value)
-}
-
-
-# Move letters to Atticus to the top
-final.frame <- move_row(title = "Letters to Atticus", index = 0)
-
-# Move Pliny's letters close to the top
-final.frame <- move_row(title = "Letters", index = 1)
-
-final.frame <- move_row(title = "De bello Gallico", index = 2)
-final.frame <- move_row(title = "Bellum Hispaniense", index = 3)
-final.frame <- move_row(title = "Bellum Alexandrinum", index = 4)
-final.frame <- move_row(title = "Bellum Africum", index = 5)
-
-# Clean up NAs and filter out Cicero's works that are not the Letters to Atticus
+# Clean up NAs
 final.frame[is.na(final.frame)] <- 0
 
-# Add a number to make
-
-# CAN GET RID OF THIS LATER WHEN I FIX TITLES
-# final.frame$title[46] <- "Apocolocyntosis"
-# final.frame <- final.frame[grepl("Horace", final.frame$title) == FALSE,]
-
-# cicero_works_nonatt <- c("M. Tulli Ciceronis Orationes", "Librorum de Re Publica Sex", "M. Tulli Ciceronis\nscripta quae manserunt omnia,\nfasc. 43", "de Natura Deorum", "M. Tullii Ciceronis opera quae supersunt omnia", "Tusculanae Disputationes", "M. Tulli Ciceronis Rhetorica, Tomus II", "De Senectute De Amicitia De Divinatione, With An English Translation", "Epistulae ad Familiares", "Letters to and from Quintus")
-
-# #final.frame <- final.frame[(final.frame$title %in% cicero_works_nonatt) == FALSE,]
-#
-#
-# #These values give NA, cause issues
-# final.frame[c("Neg", "Rcp", "Art")] <- NULL
-
-for (i in 1:length(final.frame$title)) {
-  final.frame$title <- as.character(final.frame$title)
-  final.frame$title[i] <- paste(as.character(i), final.frame$title[i])
-}
-
-rownames(final.frame) <- final.frame$title
-final.frame$title <- lapply(X = final.frame$title, FUN = substr, start = 1, stop = 16)
-rownames(final.frame) <- lapply(X = rownames(final.frame), FUN = substr, start = 1, stop = 16)
+#Add rownames
+# 
+# for (i in 1:length(final.frame$title)) {
+#   final.frame$title <- as.character(final.frame$title)
+#   final.frame$title[i] <- paste(as.character(i), final.frame$title[i])
+# }
+# 
+# rownames(final.frame) <- final.frame$title
+# final.frame$title <- lapply(X = final.frame$title, FUN = substr, start = 1, stop = 16)
+# rownames(final.frame) <- lapply(X = rownames(final.frame), FUN = substr, start = 1, stop = 16)
 ```
 
 Now that we have a viable DF, let's cut it up a little bit. We don't
@@ -244,10 +194,9 @@ from every value and dividing it by the standard deviation to make the
 comparable). However, some do expect the data to be scaled, so lets
 create two variables. **df_clust** isn't scaled, and **df_scaled** is.
 
-This is also where I
-
 ```{r df_clust & df_scaled}
 df_clust <- final.frame[, 2:length(final.frame)]
+rownames(df_clust) <- final.frame$title
 # df_clust <- slice_sample(df_clust, n=45)
 
 df_scaled <- as.data.frame(scale(df_clust))
@@ -261,22 +210,23 @@ Another note is that here is where I remove the variables I'm not
 considering.
 
 ```{r}
-# 10 variables to use for analysis. This is based of the work done in the Testing section below
-# vars <- c("2", "PART", "Imp", "Pres", "Part", "Abl", "Pass", "Fut", "1", "Prs")
-
 # These vars I selected based on the Better variable selection heading down below.
 # These are the variables that belonged to the 30 with the highest frequency AND the highest variance
 # I also removed Act because it isn't independent from passive verbs, and I removed gender because there's no reason to believe it's related to register.
-vars <- c("Pres", "NOUN", "Imp", "2", "Past", "Perf", "3", "PRON", "Fin", "Nom", "Abl", "Prs", "Acc", "ADJ", "Gen", "ADP", "Part", "Pass", "DET", "Rel")
+# vars <- c("Pres", "NOUN", "Imp", "2", "Past", "Perf", "3", "PRON", "Fin", "Nom", "Abl", "Prs", "Acc", "ADJ", "Gen", "ADP", "Part", "Pass", "DET", "Rel")
+# 
+# df_clust <- df_clust %>% dplyr::select(all_of(vars))
+# rownames(df_clust) <- rownames(final.frame)
+# df_scaled <- df_scaled %>% dplyr::select(all_of(vars))
+# rownames(df_scaled) <- rownames(df_scaled)
+```
 
-df_clust <- df_clust %>% dplyr::select(all_of(vars))
-rownames(df_clust) <- rownames(final.frame)
-df_scaled <- df_scaled %>% dplyr::select(all_of(vars))
-rownames(df_scaled) <- rownames(df_scaled)
+
+```{r}
+
 
 # Add this with the + operator to fviz_cluster plots. @param data is the original dataset used for cluster analysis (df_clust in the first case)
 cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward", hjust = "inward", max.overlaps = 20, size = 3)
-
 # Args for fviz_clust
 palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray")
 geom <- "point"
@@ -284,7 +234,7 @@ ellipse.type <- "convex"
 ggtheme <- theme_bw()
 
 # K-means
-k <- 4
+k <- 3
 
 # Hcut
 hc_func <- "agnes"
@@ -331,8 +281,6 @@ amount, looking at the fviz_nbclust results with the wss method.
 
 # Principal component analysis
 
-setwd("~/GitHub/cltk-2025-atticus")
-
 pca <- prcomp(df_clust)
 
 summary(pca)
@@ -366,37 +314,12 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
     y = paste(strwrap(paste("Dim2", dim2, "(Up = more 3rd person and past tense verbs, Down = more nouns)"), 50), collapse = "\n"),
     title = "(1) K-means clustering applied to PHI Latin Texts, k=4"
   ) +
-  theme(axis.title = element_text(size = 12)) +
-  annotate("text", x = -7, y = -0.5, label = "Comedy", fontface = "bold") +
-  annotate("text", x = -2.5, y = 4, label = "Prose", fontface = "bold") +
-  annotate("text", x = -4, y = -5, label = "Poetry", fontface = "bold") +
-  annotate("text", x = 4, y = -4, label = "History", fontface = "bold")
+  theme(axis.title = element_text(size = 12))
 
 cluster_main
 
 
 ggsave(filename = "Images/cluster-diagram-kmeans.png", dpi = "print")
-
-cluster_main <- fviz_cluster(kmeans_basic_cluster,
-  data = df_clust,
-  palette = palette,
-  geom = geom,
-  ellipse.type = ellipse.type,
-  ggtheme = ggtheme
-) +
-  geom_text_repel(aes(label = rownames(df_clust)), vjust = "inward", hjust = "inward", max.overlaps = 12, size = 2, seed = 12927) +
-  labs(
-    x = paste(strwrap(paste("Dim1", dim1, "(Left = more 1st/2nd person, imperfective verbs, Right = more ablative nouns, perfective verbs, and nouns overall)"), 70), collapse = "\n"),
-    y = paste(strwrap(paste("Dim2", dim2, "(Up = more 3rd person and past tense verbs, Down = more nouns)"), 35), collapse = "\n"),
-    title = "(1) K-means clustering applied to PHI Latin Texts, k=4"
-  ) +
-  theme(axis.title = element_text(size = 15)) + annotate("text", x = -7, y = -0.5, label = "Comedy", fontface = "bold") +
-  annotate("text", x = -2.5, y = 4, label = "Prose", fontface = "bold") +
-  annotate("text", x = -4, y = -5, label = "Poetry", fontface = "bold") +
-  annotate("text", x = 4, y = -4, label = "History", fontface = "bold")
-cluster_main
-
-ggsave(filename = "Images/cluster-diagram-kmeans-LARGEPRINT.png", dpi = "print")
 
 str(kmeans_basic_cluster)
 
