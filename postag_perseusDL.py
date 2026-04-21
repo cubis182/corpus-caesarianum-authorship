@@ -713,103 +713,107 @@ def csv_postag(path: str | list = "", skip_finished=True) -> None:
 
                 string.append([",".join(divs.values()), get_text(element)])
 
-            # Run the Stanza process for each section.
-            for section in string:
-                raw = section[1]
-                s_final_body = re.sub("\t", "", raw)
+            string_process_export(authorString, custom_pipeline, p, string, titleString, writer)
 
-                s_final_body = remove_invalid_characters(s_final_body)
 
-                cite = section[0].split(",")
+def string_process_export(authorString: str, custom_pipeline: stanza.Pipeline, p: str, string: list[list[str]], titleString: str, writer: csv.writer):
+    # Run the Stanza process for each section.
+    for section in string:
+        raw = section[1]
+        s_final_body = re.sub("\t", "", raw)
 
-                # s_docs.append(s_final_body)
+        s_final_body = remove_invalid_characters(s_final_body)
 
-                # now that we have the TEI XML, let's parse the body text
-                # OLD CLTK: doc = process_text(s_final_body, nlp)
-                t1 = datetime.datetime.now()
-                # in_docs = [stanza.Document([], text=d) for d in s_docs] # Wrap each document with a stanza.Document object
-                out_docs = custom_pipeline(
-                    s_final_body
-                )  # Call the neural pipeline on this list of documents
-                print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
+        cite = section[0].split(",")
 
-                for s in out_docs.sentences:
-                    for word in s.words:
-                        print(f"Word Completion: {s.words.index(word)}/{len(s.words)}")
-                        # Skip most punctuation that doesn't break sentences
-                        if word.upos != "PUNCT" or word.text in [".", "!", "?"]:
-                            # Old CLTK version: s_form = word.string
-                            s_form = word.text
+        # s_docs.append(s_final_body)
 
-                            s_lemma = word.lemma
+        # now that we have the TEI XML, let's parse the body text
+        # OLD CLTK: doc = process_text(s_final_body, nlp)
+        t1 = datetime.datetime.now()
+        # in_docs = [stanza.Document([], text=d) for d in s_docs] # Wrap each document with a stanza.Document object
+        out_docs = custom_pipeline(
+            s_final_body
+        )  # Call the neural pipeline on this list of documents
+        print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
-                            # Get the tag
-                            # OLD CLTK: tag = word.upos.tag
-                            tag = word.upos
+        for s in out_docs.sentences:
+            for word in s.words:
+                print(f"Word Completion: {s.words.index(word)}/{len(s.words)}")
+                # Skip most punctuation that doesn't break sentences
+                if word.upos != "PUNCT" or word.text in [".", "!", "?"]:
+                    # Old CLTK version: s_form = word.string
+                    s_form = word.text
 
-                            deprel = word.deprel
+                    s_lemma = word.lemma
 
-                            # Only get the features we're interested in
-                            features = {}
-                            f_set = [
-                                "Aspect",
-                                "Mood",
-                                "Number",
-                                "Person",
-                                "Tense",
-                                "VerbForm",
-                                "Voice",
-                                "Case",
-                                "PronType",
-                                "Gender",
-                                "Polarity",
-                                "Degree",
-                                "NumType",
-                            ]
+                    # Get the tag
+                    # OLD CLTK: tag = word.upos.tag
+                    tag = word.upos
+
+                    deprel = word.deprel
+
+                    # Only get the features we're interested in
+                    features = {}
+                    f_set = [
+                        "Aspect",
+                        "Mood",
+                        "Number",
+                        "Person",
+                        "Tense",
+                        "VerbForm",
+                        "Voice",
+                        "Case",
+                        "PronType",
+                        "Gender",
+                        "Polarity",
+                        "Degree",
+                        "NumType",
+                    ]
+                    try:
+                        # OLD CLTK: w_features = word.features.features
+                        w_features = feats(
+                            word.feats
+                        )  # added for new stanza backend
+                        for key in f_set:
                             try:
-                                # OLD CLTK: w_features = word.features.features
-                                w_features = feats(
-                                    word.feats
-                                )  # added for new stanza backend
-                                for key in f_set:
-                                    try:
-                                        # OLD CLTK: features[key] = __proc_feature(
-                                        #    [val.value for val in w_features if val.key == key]
-                                        # )
-                                        if w_features[key]:
-                                            features[key] = w_features[key]
-                                        else:
-                                            features[key] = ""
-                                    # The next two lines are superfluous, it seems, as we never get a KeyError, but I'll leave them for now
-                                    except KeyError:
-                                        features[key] = ""
-                            # Some words don't have features, so Python will throw an Attribute Error.
-                            except AttributeError:
-                                for key in f_set:
+                                # OLD CLTK: features[key] = __proc_feature(
+                                #    [val.value for val in w_features if val.key == key]
+                                # )
+                                if w_features[key]:
+                                    features[key] = w_features[key]
+                                else:
                                     features[key] = ""
+                            # The next two lines are superfluous, it seems, as we never get a KeyError, but I'll leave them for now
+                            except KeyError:
+                                features[key] = ""
+                    # Some words don't have features, so Python will throw an Attribute Error.
+                    except AttributeError:
+                        for key in f_set:
+                            features[key] = ""
 
-                            # Start putting together the line to write
-                            metadata = [
-                                titleString,
-                                authorString,
-                                cite[
-                                    0
-                                ],  # The outermost citation number (books, or sections for Hisp.)
-                                ".".join(cite[1:]),  # The rest of the citation number
-                                p,
-                                s_form,
-                                s_lemma,
-                                tag,
-                            ]  # NOTE: Not only metadata, but also includes the word and the tag
-                            to_write = metadata + [
-                                features[x] for x in f_set
-                            ]  # This didn't need to be a dictionary, but it helps to know that I will always do this in the same order
+                    # Start putting together the line to write
+                    metadata = [
+                        titleString,
+                        authorString,
+                        cite[
+                            0
+                        ],  # The outermost citation number (books, or sections for Hisp.)
+                        ".".join(cite[1:]),  # The rest of the citation number
+                        p,
+                        s_form,
+                        s_lemma,
+                        tag,
+                    ]  # NOTE: Not only metadata, but also includes the word and the tag
+                    to_write = metadata + [
+                        features[x] for x in f_set
+                    ]  # This didn't need to be a dictionary, but it helps to know that I will always do this in the same order
 
-                            to_write.append(
-                                deprel
-                            )  # Add the dependency relation to the end
+                    to_write.append(
+                        deprel
+                    )  # Add the dependency relation to the end
 
-                            writer.writerow(to_write)
+                    writer.writerow(to_write)
 
 
 def __proc_feature(feature):

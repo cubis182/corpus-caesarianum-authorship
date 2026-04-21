@@ -75,7 +75,8 @@ data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, strin
 summary(data)
 ```
 
-Add book numbers, if applicable. I add them to a separate column and the title; a bit unclean, but I'll have to fix it later.
+Add book numbers, if applicable. I add them to a separate column and the
+title; a bit unclean, but I'll have to fix it later.
 
 ```{r}
 
@@ -102,8 +103,6 @@ data <- data |>
 data <- tidytable::select(data, -book)
 ```
 
-
-
 ```{r}
 
 # Rename "Imp" to "Imperative" in mood category
@@ -119,7 +118,6 @@ titles <- unique(data$title)
 num_words <- table(data$title)
 final.frame <- data.frame(title = titles)
 ```
-
 
 Now that we have the data, what we're *really* interested in is how many
 of each tag appears in each work (how many of each POS, how many perfect
@@ -220,7 +218,6 @@ considering.
 # df_scaled <- df_scaled %>% dplyr::select(all_of(vars))
 # rownames(df_scaled) <- rownames(df_scaled)
 ```
-
 
 ```{r}
 
@@ -472,4 +469,16 @@ ggplot(dist_df, aes(var, distance)) +
   )
 
 ggsave(filename = "Images/atticus-vs-comedy-means.png", dpi = "print")
+```
+
+## Exploratory Visualization
+
+We need to understand the variables before we go into much more detail.
+Which ones are the most frequent? Which ones vary the most? Do we have a
+lot of covariates? I'll establish a list of procedures in more detail
+later, but, for now, just seeing the frequency of each variable by text
+would be desirable
+
+```{r}
+
 ```
