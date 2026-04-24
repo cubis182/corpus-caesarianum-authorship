@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$USER_HOME$/PyCharmMiscProject/.idea/PyCharmMiscProject.iml" filepath="$USER_HOME$/PyCharmMiscProject/.idea/PyCharmMiscProject.iml" />
+      <module fileurl="file://$USER_HOME$/Vocab-Study/.idea/Vocab-Study.iml" filepath="$USER_HOME$/Vocab-Study/.idea/Vocab-Study.iml" />
       <module fileurl="file://$PROJECT_DIR$/../canonical-latinLit/.idea/canonical-latinLit.iml" filepath="$PROJECT_DIR$/../canonical-latinLit/.idea/canonical-latinLit.iml" />
       <module fileurl="file://$PROJECT_DIR$/../cltk-2025-atticus/.idea/cltk-2025-atticus.iml" filepath="$PROJECT_DIR$/../cltk-2025-atticus/.idea/cltk-2025-atticus.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/corpus-caesarianum-authorship.iml" filepath="$PROJECT_DIR$/.idea/corpus-caesarianum-authorship.iml" />

@@ -18,7 +18,10 @@ License: MIT License
 Contact: matthew_dehass@yahoo.com
 
 """
+from _csv import Writer
+from stanza.models.common.doc import Word
 
+from typing import Any
 
 import os
 from copy import deepcopy
@@ -31,7 +34,6 @@ from lxml import etree  # type: ignore
 from lxml.builder import E
 from pathlib import Path
 from random import choice
-import io
 import random
 import sys
 
@@ -112,7 +114,7 @@ def remove_invalid_characters(text: str) -> str:
     # NOTE need to use the regex module instead of re (installed by -m pip install regex).
     # NOTE    The reason for using regex is because the lookbehind assertion is not a fixed width
     split = regex.split(
-        "(?<!Prid|prid|Kal|kal|Non|Id|a|d|Ian|Febr|Mart|Apr|Mai|Iun|Quint|Sext|Sept|Oct|Nov|Dec|Nrib|Luc|Agr|Ap|A|K|D|F|C|Cn|L|Mam|M'|M|N|Oct|Opet|Post|Pro|P|Q|Sert|Ser|Sex|S|St|Ti|T|Vol|Vop)\\.",
+        "(?<!Prid|prid|Kal|kal|Non|Id|a|d|Ian|Febr|Mart|Apr|Mai|Iun|Quint|Sext|Sept|Oct|Nov|Dec|Nrib|Luc|Agr|Ap|A|K|D|F|C|Cn|L|Mam|M'|M|N|Opet|Post|Pro|P|Q|Sert|Ser|Sex|S|St|Ti|T|Vol|Vop)\\.",
         text,
     )
     text = ".\n".join(split)
@@ -238,7 +240,7 @@ def get_text(element) -> str:
     sTail: str = element.tail
     sText: str = element.text
     parent: etree._Element = element.getparent()
-    pText: str = parent.text
+    #pText: str = parent.text
     pTail: str = parent.tail
 
     if pTail:
@@ -337,7 +339,7 @@ def get_title_auth_body(tree: etree._ElementTree | etree._Element) -> dict:
     return {"body": body, "title": titleString, "author": authorString}
 
 
-def __run_xpath(expr: str, is_tei: bool, tree: etree._Element, tei: dict):
+def __run_xpath(expr: str, is_tei: bool, tree, tei: dict):
     """
     NEEDSDOC"""
 
@@ -435,6 +437,8 @@ def __get_paths(path):  # -> list[str]:
         return paths
     elif isinstance(path, list):
         return path
+    else:
+        raise TypeError
 
 
 import csv
@@ -516,7 +520,7 @@ def select_random(tries=1) -> str:
     Selects a random line from the results_file. This is for the purpose of QA
     Asks the user to QA it.
 
-    :param tried: Description NEEDSDOC
+    :param tries: Description NEEDSDOC
     :return: Description NEEDSDOC
     :rtype: str
     """
@@ -543,6 +547,23 @@ def select_random(tries=1) -> str:
         "Degree",
         "NumType",
         "Deprel",
+        "parent_form",
+        "parent_lemma",
+        "parent_tag",
+        "parent_Aspect",
+        "parent_Mood",
+        "parent_Number",
+        "parent_Person",
+        "parent_Tense",
+        "parent_VerbForm",
+        "parent_Voice",
+        "parent_Case",
+        "parent_PronType",
+        "parent_Gender",
+        "parent_Polarity",
+        "parent_Degree",
+        "parent_NumType",
+        "parent_Deprel",
     ]
     with open(results_file, "r", encoding="utf-8", errors="ignore") as f:
         reader = csv.reader(f)
@@ -648,11 +669,12 @@ def csv_postag(path: str | list = "", skip_finished=True) -> None:
 
     # Get the csv.writer
     with open(results_file, "a", encoding="utf-8", errors="replace", newline="") as f:
-        writer = csv.writer(f, escapechar="#")
+        writer: Writer = csv.writer(f, escapechar="#")
 
         l_paths = len(paths)
 
-        s_docs = []
+        #s_docs = []
+
         for p in paths:
             i_paths = paths.index(p)
 
@@ -713,12 +735,19 @@ def csv_postag(path: str | list = "", skip_finished=True) -> None:
 
                 string.append([",".join(divs.values()), get_text(element)])
 
-            string_process_export(authorString, custom_pipeline, p, string, titleString, writer)
+            string_process_export(body_text=string, author=authorString, title=titleString, custom_pipeline=custom_pipeline, path=p, writer=writer)
 
 
-def string_process_export(authorString: str, custom_pipeline: stanza.Pipeline, p: str, string: list[list[str]], titleString: str, writer: csv.writer):
+def string_process_export(body_text: list[list[str]], author: str, title: str, custom_pipeline: stanza.Pipeline, path: str, writer: Writer):
+    """
+    This function takes a section from the Corpus Caesarianum and parses it using stanza, writing the results to postagged-texts.csv
+
+    :
+
+    """
+
     # Run the Stanza process for each section.
-    for section in string:
+    for section in body_text:
         raw = section[1]
         s_final_body = re.sub("\t", "", raw)
 
@@ -751,10 +780,32 @@ def string_process_export(authorString: str, custom_pipeline: stanza.Pipeline, p
                     # OLD CLTK: tag = word.upos.tag
                     tag = word.upos
 
+                    #dependency relation
                     deprel = word.deprel
 
+                    #parent word
+                    parent = get_parent(word)
+
+
+                    try:
+                        s_parent_form = parent.text
+
+                        s_parent_lemma = parent.lemma
+
+                        s_parent_tag = parent.upos
+
+                        parent_deprel = parent.deprel
+                    except AttributeError:
+                        s_parent_form = ""
+
+                        s_parent_lemma =""
+
+                        s_parent_tag = ""
+
+                        parent_deprel = ""
+
                     # Only get the features we're interested in
-                    features = {}
+
                     f_set = [
                         "Aspect",
                         "Mood",
@@ -770,41 +821,23 @@ def string_process_export(authorString: str, custom_pipeline: stanza.Pipeline, p
                         "Degree",
                         "NumType",
                     ]
-                    try:
-                        # OLD CLTK: w_features = word.features.features
-                        w_features = feats(
-                            word.feats
-                        )  # added for new stanza backend
-                        for key in f_set:
-                            try:
-                                # OLD CLTK: features[key] = __proc_feature(
-                                #    [val.value for val in w_features if val.key == key]
-                                # )
-                                if w_features[key]:
-                                    features[key] = w_features[key]
-                                else:
-                                    features[key] = ""
-                            # The next two lines are superfluous, it seems, as we never get a KeyError, but I'll leave them for now
-                            except KeyError:
-                                features[key] = ""
-                    # Some words don't have features, so Python will throw an Attribute Error.
-                    except AttributeError:
-                        for key in f_set:
-                            features[key] = ""
+
+                    features = extract_features(f_set, word)
+
+                    parent_features = extract_features(f_set, parent)
 
                     # Start putting together the line to write
                     metadata = [
-                        titleString,
-                        authorString,
-                        cite[
-                            0
-                        ],  # The outermost citation number (books, or sections for Hisp.)
+                        title,
+                        author,
+                        cite[0],  # The outermost citation number (books, or sections for Hisp.)
                         ".".join(cite[1:]),  # The rest of the citation number
-                        p,
+                        path,
                         s_form,
                         s_lemma,
                         tag,
                     ]  # NOTE: Not only metadata, but also includes the word and the tag
+
                     to_write = metadata + [
                         features[x] for x in f_set
                     ]  # This didn't need to be a dictionary, but it helps to know that I will always do this in the same order
@@ -813,7 +846,72 @@ def string_process_export(authorString: str, custom_pipeline: stanza.Pipeline, p
                         deprel
                     )  # Add the dependency relation to the end
 
+                    #Start adding the information from the parent word
+                    to_write.append([
+                        s_parent_form,
+                        s_parent_lemma,
+                        s_parent_tag
+                    ])
+
+                    to_write = to_write + [
+                        parent_features[x] for x in f_set
+                    ]
+
+                    to_write.append(
+                        parent_deprel
+                    )
+
                     writer.writerow(to_write)
+
+def get_parent(word: Word) -> Word | None:
+    """
+    Get the parent of a target word. Returns None if there is no root.
+    """
+    sent = word.sent
+
+    parent_id: int = word.head
+
+    #find word with the correct id
+    for w in sent.words:
+        if w.id == parent_id:
+            return w
+
+    return None
+
+
+
+def extract_features(word, f_set: list[Any]) -> dict[Any, Any]:
+    """
+    This function takes a Stanza word and a list of features and returns their values.
+
+    :param f_set: list of features
+    :param word: A Stanza word with Universal Dependencies features
+    """
+
+
+    features = {}
+    try:
+        # OLD CLTK: w_features = word.features.features
+        w_features = feats(
+            word.feats
+        )  # added for new stanza backend
+        for key in f_set:
+            try:
+                # OLD CLTK: features[key] = __proc_feature(
+                #    [val.value for val in w_features if val.key == key]
+                # )
+                if w_features[key]:
+                    features[key] = w_features[key]
+                else:
+                    features[key] = ""
+            # The next two lines are superfluous, it seems, as we never get a KeyError, but I'll leave them for now
+            except KeyError:
+                features[key] = ""
+    # Some words don't have features, so Python will throw an Attribute Error.
+    except AttributeError:
+        for key in f_set:
+            features[key] = ""
+    return features
 
 
 def __proc_feature(feature):
@@ -890,6 +988,7 @@ if __name__ == "__main__":
     ]
 
     csv_postag(
-        path=caesar[1:],
-        skip_finished=True,
+        path=caesar[0],
+        skip_finished=False,
     )
+
