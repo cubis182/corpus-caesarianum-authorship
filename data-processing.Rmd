@@ -67,7 +67,24 @@ dims <- c(
   "Polarity",
   "Degree",
   "NumType",
-  "Deprel"
+  "Deprel",
+  "parent_form",
+  "parent_lemma",
+  "parent_tag",
+  "parent_Aspect",
+  "parent_Mood",
+  "parent_Number",
+  "parent_Person",
+  "parent_Tense",
+  "parent_VerbForm",
+  "parent_Voice",
+  "parent_Case",
+  "parent_PronType",
+  "parent_Gender",
+  "parent_Polarity",
+  "parent_Degree",
+  "parent_NumType",
+  "parent_Deprel"
 )
 
 data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
