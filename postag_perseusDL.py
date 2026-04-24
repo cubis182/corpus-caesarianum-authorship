@@ -822,9 +822,9 @@ def string_process_export(body_text: list[list[str]], author: str, title: str, c
                         "NumType",
                     ]
 
-                    features = extract_features(f_set, word)
+                    features = extract_features(word, f_set)
 
-                    parent_features = extract_features(f_set, parent)
+                    parent_features = extract_features(parent, f_set)
 
                     # Start putting together the line to write
                     metadata = [
@@ -847,11 +847,11 @@ def string_process_export(body_text: list[list[str]], author: str, title: str, c
                     )  # Add the dependency relation to the end
 
                     #Start adding the information from the parent word
-                    to_write.append([
+                    to_write = to_write + [
                         s_parent_form,
                         s_parent_lemma,
                         s_parent_tag
-                    ])
+                    ]
 
                     to_write = to_write + [
                         parent_features[x] for x in f_set
@@ -988,7 +988,7 @@ if __name__ == "__main__":
     ]
 
     csv_postag(
-        path=caesar[0],
-        skip_finished=False,
+        path=caesar[1:],
+        skip_finished=True,
     )
 
