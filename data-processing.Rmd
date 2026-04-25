@@ -89,6 +89,10 @@ dims <- c(
 
 data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
 
+#This isn't a ratio or count variable
+data <- data |>
+  mutate(Person = as.factor(Person))
+
 summary(data)
 ```
 
@@ -111,13 +115,37 @@ get_book <- function(title, cite1, cite2) {
 
 data <- data |>
   rowwise() |>
-  mutate(book = get_book(title, cite1, cite2))
+  mutate(book = get_book(title, cite1, cite2)) |>
+  relocate(book, .before = form)
+
+# data <- data |>
+#   rowwise() |>
+#   mutate(title = paste(title, "_", book))
+# 
+# data <- tidytable::select(data, -book)
+```
+
+Now let's get the section number.
+
+```{r}
+get_sec <- function(title, cite1, cite2) {
+  if (title == "De bello Gallico") {
+    return(unlist(
+      strsplit(as.character(cite2), '[.]')
+    )[2])
+  }
+  else if (title == "De Bello Civili") {
+    return(cite2)
+  }
+  else {
+    return(cite1)
+  }
+}
 
 data <- data |>
   rowwise() |>
-  mutate(title = paste(title, "_", book))
-
-data <- tidytable::select(data, -book)
+  mutate(section = get_sec(title, cite1, cite2)) |>
+  relocate(section, .before = form)
 ```
 
 ```{r}
@@ -131,6 +159,9 @@ remove(sequence)
 data$Mood[data$Mood == "Imp"] <- "Imperative"
 data$Mood <- droplevels(data$Mood) # Remove the old "Imp
 
+data <- data |>
+  mutate(expanded_title = )
+
 titles <- unique(data$title)
 num_words <- table(data$title)
 final.frame <- data.frame(title = titles)
@@ -141,24 +172,30 @@ of each tag appears in each work (how many of each POS, how many perfect
 verbs, whatever). The point is, we're not interested in every individual
 word.
 
+NOTE: I've created a heading (currently empty) down below where we test
+formatting variables like Gorman 2016.
+
 This block of code will loop through and create a new data frame called
 ***final.frame*** (which is probably poorly named, but I'll fix it later
 or I won't). This data frame has a variable for the count of each tag,
 and every row is a unique work.
 
 ```{r Create final.frame}
-for (i in 1:length(titles)) {
-  frame <- data[data$title == titles[i], ]
-  frame <- subset(frame, select = c(-form, -path, -NumType, -author, -lemma, -cite1, -cite2))
-  for (n in 2:length(frame)) {
-    t <- table(frame[, ..n])
-    # t <- prop.table(t)
-    names <- names(t)
 
-    for (name_index in seq(1, length(names))) {
-      final.frame[i, names[name_index]] <- unname(t[names[name_index]])
+
+
+for (i in 1:length(titles)) {
+    frame <- data[data$title == titles[i], ]
+    frame <- subset(frame, select = c(-form, -path, -NumType, -author, -lemma, -cite1, -cite2))
+    for (n in 2:length(frame)) {
+      t <- table(frame[, ..n])
+      # t <- prop.table(t)
+      names <- names(t)
+  
+      for (name_index in seq(1, length(names))) {
+        final.frame[i, names[name_index]] <- unname(t[names[name_index]])
+      }
     }
-  }
 }
 
 # Normalize by number of words in each work
@@ -498,4 +535,10 @@ would be desirable
 
 ```{r}
 
+```
+
+## Gorman-Style Variables
+
+```{r}
+"pass"
 ```

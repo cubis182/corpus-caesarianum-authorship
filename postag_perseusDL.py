@@ -661,7 +661,7 @@ def csv_postag(path: str | list = "", skip_finished=True) -> None:
                 f_read.seek(0)  # just to be sure
                 read = csv.reader(f_read)
                 for l in read:
-                    if l[2] not in paths:
+                    if l[4] not in paths:
                         wr.writerow(l)
         if not skip_finished:
             shutil.copyfile("temp.csv", results_file)
@@ -846,20 +846,25 @@ def string_process_export(body_text: list[list[str]], author: str, title: str, c
                         deprel
                     )  # Add the dependency relation to the end
 
-                    #Start adding the information from the parent word
-                    to_write = to_write + [
+                    #put all the info about the parent word in a list
+                    parent_info: list[str] = [
                         s_parent_form,
                         s_parent_lemma,
                         s_parent_tag
-                    ]
-
-                    to_write = to_write + [
+                    ] + [
                         parent_features[x] for x in f_set
+                    ] + [
+                        parent_deprel
                     ]
 
-                    to_write.append(
-                        parent_deprel
-                    )
+                    #put the prefix "parent"
+                    for i, val in enumerate(parent_info):
+                        if val:
+                            parent_info[i] = "parent_" + val
+                        else:
+                            parent_info[i] = ""
+
+                    to_write = to_write + parent_info
 
                     writer.writerow(to_write)
 
@@ -989,6 +994,6 @@ if __name__ == "__main__":
 
     csv_postag(
         path=caesar[1:],
-        skip_finished=True,
+        skip_finished=False,
     )
 
