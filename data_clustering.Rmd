@@ -1,0 +1,354 @@
+---
+title: "data_clustering"
+output: html_document
+date: "2026-04-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
+```
+
+
+##Get the data
+
+```{r}
+final.frame <- read_csv("/feature_values.csv")
+```
+
+
+### Pre-visualization
+
+I want to do a little bit of previsualization first.
+
+Let's see what data type is in each column:
+
+```{r}
+as.data.frame(summary(final.frame))
+```
+
+Right, I forgot about the title column; let's find the mean of every
+column except the title column.
+
+```{r}
+means <- final.frame |>
+  tidytable::select(-title) |>
+  apply(MARGIN=2, FUN=mean)
+
+#get rid of scientific notation
+options(scipen=999)
+
+as.data.frame(sort(means))
+```
+
+Notice that a feature being common on a word isn't the same as it being
+common on a parent. Not every part of speech is equally likely to be a
+parent of another word. As a result, a parent being an auxiliary in a
+passive verb is very uncommon, for example, coming close to the top of
+the above list.
+
+### Resume Data Prep
+
+Now that we have a viable DF, let's cut it up a little bit. We don't
+want the first column, because that's all text. Not every clustering
+algorithm needs the DF to be pre-scaled (that is, subtracting the mean
+from every value and dividing it by the standard deviation to make the
+comparable). However, some do expect the data to be scaled, so lets
+create two variables. **df_clust** isn't scaled, and **df_scaled** is.
+
+```{r df_clust & df_scaled}
+df_clust <- final.frame[, 2:length(final.frame)]
+rownames(df_clust) <- final.frame$title
+# df_clust <- slice_sample(df_clust, n=45)
+
+df_scaled <- as.data.frame(scale(df_clust))
+```
+
+# Analysis
+
+First, to get some of the formatting predefined.
+
+Another note is that here is where I remove the variables I'm not
+considering.
+
+```{r}
+# These vars I selected based on the Better variable selection heading down below.
+# These are the variables that belonged to the 30 with the highest frequency AND the highest variance
+# I also removed Act because it isn't independent from passive verbs, and I removed gender because there's no reason to believe it's related to register.
+# vars <- c("Pres", "NOUN", "Imp", "2", "Past", "Perf", "3", "PRON", "Fin", "Nom", "Abl", "Prs", "Acc", "ADJ", "Gen", "ADP", "Part", "Pass", "DET", "Rel")
+# 
+# df_clust <- df_clust %>% dplyr::select(all_of(vars))
+# rownames(df_clust) <- rownames(final.frame)
+# df_scaled <- df_scaled %>% dplyr::select(all_of(vars))
+# rownames(df_scaled) <- rownames(df_scaled)
+```
+
+```{r}
+
+
+# Add this with the + operator to fviz_cluster plots. @param data is the original dataset used for cluster analysis (df_clust in the first case)
+cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward", hjust = "inward", max.overlaps = 20, size = 3)
+# Args for fviz_clust
+palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray")
+geom <- "point"
+ellipse.type <- "convex"
+ggtheme <- theme_bw()
+
+# K-means
+k <- 3
+
+# Hcut
+hc_func <- "agnes"
+hc_method <- "ward"
+hc_metric <- "euclidean"
+cex <- 0.2
+
+# Text labels for distance diagrams. @param label is usually the rownames of a data.frame
+margin_size <- 10
+distance_labels <- theme(axis.text = element_text(size = 5, vjust = 1), margins = margin(t = margin_size, r = margin_size, b = margin_size, l = margin_size))
+
+# Dendrogram theme
+dend_size <- 0.2
+dend_theme <- theme(axis.text = element_text(size = dend_size, vjust = 1), margins = margin(t = margin_size, r = margin_size, b = margin_size, l = margin_size))
+```
+
+## K-means clustering
+
+Time to cluster! K-means is a good starting point here. I'll check out
+CLARA as well. We'll need to evaluate what's best. Here's the
+modifications we can make:
+
+1.  Change which variables we account for.
+
+2.  Change the number of centers (between 3 and 5? But we already have a
+    way of visualizing that)
+
+3.  Change the measuring method (i.e. Euclidean
+
+4.  Change the algorithm
+
+```{r K-means clustering}
+set.seed(126126)
+kmeans_basic_cluster <- kmeans(df_clust, centers = k, nstart = 25)
+kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
+kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, df_clust)
+```
+
+Let's do our first visualization. Four clusters seems like a reasonable
+amount, looking at the fviz_nbclust results with the wss method.
+
+```{r}
+# TODO ADD SUMMARIES OF THE ABOVE DATA HERE
+
+# Principal component analysis
+
+pca <- prcomp(df_clust)
+
+summary(pca)
+
+# Visualizations
+
+fviz_nbclust(df_clust, kmeans, method = "wss", nstart = 50)
+
+dim1 <- as.character(summary(pca)$importance[2] * 100)
+dim2 <- as.character(summary(pca)$importance[5] * 100)
+
+cluster_main <- fviz_cluster(kmeans_basic_cluster,
+  data = df_clust,
+  palette = palette,
+  geom = geom,
+  ellipse.type = ellipse.type,
+  ggtheme = ggtheme
+) +
+  geom_text_repel(
+    aes(label = rownames(df_clust)),
+    vjust = "inward",
+    hjust = "inward",
+    max.overlaps = 14,
+    size = 2,
+    seed = 12927
+  ) +
+  labs(
+    x = paste(strwrap(paste("Dim1", dim1, "(Left = more 1st/2nd person, imperfective verbs, Right = more Ablative nouns, perfective verbs, and nouns overall)"), 70),
+      collapse = "\n"
+    ),
+    y = paste(strwrap(paste("Dim2", dim2, "(Up = more 3rd person and past tense verbs, Down = more nouns)"), 50), collapse = "\n"),
+    title = "(1) K-means clustering applied to PHI Latin Texts, k=4"
+  ) +
+  theme(axis.title = element_text(size = 12))
+
+cluster_main
+
+
+ggsave(filename = "Images/cluster-diagram-kmeans.png", dpi = "print")
+
+str(kmeans_basic_cluster)
+
+```
+
+```{r}
+
+
+distance <- get_dist(df_scaled)
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
+
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
+
+ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
+```
+
+The graph above should be the first visualization in the presentation.
+Next, we want to see what sets the Letters and other similar texts apart
+from the others.
+
+The following graph represents the loadings for the X axis of the
+cluster analysis above. The farther we go to one side, the more 1st/2nd
+person verbs, personal pronouns, present/future tense verbs, and
+imperfective aspect verbs there are. Let's talk about what that means.
+
+Person corresponds to a change in tenor accompanied by colloquial texts.
+Tenor, as a term, refers to the author and their relationship to their
+audience. Comedy, letters, and works of Seneca which come very close to
+that cluster have an intimate audience (in the case of Comedy and
+Seneca, this is an affectation. In such a close situation, the goal is
+to both get information from the addressee but also communicate
+information about themselves.
+
+This information about person is fairly obvious, but the situation with
+personal pronouns is less obvious. Latin has no need of personal
+pronouns; the grammars say they tend to be used for emphasis or
+...(*cite Allen & Greenough and Kühner / Stegmann*).
+
+The information about tense is also expected. Speakers in colloquial
+texts have a variety of purposes: asking and answering questions,
+demonstrating their current thoughts and feelings, making plans, and so
+on. These cover a broad range of statements, each of which requires a
+different type of verb (*examples here*).
+
+To sum up, texts on the left-hand side of the graph have a highly
+personal tenor with ....FILL IN HERE, RE-READ BIBER
+
+Texts on the the right-hand side of the cluster graph feature more
+ablative nouns, participles, and passive verbs.
+
+```{r}
+pca <- prcomp(df_clust)
+
+rotations.df <- as.data.frame(pca$rotation)
+
+rotations <- data.frame(var = rownames(rotations.df), rotations = rotations.df$PC1)
+
+rotation.two <- data.frame(var = rownames(rotations.df), rotations = rotations.df$PC2)
+
+ggplot(rotations, aes(var, rotations)) +
+  labs(x = "Variables", y = "Correlation Strength", title = "(2) Variation across X-axis in cluster diagram") +
+  geom_col() +
+  theme(
+    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
+    axis.title = element_text(size = 14),
+    title = element_text(size = 14)
+  )
+ggsave(filename = "Images/PC1_rotations.png", dpi = "print")
+
+ggplot(rotations, aes(var, rotations)) +
+  labs(x = "Variables", y = "Correlation Strength", title = "(2) Variation across X-axis in cluster diagram") +
+  geom_col() +
+  theme(
+    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
+    axis.title = element_text(size = 14),
+    title = element_text(size = 14)
+  )
+ggsave(filename = "Images/PC1_rotations.png", dpi = "print")
+
+ggplot(rotation.two, aes(var, rotations)) +
+  labs(x = "Variables", y = "Correlation Strength", title = "Correlation of Y-axis in cluster diagram with selected variables") +
+  geom_col() +
+  theme(
+    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1)
+  ) +
+  theme(
+    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1)
+  )
+ggsave(filename = "Images/PC2_rotations.png", dpi = "print")
+
+# NOTE: I should try this with Act as a variable too. Pass alone might be high because there are a lot of participles and ablative nouns.
+```
+
+How different are the values of Atticus compared to the means of its own
+cluster?
+
+```{r}
+# Lets get a vector of each of the Att values minus the mean of its cluster.
+
+cluster_four <- kmeans_basic_df |> filter(Clusters == 1)
+
+dist <- cluster_four |>
+  dplyr::select(-title) |>
+  map(
+    \(x) x[1] - mean(x[-1])
+  )
+
+dist_df <- data.frame(var = names(dist)[-1], distance = unlist(dist)[-1])
+
+ggplot(dist_df, aes(var, distance)) +
+  geom_col() +
+  scale_fill_continuous(breaks = c(0, 50, 100, 150, 200, 250)) +
+  labs(title = "(3) Difference Between Letters to Atticus and Its Cluster") +
+  xlab("Variable (X1 and X2 = 1st person and 2nd person)") +
+  ylab("Letters to Atticus minus cluster mean") +
+  theme(
+    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
+    axis.title = element_text(size = 14),
+    title = element_text(size = 14)
+  )
+
+ggsave(filename = "Images/att-vs-same-cluster-means.png", dpi = "print")
+```
+
+What about the differences between Comedy and the Letters to Atticus?
+
+```{r}
+kmeans_basic_df$title <- as.vector(final.frame$title)
+cluster_four <- kmeans_basic_df |>
+  filter(Clusters == 4 | title == "1 Letters to Att") |>
+  dplyr::select(-title)
+
+dist <- cluster_four |>
+  map(
+    \(x) x[1] - mean(x[-1])
+  )
+
+dist_df <- data.frame(var = names(dist)[-1], distance = unlist(dist)[-1])
+
+ggplot(dist_df, aes(var, distance)) +
+  geom_col() +
+  scale_fill_continuous(breaks = c(0, 50, 100, 150, 200, 250)) +
+  labs(title = "(4) Difference Between Letters to Atticus and Comedy") +
+  xlab("Variable (X1 and X2 = 1st person and 2nd person)") +
+  ylab("Letters to Atticus minus cluster mean") +
+  theme(
+    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
+    axis.title = element_text(size = 14),
+    title = element_text(size = 14)
+  )
+
+ggsave(filename = "Images/atticus-vs-comedy-means.png", dpi = "print")
+```
+
+## Exploratory Visualization
+
+We need to understand the variables before we go into much more detail.
+Which ones are the most frequent? Which ones vary the most? Do we have a
+lot of covariates? I'll establish a list of procedures in more detail
+later, but, for now, just seeing the frequency of each variable by text
+would be desirable
+
+```{r}
+
+```
+
+## Gorman-Style Variables
+
+```{r}
+"pass"
+```

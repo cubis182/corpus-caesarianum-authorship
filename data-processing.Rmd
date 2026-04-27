@@ -13,7 +13,7 @@ execute code within the notebook, the results appear beneath the code.
 
 ```{r include=TRUE}
 knitr::opts_chunk$set(results = "hold")
-knitr::opts_knit$set(root.dir = 'C:/Users/T470s/Documents/GitHub/corpus-caesarianum-authorship')
+knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
 ```
 
 # Data Preparation
@@ -26,19 +26,41 @@ knitr::opts_knit$set(root.dir = 'C:/Users/T470s/Documents/GitHub/corpus-caesaria
 # install.packages("dendextend")
 # install.packages("MASS")
 # install.packages("ggtext")
+#install.packages("printr")
 
 library(factoextra)
 library(dplyr)
 library(ggrepel)
 library(tidyverse)
-library(tidytable)
 library(cluster)
 library(combinat)
 library(dendextend)
 library(MASS)
 library(multcomp)
 library(ggtext)
+library(printr)
 ```
+
+Note that I was learning dplyr and tidyverse as I created this file, so
+there are some confusions I should clear up here.
+
+- tidyverse loads several other packages, including tibble
+
+- tidytable uses tidyverse syntax over data.table
+
+- dplyr is a syntax for working with data frames, including tibbles
+
+- The `%>%` pipe is not identical to the `|>` pipe.
+
+  - The former is from the magrittr package, the latter is native to R
+
+  - The former lets you change the position of the piped-in argument by
+    replacing an argument with a dot (.) R's `|>` allows this, but with
+    \_ as the placeholder and the argument must be named
+
+  - You can access members of a piped output with `%>%`, so
+    `data.frame %>% mean(.$column)` works with magrittr but not base R.
+    dplyr::pull() can do this with the base R pipe, though
 
 (For the above ggrepel library, see
 <https://github.com/slowkow/ggrepel>)
@@ -109,7 +131,7 @@ get_book <- function(title, cite1, cite2) {
     return(cite1)
   }
   else {
-    return(0)
+    return('0')
   }
 }
 
@@ -148,7 +170,28 @@ data <- data |>
   relocate(section, .before = form)
 ```
 
+The data needs to be split up by section first, then put back into
+books. The way I recommend doing this is appending both the book and
+section number to the title to get this result: "*title*\_*x_x(x)*".
+Then, we use the same code blocks below as in the Letters to Atticus,
+feeding this new title instead of the base one.
+
+Let's modify the titles first:
+
 ```{r}
+
+data <- data |>
+  rowwise() |>
+  mutate(title = paste(title, "_", book, "_", section))
+```
+
+The following two code blocks come from the [cltk-2025-atticus
+repository](https://github.com/cubis182/cltk-2025-atticus "GitHub Repo"),
+and they transpose the data so that each column is a feature value
+instead of a feature type and the values in the columns are the number
+of times each feature appears.
+
+```{r Atticus-processing-1}
 
 # Rename "Imp" to "Imperative" in mood category
 levels(data$Mood) <- c(levels(data$Mood), "Imperative")
@@ -159,13 +202,14 @@ remove(sequence)
 data$Mood[data$Mood == "Imp"] <- "Imperative"
 data$Mood <- droplevels(data$Mood) # Remove the old "Imp
 
-data <- data |>
-  mutate(expanded_title = )
+#Remove unneeded variables
+data <- data |> tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree)
 
-titles <- unique(data$title)
-num_words <- table(data$title)
-final.frame <- data.frame(title = titles)
+#An argument could be made for removing Polarity, but I'll wait to see how common it is and how much variance there is between the texts
+
 ```
+
+## Simple Variable Counts
 
 Now that we have the data, what we're *really* interested in is how many
 of each tag appears in each work (how many of each POS, how many perfect
@@ -180,13 +224,15 @@ This block of code will loop through and create a new data frame called
 or I won't). This data frame has a variable for the count of each tag,
 and every row is a unique work.
 
-```{r Create final.frame}
+```{r Atticus-processing-Create final.frame}
 
-
+titles <- unique(data$title)
+num_words <- table(data$title)
+final.frame <- data.frame(title = titles)
 
 for (i in 1:length(titles)) {
-    frame <- data[data$title == titles[i], ]
-    frame <- subset(frame, select = c(-form, -path, -NumType, -author, -lemma, -cite1, -cite2))
+    frame <- data[data$title == titles[i],]
+    frame <- tidytable::select(frame, title, tag:parent_Deprel & !parent_form & !parent_lemma) #Leave off everything unnecessary except for the title
     for (n in 2:length(frame)) {
       t <- table(frame[, ..n])
       # t <- prop.table(t)
@@ -239,306 +285,313 @@ final.frame[is.na(final.frame)] <- 0
 # rownames(final.frame) <- lapply(X = rownames(final.frame), FUN = substr, start = 1, stop = 16)
 ```
 
-Now that we have a viable DF, let's cut it up a little bit. We don't
-want the first column, because that's all text. Not every clustering
-algorithm needs the DF to be pre-scaled (that is, subtracting the mean
-from every value and dividing it by the standard deviation to make the
-comparable). However, some do expect the data to be scaled, so lets
-create two variables. **df_clust** isn't scaled, and **df_scaled** is.
-
-```{r df_clust & df_scaled}
-df_clust <- final.frame[, 2:length(final.frame)]
-rownames(df_clust) <- final.frame$title
-# df_clust <- slice_sample(df_clust, n=45)
-
-df_scaled <- as.data.frame(scale(df_clust))
-```
-
-# Analysis
-
-First, to get some of the formatting predefined.
-
-Another note is that here is where I remove the variables I'm not
-considering.
-
-```{r}
-# These vars I selected based on the Better variable selection heading down below.
-# These are the variables that belonged to the 30 with the highest frequency AND the highest variance
-# I also removed Act because it isn't independent from passive verbs, and I removed gender because there's no reason to believe it's related to register.
-# vars <- c("Pres", "NOUN", "Imp", "2", "Past", "Perf", "3", "PRON", "Fin", "Nom", "Abl", "Prs", "Acc", "ADJ", "Gen", "ADP", "Part", "Pass", "DET", "Rel")
-# 
-# df_clust <- df_clust %>% dplyr::select(all_of(vars))
-# rownames(df_clust) <- rownames(final.frame)
-# df_scaled <- df_scaled %>% dplyr::select(all_of(vars))
-# rownames(df_scaled) <- rownames(df_scaled)
-```
+Let's save this to a file so we can open it in another RMarkdown file.
 
 ```{r}
 
-
-# Add this with the + operator to fviz_cluster plots. @param data is the original dataset used for cluster analysis (df_clust in the first case)
-cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward", hjust = "inward", max.overlaps = 20, size = 3)
-# Args for fviz_clust
-palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray")
-geom <- "point"
-ellipse.type <- "convex"
-ggtheme <- theme_bw()
-
-# K-means
-k <- 3
-
-# Hcut
-hc_func <- "agnes"
-hc_method <- "ward"
-hc_metric <- "euclidean"
-cex <- 0.2
-
-# Text labels for distance diagrams. @param label is usually the rownames of a data.frame
-margin_size <- 10
-distance_labels <- theme(axis.text = element_text(size = 5, vjust = 1), margins = margin(t = margin_size, r = margin_size, b = margin_size, l = margin_size))
-
-# Dendrogram theme
-dend_size <- 0.2
-dend_theme <- theme(axis.text = element_text(size = dend_size, vjust = 1), margins = margin(t = margin_size, r = margin_size, b = margin_size, l = margin_size))
-```
-
-## K-means clustering
-
-Time to cluster! K-means is a good starting point here. I'll check out
-CLARA as well. We'll need to evaluate what's best. Here's the
-modifications we can make:
-
-1.  Change which variables we account for.
-
-2.  Change the number of centers (between 3 and 5? But we already have a
-    way of visualizing that)
-
-3.  Change the measuring method (i.e. Euclidean
-
-4.  Change the algorithm
-
-```{r K-means clustering}
-set.seed(126126)
-kmeans_basic_cluster <- kmeans(df_clust, centers = k, nstart = 25)
-kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
-kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, df_clust)
-```
-
-Let's do our first visualization. Four clusters seems like a reasonable
-amount, looking at the fviz_nbclust results with the wss method.
-
-```{r}
-# TODO ADD SUMMARIES OF THE ABOVE DATA HERE
-
-# Principal component analysis
-
-pca <- prcomp(df_clust)
-
-summary(pca)
-
-# Visualizations
-
-fviz_nbclust(df_clust, kmeans, method = "wss", nstart = 50)
-
-dim1 <- as.character(summary(pca)$importance[2] * 100)
-dim2 <- as.character(summary(pca)$importance[5] * 100)
-
-cluster_main <- fviz_cluster(kmeans_basic_cluster,
-  data = df_clust,
-  palette = palette,
-  geom = geom,
-  ellipse.type = ellipse.type,
-  ggtheme = ggtheme
-) +
-  geom_text_repel(
-    aes(label = rownames(df_clust)),
-    vjust = "inward",
-    hjust = "inward",
-    max.overlaps = 14,
-    size = 2,
-    seed = 12927
-  ) +
-  labs(
-    x = paste(strwrap(paste("Dim1", dim1, "(Left = more 1st/2nd person, imperfective verbs, Right = more Ablative nouns, perfective verbs, and nouns overall)"), 70),
-      collapse = "\n"
-    ),
-    y = paste(strwrap(paste("Dim2", dim2, "(Up = more 3rd person and past tense verbs, Down = more nouns)"), 50), collapse = "\n"),
-    title = "(1) K-means clustering applied to PHI Latin Texts, k=4"
-  ) +
-  theme(axis.title = element_text(size = 12))
-
-cluster_main
-
-
-ggsave(filename = "Images/cluster-diagram-kmeans.png", dpi = "print")
-
-str(kmeans_basic_cluster)
-
-```
-
-```{r}
-
-
-distance <- get_dist(df_scaled)
-fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
-
-fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
-
-ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
-```
-
-The graph above should be the first visualization in the presentation.
-Next, we want to see what sets the Letters and other similar texts apart
-from the others.
-
-The following graph represents the loadings for the X axis of the
-cluster analysis above. The farther we go to one side, the more 1st/2nd
-person verbs, personal pronouns, present/future tense verbs, and
-imperfective aspect verbs there are. Let's talk about what that means.
-
-Person corresponds to a change in tenor accompanied by colloquial texts.
-Tenor, as a term, refers to the author and their relationship to their
-audience. Comedy, letters, and works of Seneca which come very close to
-that cluster have an intimate audience (in the case of Comedy and
-Seneca, this is an affectation. In such a close situation, the goal is
-to both get information from the addressee but also communicate
-information about themselves.
-
-This information about person is fairly obvious, but the situation with
-personal pronouns is less obvious. Latin has no need of personal
-pronouns; the grammars say they tend to be used for emphasis or
-...(*cite Allen & Greenough and Kühner / Stegmann*).
-
-The information about tense is also expected. Speakers in colloquial
-texts have a variety of purposes: asking and answering questions,
-demonstrating their current thoughts and feelings, making plans, and so
-on. These cover a broad range of statements, each of which requires a
-different type of verb (*examples here*).
-
-To sum up, texts on the left-hand side of the graph have a highly
-personal tenor with ....FILL IN HERE, RE-READ BIBER
-
-Texts on the the right-hand side of the cluster graph feature more
-ablative nouns, participles, and passive verbs.
-
-```{r}
-pca <- prcomp(df_clust)
-
-rotations.df <- as.data.frame(pca$rotation)
-
-rotations <- data.frame(var = rownames(rotations.df), rotations = rotations.df$PC1)
-
-rotation.two <- data.frame(var = rownames(rotations.df), rotations = rotations.df$PC2)
-
-ggplot(rotations, aes(var, rotations)) +
-  labs(x = "Variables", y = "Correlation Strength", title = "(2) Variation across X-axis in cluster diagram") +
-  geom_col() +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
-    axis.title = element_text(size = 14),
-    title = element_text(size = 14)
-  )
-ggsave(filename = "Images/PC1_rotations.png", dpi = "print")
-
-ggplot(rotations, aes(var, rotations)) +
-  labs(x = "Variables", y = "Correlation Strength", title = "(2) Variation across X-axis in cluster diagram") +
-  geom_col() +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
-    axis.title = element_text(size = 14),
-    title = element_text(size = 14)
-  )
-ggsave(filename = "Images/PC1_rotations.png", dpi = "print")
-
-ggplot(rotation.two, aes(var, rotations)) +
-  labs(x = "Variables", y = "Correlation Strength", title = "Correlation of Y-axis in cluster diagram with selected variables") +
-  geom_col() +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1)
-  ) +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1)
-  )
-ggsave(filename = "Images/PC2_rotations.png", dpi = "print")
-
-# NOTE: I should try this with Act as a variable too. Pass alone might be high because there are a lot of participles and ablative nouns.
-```
-
-How different are the values of Atticus compared to the means of its own
-cluster?
-
-```{r}
-# Lets get a vector of each of the Att values minus the mean of its cluster.
-
-cluster_four <- kmeans_basic_df |> filter(Clusters == 1)
-
-dist <- cluster_four |>
-  dplyr::select(-title) |>
-  map(
-    \(x) x[1] - mean(x[-1])
-  )
-
-dist_df <- data.frame(var = names(dist)[-1], distance = unlist(dist)[-1])
-
-ggplot(dist_df, aes(var, distance)) +
-  geom_col() +
-  scale_fill_continuous(breaks = c(0, 50, 100, 150, 200, 250)) +
-  labs(title = "(3) Difference Between Letters to Atticus and Its Cluster") +
-  xlab("Variable (X1 and X2 = 1st person and 2nd person)") +
-  ylab("Letters to Atticus minus cluster mean") +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
-    axis.title = element_text(size = 14),
-    title = element_text(size = 14)
-  )
-
-ggsave(filename = "Images/att-vs-same-cluster-means.png", dpi = "print")
-```
-
-What about the differences between Comedy and the Letters to Atticus?
-
-```{r}
-kmeans_basic_df$title <- as.vector(final.frame$title)
-cluster_four <- kmeans_basic_df |>
-  filter(Clusters == 4 | title == "1 Letters to Att") |>
-  dplyr::select(-title)
-
-dist <- cluster_four |>
-  map(
-    \(x) x[1] - mean(x[-1])
-  )
-
-dist_df <- data.frame(var = names(dist)[-1], distance = unlist(dist)[-1])
-
-ggplot(dist_df, aes(var, distance)) +
-  geom_col() +
-  scale_fill_continuous(breaks = c(0, 50, 100, 150, 200, 250)) +
-  labs(title = "(4) Difference Between Letters to Atticus and Comedy") +
-  xlab("Variable (X1 and X2 = 1st person and 2nd person)") +
-  ylab("Letters to Atticus minus cluster mean") +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
-    axis.title = element_text(size = 14),
-    title = element_text(size = 14)
-  )
-
-ggsave(filename = "Images/atticus-vs-comedy-means.png", dpi = "print")
-```
-
-## Exploratory Visualization
-
-We need to understand the variables before we go into much more detail.
-Which ones are the most frequent? Which ones vary the most? Do we have a
-lot of covariates? I'll establish a list of procedures in more detail
-later, but, for now, just seeing the frequency of each variable by text
-would be desirable
-
-```{r}
-
+write_csv(final.frame, file = "./feature_values.csv")
 ```
 
 ## Gorman-Style Variables
 
+Step one of this process is to extract common feature pairs.
+
+The number of feature values is `length(final.frame[1,]`.
+
+That's a huge number, so let's start by working with the original data.
+
 ```{r}
-"pass"
+length(data[1,])
+```
+
+Gorman considered only number of base features, not number of parent
+features, in feature selection. So, he was considering 20 features,
+while I consider 40, with the number doubled. The frequency of a feature
+in a parent is not the same as frequency in the whole corpus, so, since
+the frequency of a parent feature can be a variable, it should be
+treated just like any other variable. What I should do is try it both
+ways, of course.
+
+First, let's winnow accounting only for the main tags.
+
+Let's get all combinations of two tags
+
+```{r eval=FALSE}
+library(combinat)
+
+two_select_combinations <- combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 2)
+
+length(two_select_combinations)
+```
+
+Okay, that's 992 different combinations. We need to:
+
+1.  Turn the pairwise_combination matrix into a tibble
+
+    ```         
+    two_select_combinations <- as_tibble(two_select_combinations)
+    ```
+
+2.  Apply the following to every combination in the list
+
+3.  Count the number of rows in the data frame that don't have **NA** in
+    either category
+
+    - Note that selecting those two rows is as easy as the following
+      line of code:
+
+      ```         
+      data |> tidytable::select(pairwise_combinations[,1])
+      ```
+
+    - Just plug in the column number and the output works in the select
+      function
+
+4.  In that column of the pairwise_combinations tibble, add a third
+    field with the count retrieved in the previous step.
+
+5.  Sort the tibble by the third field, cull out a percentage based on
+    Gorman 2016
+
+```{r eval=FALSE}
+
+
+
+
+#Return TRUE for every row in the tibble that has an NA either in column 1 or 2
+no_na <- function (tib) {
+  bool <- is.na(tib[,1]) | is.na(tib[,2]) 
+  
+  return(!bool)
+}
+
+variable_count <- function(matrix) {
+  
+  subset_of_data <- data |> 
+    tidytable::select(matrix)
+  
+  #example: tidytable::select(data, two_select_combinations[,1])
+  
+  #Get a logical vector of how many rows in the selected columns
+  #have no NAs
+  features_exist <- subset_of_data |>
+    dplyr::rowwise() |>
+    no_na()
+  
+  #TRUE is equal to 1 and FALSE to 0, so summing the vector
+  #will return the number of rows which have an NA in neither
+  #column
+  return(sum(features_exist)) 
+    
+}
+
+combination_freqs <- apply(X=two_select_combinations, MARGIN = 2, FUN=variable_count)
+
+tib_two_select_combinations <- as_tibble(two_select_combinations)
+
+tib_two_select_combinations[3,] <- as.list(as.character(combination_freqs))
+
+tib_two_select_combinations
+
+#Use apply and pass variable_count to an apply function over the columns of the matrix titled two_select_combinations
+```
+
+Let's try to transpose this tibble so we can actually make one column
+numeric:
+
+```{r eval=FALSE}
+tib_two_select_combinations <-
+  tib_two_select_combinations |> 
+  mutate(type = c('tag1', 'tag2', 'num')) |> 
+  #Note that the default names all start with V (V1, V2, V3...Vn)
+  pivot_longer(starts_with("V")) |> 
+  pivot_wider(names_from = type, values_from = value) |> 
+  select(!name) |>
+  mutate(across(num, as.integer))
+
+tib_two_select_combinations
+
+arrange(tib_two_select_combinations, num)
+
+```
+
+Now that we have a list of features, let's eliminate any combinations
+that occur zero times together
+
+```{r eval=FALSE}
+tib_two_select_combinations <- tib_two_select_combinations |> filter(num > 0) |> arrange(num) 
+
+tib_two_select_combinations
+```
+
+I'm interested in seeing whether there is any resemblance to normality;
+I would expect not, but I want to visualize the data.
+
+```{r eval=FALSE}
+
+ggplot(tib_two_select_combinations, aes(num)) + geom_histogram(binwidth=200)
+library(dgof)
+
+ks.test(jitter(tib_two_select_combinations$num, amount = 0.01), "pnorm")
+```
+
+The null hypothesis is that the distribution is the same as the normal
+distribution, so we can soundly reject that, not that it was in
+question.
+
+Okay, so, we've gotten data on all the combinations of two variables,
+but what about 3 to 5? Let's refactor the above code into a function we
+can re-use:
+
+```{r}
+
+library(combinat)
+
+#Return TRUE for every row in the tibble that has an NA either in column 1 or 2
+no_na <- function (tib) {
+  bool <- is.na(tib[,1]) | is.na(tib[,2]) 
+  
+  return(!bool)
+}
+
+variable_count <- function(matrix) {
+  
+  subset_of_data <- data |> 
+    tidytable::select(matrix)
+  
+  #example: tidytable::select(data, two_select_combinations[,1])
+  
+  #Get a logical vector of how many rows in the selected columns
+  #have no NAs
+  features_exist <- subset_of_data |>
+    dplyr::rowwise() |>
+    no_na()
+  
+  #TRUE is equal to 1 and FALSE to 0, so summing the vector
+  #will return the number of rows which have an NA in neither
+  #column
+  return(sum(features_exist)) 
+    
+}
+
+combinations_n <- 2
+
+#combn, data, tag, parent_Deprel, 
+variable_combinations <- function(combinations_n) {
+  select_combinations <- combn(colnames(data |> tidytable::select(tag:parent_Deprel)), combinations_n)
+  
+  length(select_combinations)
+  
+  combination_freqs <- apply(X=select_combinations, MARGIN = 2, FUN=variable_count)
+  
+  tib_select_combinations <- as_tibble(select_combinations)
+  
+  tib_select_combinations[3,] <- as.list(as.character(combination_freqs))
+  
+  #transpose
+  
+  browser()
+  tib_select_combinations <-
+    tib_select_combinations |> 
+    #The number of columns depends on the $ of combinations, hence the code in the following line
+    mutate(type = c(letters[1:combinations_n], 'num')) |> 
+    #Note that the default names all start with V (V1, V2, V3...Vn)
+    pivot_longer(starts_with("V")) |> 
+    pivot_wider(names_from = type, values_from = value) |> 
+    select(!name) |>
+    mutate(across(num, as.integer))
+  browser()
+  
+  arrange(tib_select_combinations, num)
+  
+  tib_select_combinations <- tib_select_combinations |> filter(num > 0) |> arrange(num) 
+  
+  return(tib_select_combinations)
+}
+
+#Let's test it
+
+two_combinations <- variable_combinations(2)
+
+```
+
+Another piece of information we're interested in is whether a variable
+occurs in multiple works. This situation is different from Gorman 2016,
+as he was working with a much larger corpus. We have only five works. I
+say we cull the lower quartile.
+
+```{r}
+
+cull_quartile <- function(combinations, quartile = "25%") {
+  filtered <- combinations |> filter(num > quantile(num)[['25%']])
+  return(filtered)
+}
+
+two_combinations <- two_combinations |> cull_quartile()
+```
+
+How expensive would it be to brute force it this way for every
+combination? What about three to five?
+
+```{r}
+combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 3) |> length()
+
+combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 4) |> length()
+
+combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 5) |> length()
+```
+
+Let's see how fast my computer deals with a combination of 5.
+
+```{r eval=FALSE}
+
+system.time({
+  five_combinations <- variable_combinations(5)
+})
+```
+
+Okay, that didn't even finish, what about 3:
+
+```{r}
+system.time({
+  five_combinations <- variable_combinations(3)
+})
+```
+
+We're talking in the lower millions. I could limit to 1,000 tokens like
+Gorman does, but we have more leeway. We could try to select 7,000,
+since we have one seventh the number of texts. That feels like an
+arbitrary number, but let's start there.
+
+The next challenge is that we have a list of all the feature types to
+look at, but now we need to cull to the most common feature-value pairs,
+including simplex, duplex, triplex, quadruplex, and quinqueplex
+variables.
+
+The step-by-step process should be:
+
+1.  Iterate row-by-row over the tibbles of variables
+2.  Select a subset of data using the row from the tibble
+3.  Iterate row-by-row over the subset and concatenate all the values in
+    the row to a string
+4.  Add the string to a vector where all the other strings will go
+5.  To get the counts, use table(). Cull out the least common ones
+
+We need to work our way backwards from these results. First, we create a
+data frame where each row is the string split version of each row in the
+vector created above, so that each row in the data frame is a different
+combination of features with no repeats.
+
+Now we iterate over all the sections of interest. Each section will be a
+row in the new data frame. For each row in the frame created in the
+previous paragraph, we count up how many times that combination of
+features occurs in the targeted section. We create a column with that
+variable name, add the count, and then do this for all variables. Repeat
+for each section.
+
+Pseudo-code version:
+
+```{data |>}
+  group_by()
+
 ```
