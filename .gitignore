@@ -13,3 +13,6 @@ canonical-latinLit/
 .ipynb_checkpoints/
 temp.csv
 temp.csv
+cltk_env/*
+.ipynb_checkpoints
+sig_temp_files
