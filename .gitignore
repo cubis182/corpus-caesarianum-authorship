@@ -1,0 +1,18 @@
+venv/*
+__pycache__/
+*.egg
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+excludes/*
+canonical-latinLit/
+.ipynb_checkpoints/
+temp.csv
+.idea/.csv-editor.xml.swp
+que stoplist.txt
+variable_counts_by_section.csv
+
