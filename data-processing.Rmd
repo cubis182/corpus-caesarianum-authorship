@@ -478,15 +478,23 @@ combinations_n <- 2
 
 #combn, data, tag, parent_Deprel, 
 variable_combinations <- function(combinations_n) {
+  ###DEBUG, PLEASE DELETE NEXT LINE
+  combinations_n <- 3
   select_combinations <- combn(colnames(data |> tidytable::select(tag:parent_Deprel)), combinations_n)
   
-  length(select_combinations)
+  #length(select_combinations)
   
   combination_freqs <- apply(X=select_combinations, MARGIN = 2, FUN=variable_count)
   
   tib_select_combinations <- as_tibble(select_combinations)
   
-  tib_select_combinations[3,] <- as.list(as.character(combination_freqs))
+  #Get the length of the column
+  col_len <- nrow(tib_select_combinations)
+    
+  tib_select_combinations[(col_len + 1),] <- as.list(as.character(combination_freqs))
+  
+  #Time to take out the trash!
+  remove(col_len)
   
   #transpose
   
@@ -498,7 +506,7 @@ variable_combinations <- function(combinations_n) {
     #Note that the default names all start with V (V1, V2, V3...Vn)
     pivot_longer(starts_with("V")) |> 
     pivot_wider(names_from = type, values_from = value) |> 
-    select(!name) |>
+    dplyr::select(!name) |>
     mutate(across(num, as.integer))
   browser()
   
