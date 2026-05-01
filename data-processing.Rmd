@@ -209,6 +209,24 @@ data <- data |> tidytable::select(-NumType, -parent_NumType, -Degree, -parent_De
 
 ```
 
+## Subsetting Book/Section Numbers
+
+I want a simple way to subset book as section numbers, with a function
+that combines only the desired pieces together. Book AND section isn't
+currently possible, just the following combinations:
+
+- Commentary
+
+- Book
+
+- Section
+
+- Commentary and book
+
+- Commentary, book, and section
+
+- Book and section
+
 ## Simple Variable Counts
 
 Now that we have the data, what we're *really* interested in is how many
@@ -498,7 +516,6 @@ variable_combinations <- function(combinations_n) {
   
   #transpose
   
-  browser()
   tib_select_combinations <-
     tib_select_combinations |> 
     #The number of columns depends on the $ of combinations, hence the code in the following line
@@ -508,7 +525,6 @@ variable_combinations <- function(combinations_n) {
     pivot_wider(names_from = type, values_from = value) |> 
     dplyr::select(!name) |>
     mutate(across(num, as.integer))
-  browser()
   
   arrange(tib_select_combinations, num)
   
@@ -562,14 +578,63 @@ Okay, that didn't even finish, what about 3:
 
 ```{r}
 system.time({
-  five_combinations <- variable_combinations(3)
+  three_combinations <- variable_combinations(3)
 })
+
+#    user  system elapsed 
+# 130.853   2.900 152.971 
+
+three_combinations <- three_combinations |> cull_quartile()
 ```
 
-We're talking in the lower millions. I could limit to 1,000 tokens like
-Gorman does, but we have more leeway. We could try to select 7,000,
-since we have one seventh the number of texts. That feels like an
-arbitrary number, but let's start there.
+It looks like three is doable, and four, if it's roughly 10 times
+larger, should take about 20 minutes. The only one that's really
+unreasonable is the combination of 5, so for that one we'll split it up.
+I could limit to 1,000 tokens like Gorman does, but we have more leeway.
+I'll give 1,000 tokens randomly selected from each book.
+
+```{r Extract-1000-tokens}
+
+#For each work, let's get 1,000 random tokens. Use dplyr::slice_sample
+
+data_sample <- data |>
+  rowwise() |>
+  #inelegant, but it works
+  mutate(commentary = paste(unlist(strsplit(title, "_"))[1], unlist(strsplit(title, "_"))[2])) |>
+  ungroup()
+
+unique(data_sample$commentary)
+
+data_sample <- data_sample |>
+  dplyr::slice_sample(n = 1000, by = commentary)
+```
+
+Let's get the samples of five from this one.
+
+```{r}
+
+data_backup <- data
+
+data <- data_sample
+
+five_combinations <- variable_combinations(5)
+
+five_combinations <- five_combinations |> cull_quartile()
+
+#Restore the full data
+data <- data_backup
+
+
+```
+
+Now, get the combinations of four variables:
+
+```{r}
+
+four_combinations <- variable_combinations(4)
+
+four_combinations <- four_combinations |> cull_quartile()
+```
 
 The next challenge is that we have a list of all the feature types to
 look at, but now we need to cull to the most common feature-value pairs,
@@ -599,7 +664,9 @@ for each section.
 
 Pseudo-code version:
 
-```{data |>}
-  group_by()
+```{r}
+data |>
+  group_by() |>
+  ungroup()
 
 ```
