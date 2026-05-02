@@ -332,6 +332,15 @@ ways, of course.
 
 First, let's winnow accounting only for the main tags.
 
+All the possible combinations of one tag is just the same as a list of
+the tags, so we'll save the column names to a variable:
+
+```{r}
+one_combinations <- data |>
+  dplyr::select(tag:parent_Deprel) |>
+  colnames()
+```
+
 Let's get all combinations of two tags
 
 ```{r eval=FALSE}
@@ -375,33 +384,37 @@ Okay, that's 992 different combinations. We need to:
 
 
 
+# 
+# #Return TRUE for every row in the tibble that has an NA either in column 1 or 2
+# no_na <- function (tib) {
+#   len <- length(tib)
+#   
+#   #Go through and get a vector of bools showing whether each item in the row is an NA
+#   bools <- unlist(lapply(tib, is.na))
+#   
+#   #If the sum of the vector of bools is 0, then none are NA
+#   return(sum(bools) == 0)
+# }
 
-#Return TRUE for every row in the tibble that has an NA either in column 1 or 2
-no_na <- function (tib) {
-  bool <- is.na(tib[,1]) | is.na(tib[,2]) 
-  
-  return(!bool)
-}
-
-variable_count <- function(matrix) {
-  
-  subset_of_data <- data |> 
-    tidytable::select(matrix)
-  
-  #example: tidytable::select(data, two_select_combinations[,1])
-  
-  #Get a logical vector of how many rows in the selected columns
-  #have no NAs
-  features_exist <- subset_of_data |>
-    dplyr::rowwise() |>
-    no_na()
-  
-  #TRUE is equal to 1 and FALSE to 0, so summing the vector
-  #will return the number of rows which have an NA in neither
-  #column
-  return(sum(features_exist)) 
-    
-}
+# variable_count <- function(matrix) {
+#   
+#   subset_of_data <- data |> 
+#     tidytable::select(matrix)
+#   
+#   #example: tidytable::select(data, two_select_combinations[,1])
+#   
+#   #Get a logical vector of how many rows in the selected columns
+#   #have no NAs
+#   features_exist <- subset_of_data |>
+#     dplyr::rowwise() |>
+#     no_na()
+#   
+#   #TRUE is equal to 1 and FALSE to 0, so summing the vector
+#   #will return the number of rows which have an NA in neither
+#   #column
+#   return(sum(features_exist)) 
+#     
+# }
 
 combination_freqs <- apply(X=two_select_combinations, MARGIN = 2, FUN=variable_count)
 
@@ -463,52 +476,48 @@ can re-use:
 
 ```{r}
 
-library(combinat)
-
-#Return TRUE for every row in the tibble that has an NA either in column 1 or 2
-no_na <- function (tib) {
-  bool <- is.na(tib[,1]) | is.na(tib[,2]) 
-  
-  return(!bool)
+if (!("combinat" %in% (.packages()))) {
+  library(combinat)
 }
+
+#Filters a row to rows which have ZERO NA values in them
+no_na <- function(tib, vec) {
+  if(NA %in% vec) {
+    return(tib)
+  }
+  tib <- filter(tib, .data[[vec[1]]] != FALSE)
+  vec <- vec[2:length(vec)]
+  return(no_na(tib, vec))
+
+}
+
 
 variable_count <- function(matrix) {
   
-  subset_of_data <- data |> 
-    tidytable::select(matrix)
+  subset_of_data <- data %>% 
+    tidytable::select(all_of(matrix)) %>%
+    no_na(colnames(.))
   
-  #example: tidytable::select(data, two_select_combinations[,1])
-  
-  #Get a logical vector of how many rows in the selected columns
-  #have no NAs
-  features_exist <- subset_of_data |>
-    dplyr::rowwise() |>
-    no_na()
-  
-  #TRUE is equal to 1 and FALSE to 0, so summing the vector
-  #will return the number of rows which have an NA in neither
-  #column
-  return(sum(features_exist)) 
+  return(nrow(subset_of_data)) 
     
 }
 
-combinations_n <- 2
+#combinations_n <- 2
 
 #combn, data, tag, parent_Deprel, 
 variable_combinations <- function(combinations_n) {
-  ###DEBUG, PLEASE DELETE NEXT LINE
-  combinations_n <- 3
-  select_combinations <- combn(colnames(data |> tidytable::select(tag:parent_Deprel)), combinations_n)
+  select_combinations <- combn(colnames(data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)), combinations_n)
   
   #length(select_combinations)
   
   combination_freqs <- apply(X=select_combinations, MARGIN = 2, FUN=variable_count)
   
-  tib_select_combinations <- as_tibble(select_combinations)
+  tib_select_combinations <- as_tibble(select_combinations, .name_repair = "unique")
   
   #Get the length of the column
   col_len <- nrow(tib_select_combinations)
-    
+  
+  #Add a new row with the frequency each one occurs
   tib_select_combinations[(col_len + 1),] <- as.list(as.character(combination_freqs))
   
   #Time to take out the trash!
@@ -520,8 +529,8 @@ variable_combinations <- function(combinations_n) {
     tib_select_combinations |> 
     #The number of columns depends on the $ of combinations, hence the code in the following line
     mutate(type = c(letters[1:combinations_n], 'num')) |> 
-    #Note that the default names all start with V (V1, V2, V3...Vn)
-    pivot_longer(starts_with("V")) |> 
+    #Don't select 'num'
+    pivot_longer(!type) |> 
     pivot_wider(names_from = type, values_from = value) |> 
     dplyr::select(!name) |>
     mutate(across(num, as.integer))
@@ -533,10 +542,20 @@ variable_combinations <- function(combinations_n) {
   return(tib_select_combinations)
 }
 
+
+```
+
+```{r message=FALSE}
+#Setting message option to false makes sure as_tibble's annoying .name_repair option doesn't print every single repaired name
+
 #Let's test it
 
-two_combinations <- variable_combinations(2)
+system.time({
+  two_combinations <- variable_combinations(2)  
+})
 
+ #   user  system elapsed 
+ # 14.738   0.111  14.983 
 ```
 
 Another piece of information we're interested in is whether a variable
@@ -544,18 +563,32 @@ occurs in multiple works. This situation is different from Gorman 2016,
 as he was working with a much larger corpus. We have only five works. I
 say we cull the lower quartile.
 
-```{r}
+Another note: I'm gonna remove feature combinations that never occur
+together BEFORE culling the lower quartile.
 
+```{r}
+#DON'T RUN THIS MORE THAN ONCE IN A SESSION...
+
+#NOTE: I don't get rid of zeroes because the variable_combinations function already removes them
 cull_quartile <- function(combinations, quartile = "25%") {
+  print(paste("Length before culling: ", as.character(length(combinations$a))))
+  
+  #Get rid of anything in the lower quartile
   filtered <- combinations |> filter(num > quantile(num)[['25%']])
+  
+  print(paste("Length after culling: ", as.character(length(filtered$a))))
   return(filtered)
 }
+
+
 
 two_combinations <- two_combinations |> cull_quartile()
 ```
 
 How expensive would it be to brute force it this way for every
-combination? What about three to five?
+combination? What about three to five? (NOTE: These numbers are
+inflated, as they include the parent_lemma and parent_form, two columns
+the data actually excludes)
 
 ```{r}
 combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 3) |> length()
@@ -576,7 +609,7 @@ system.time({
 
 Okay, that didn't even finish, what about 3:
 
-```{r}
+```{r echo=FALSE}
 system.time({
   three_combinations <- variable_combinations(3)
 })
