@@ -67,6 +67,16 @@ to do more tests.
 
 """
 
+CAESAR = {
+    "row":0,
+    "commentary":1,
+    "book":2,
+    "text":3,
+    "src":4,
+    "chapter":5,
+    "tokens":6
+}
+
 
 def save_output(text: str, method: str = "w") -> None:
     """
@@ -521,7 +531,7 @@ def select_random(tries=1) -> str:
     Asks the user to QA it.
 
     :param tries: Description NEEDSDOC
-    :return: Description NEEDSDOC
+    :return:
     :rtype: str
     """
     labs = [
@@ -609,7 +619,7 @@ def select_random(tries=1) -> str:
                 )  # Remove the last character, because it's a comma
 
 
-def csv_postag(path: str | list = "", skip_finished=True) -> None:
+def csv_postag(skip_finished=True) -> None:
     """
     Docstring for csv_postag
 
@@ -622,7 +632,6 @@ def csv_postag(path: str | list = "", skip_finished=True) -> None:
     :param skip_finished: NEEDSDOC
     :type skip_finished: bool
     """
-    paths: list = __get_paths(path)
 
     """
     2026-02-15 11:46:56 INFO: Using device: cpu
@@ -641,104 +650,63 @@ def csv_postag(path: str | list = "", skip_finished=True) -> None:
 
     sPathsRemoved = []
 
-    # If we want to keep a line, we place it in the temp file.
-    with open(
-        results_file, "r", encoding="utf-8", errors="replace", newline=""
-    ) as f_read:
-        s: set = set(f_read.read().splitlines())
-        with open(
-            "./temp.csv", "w", encoding="utf-8", errors="replace", newline=""
-        ) as f_write:
-            # If we're skipping already finished ones, lets skip  paths
-            # that we're not going to parse
-            if skip_finished:
-                for p in paths:
-                    if __in_file(p, s):
-                        sPathsRemoved.append(p)
-                        paths.remove(p)
-            else:
-                wr = csv.writer(f_write)
-                f_read.seek(0)  # just to be sure
-                read = csv.reader(f_read)
-                for l in read:
-                    if l[4] not in paths:
-                        wr.writerow(l)
-        if not skip_finished:
-            shutil.copyfile("temp.csv", results_file)
-            os.remove("./temp.csv")
+    # Get Sig's tokenized data. The data matches the defaults (separator is ',', quote is '"')
+    with open('full_data_text_perseus_tokenized.csv', 'r', encoding='utf-8', errors='replace', newline='') as tokenized:
+        tokenized_csv: Reader = csv.reader(tokenized, escapechar="#")
 
-    # Get the csv.writer
-    with open(results_file, "a", encoding="utf-8", errors="replace", newline="") as f:
-        writer: Writer = csv.writer(f, escapechar="#")
+        # # If we want to keep a line, we place it in the temp file.
+        # with open(
+        #     results_file, "r", encoding="utf-8", errors="replace", newline=""
+        # ) as f_read:
+        #     s: set = set(f_read.read().splitlines())
+        #     with open(
+        #         "./temp.csv", "w", encoding="utf-8", errors="replace", newline=""
+        #     ) as f_write:
+        #         # If we're skipping already finished ones, lets skip  paths
+        #         # that we're not going to parse
+        #         if skip_finished:
+        #             for line in tokenized_csv:
+        #                 if __in_file(line[CAESAR['commentary']], s):
+        #                     sPathsRemoved.append(line[CAESAR['commentary']])
+        #                     paths.remove(line[CAESAR['commentary']])
+        #         else:
+        #             wr = csv.writer(f_write)
+        #             f_read.seek(0)  # just to be sure
+        #             read = csv.reader(f_read)
+        #             for l in read:
+        #                 if l[4] not in paths:
+        #                     wr.writerow(l)
+        #     if not skip_finished:
+        #         shutil.copyfile("temp.csv", results_file)
+        #         os.remove("./temp.csv")
 
-        l_paths = len(paths)
+        # Get the csv.writer
+        with open(results_file, "w", encoding="utf-8", errors="replace", newline="") as f:
+            writer: Writer = csv.writer(f, escapechar="#")
 
-        #s_docs = []
+            #s_docs = []
 
-        for p in paths:
-            i_paths = paths.index(p)
+            #probably unnecessary in current version
+            tokenized.seek(0)
+            tokenized_csv: Reader = csv.reader(tokenized, escapechar="#")
 
-            print(f"Path: {p}")
+            #Skip the first line
+            next(tokenized_csv)
 
-            print(f"Completion of TEI text extraction: {i_paths}/{l_paths}")
-            parser: etree.XMLParser = etree.XMLParser(resolve_entities=False)
-            tree: etree.ElementTree = etree.parse(
-                p, parser
-            )  # Use path 22 for debugging
-
-            # DEBUG
-            print(f"TEI file: {etree.tostring(tree).decode('utf-8')[1:300]}")
-
-            # Get the root of the tree. This variable will eventually hold the tei:body element
-            body: etree._Element = tree.getroot()
-
-            authority_dict = get_title_auth_body(body)
-
-            body: etree._Element = authority_dict["body"]
-            titleString = authority_dict["title"]
-            authorString = authority_dict["author"]
-
-            # Remember, when there are potentially Greek characters, we need encoding set to utf-8.
-            # This debug file will store the results before the final version of the program
-
-            """debug: io.TextIOWrapper = open(
-                "C:/Users/T470s/Documents/GitHub/cltk-2025-atticus/perseus-debug.txt",
-                "w",
-                encoding="utf-8",
-            )
-            debug.write(str(p))"""
-
-            # if len(body):
-            #    body = body[0]
-
-            # Now we have the <body> element, let's get the text######################3
-
-            # Add the text for each element, using the get_text() function
-            string: list[list[str]] = []
-
-            divs: dict[str, str] = {}
-            for element in body.iter():
-
-                # Only update the citation if it's a div
-                # Have to use find because element.tag includes the namespace
-                if element.tag.find("div") > -1:
-                    if element.get("subtype") is not None:
-                        typ = element.get("subtype")
-                    elif element.get("type") is not None:
-                        typ = element.get("type")
-                    else:
-                        print("Error! shouldn't have gotten a citation here")
-                        typ = "unk"
-
-                    n = element.get("n")
-                    divs[typ] = n
-
-                string.append([",".join(divs.values()), get_text(element)])
-
-            string_process_export(body_text=string, author=authorString, title=titleString, custom_pipeline=custom_pipeline, path=p, writer=writer)
+            for p in tokenized_csv:
+                title = p[CAESAR['commentary']]
 
 
-def string_process_export(body_text: list[list[str]], author: str, title: str, custom_pipeline: stanza.Pipeline, path: str, writer: Writer):
+                print(f"Path: {title}")
+
+                body: str = p[CAESAR['tokens']]
+                titleString: str = title
+                authorString: str = 'Julius Caesar'
+
+                string_process_export(body_text=body, author=authorString, title=titleString, custom_pipeline=custom_pipeline, line=p, writer=writer)
+
+
+def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line, writer: Writer):
     """
     This function takes a section from the Corpus Caesarianum and parses it using stanza, writing the results to postagged-texts.csv
 
@@ -747,126 +715,125 @@ def string_process_export(body_text: list[list[str]], author: str, title: str, c
     """
 
     # Run the Stanza process for each section.
-    for section in body_text:
-        raw = section[1]
-        s_final_body = re.sub("\t", "", raw)
 
-        s_final_body = remove_invalid_characters(s_final_body)
+    raw = body_text
+    s_final_body = re.sub("\t", "", raw)
 
-        cite = section[0].split(",")
-
-        # s_docs.append(s_final_body)
-
-        # now that we have the TEI XML, let's parse the body text
-        # OLD CLTK: doc = process_text(s_final_body, nlp)
-        t1 = datetime.datetime.now()
-        # in_docs = [stanza.Document([], text=d) for d in s_docs] # Wrap each document with a stanza.Document object
-        out_docs = custom_pipeline(
-            s_final_body
-        )  # Call the neural pipeline on this list of documents
-        print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
-
-        for s in out_docs.sentences:
-            for word in s.words:
-                print(f"Word Completion: {s.words.index(word)}/{len(s.words)}")
-                # Skip most punctuation that doesn't break sentences
-                if word.upos != "PUNCT" or word.text in [".", "!", "?"]:
-                    # Old CLTK version: s_form = word.string
-                    s_form = word.text
-
-                    s_lemma = word.lemma
-
-                    # Get the tag
-                    # OLD CLTK: tag = word.upos.tag
-                    tag = word.upos
-
-                    #dependency relation
-                    deprel = word.deprel
-
-                    #parent word
-                    parent = get_parent(word)
+    s_final_body = remove_invalid_characters(s_final_body)
 
 
-                    try:
-                        s_parent_form = parent.text
+    # s_docs.append(s_final_body)
 
-                        s_parent_lemma = parent.lemma
+    # now that we have the TEI XML, let's parse the body text
+    # OLD CLTK: doc = process_text(s_final_body, nlp)
+    t1 = datetime.datetime.now()
+    # in_docs = [stanza.Document([], text=d) for d in s_docs] # Wrap each document with a stanza.Document object
+    out_docs = custom_pipeline(
+        s_final_body
+    )  # Call the neural pipeline on this list of documents
+    print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
-                        s_parent_tag = parent.upos
+    for s in out_docs.sentences:
+        for word in s.words:
+            print(f"Word Completion: {s.words.index(word)}/{len(s.words)}")
+            # Skip most punctuation that doesn't break sentences
+            if word.upos != "PUNCT" or word.text in [".", "!", "?"]:
+                # Old CLTK version: s_form = word.string
+                s_form = word.text
 
-                        parent_deprel = parent.deprel
-                    except AttributeError:
-                        s_parent_form = ""
+                s_lemma = word.lemma
 
-                        s_parent_lemma =""
+                # Get the tag
+                # OLD CLTK: tag = word.upos.tag
+                tag = word.upos
 
-                        s_parent_tag = ""
+                #dependency relation
+                deprel = word.deprel
 
-                        parent_deprel = ""
+                #parent word
+                parent = get_parent(word)
 
-                    # Only get the features we're interested in
 
-                    f_set = [
-                        "Aspect",
-                        "Mood",
-                        "Number",
-                        "Person",
-                        "Tense",
-                        "VerbForm",
-                        "Voice",
-                        "Case",
-                        "PronType",
-                        "Gender",
-                        "Polarity",
-                        "Degree",
-                        "NumType",
-                    ]
+                try:
+                    s_parent_form = parent.text
 
-                    features = extract_features(word, f_set)
+                    s_parent_lemma = parent.lemma
 
-                    parent_features = extract_features(parent, f_set)
+                    s_parent_tag = parent.upos
 
-                    # Start putting together the line to write
-                    metadata = [
-                        title,
-                        author,
-                        cite[0],  # The outermost citation number (books, or sections for Hisp.)
-                        ".".join(cite[1:]),  # The rest of the citation number
-                        path,
-                        s_form,
-                        s_lemma,
-                        tag,
-                    ]  # NOTE: Not only metadata, but also includes the word and the tag
+                    parent_deprel = parent.deprel
+                except AttributeError:
+                    s_parent_form = ""
 
-                    to_write = metadata + [
-                        features[x] for x in f_set
-                    ]  # This didn't need to be a dictionary, but it helps to know that I will always do this in the same order
+                    s_parent_lemma =""
 
-                    to_write.append(
-                        deprel
-                    )  # Add the dependency relation to the end
+                    s_parent_tag = ""
 
-                    #put all the info about the parent word in a list
-                    parent_info: list[str] = [
-                        s_parent_form,
-                        s_parent_lemma,
-                        s_parent_tag
-                    ] + [
-                        parent_features[x] for x in f_set
-                    ] + [
-                        parent_deprel
-                    ]
+                    parent_deprel = ""
 
-                    #put the prefix "parent"
-                    for i, val in enumerate(parent_info):
-                        if val:
-                            parent_info[i] = "parent_" + val
-                        else:
-                            parent_info[i] = ""
+                # Only get the features we're interested in
 
-                    to_write = to_write + parent_info
+                f_set = [
+                    "Aspect",
+                    "Mood",
+                    "Number",
+                    "Person",
+                    "Tense",
+                    "VerbForm",
+                    "Voice",
+                    "Case",
+                    "PronType",
+                    "Gender",
+                    "Polarity",
+                    "Degree",
+                    "NumType",
+                ]
 
-                    writer.writerow(to_write)
+                features = extract_features(word, f_set)
+
+                parent_features = extract_features(parent, f_set)
+
+                # Start putting together the line to write
+                metadata = [
+                    title,
+                    author,
+                    line[CAESAR['book']],  # The book number
+                    line[CAESAR['chapter']],  # The chapter
+                    line[CAESAR['commentary']],
+                    s_form,
+                    s_lemma,
+                    tag,
+                ]  # NOTE: Not only metadata, but also includes the word and the tag
+
+                to_write = metadata + [
+                    features[x] for x in f_set
+                ]  # This didn't need to be a dictionary, but it helps to know that I will always do this in the same order
+
+                to_write.append(
+                    deprel
+                )  # Add the dependency relation to the end
+
+                #put all the info about the parent word in a list
+                parent_info: list[str] = [
+                    s_parent_form,
+                    s_parent_lemma,
+                    s_parent_tag
+                ] + [
+                    parent_features[x] for x in f_set
+                ] + [
+                    parent_deprel
+                ]
+
+                #put the prefix "parent"
+                for i, val in enumerate(parent_info):
+                    if val:
+                        parent_info[i] = "parent_" + val
+                    else:
+                        parent_info[i] = ""
+
+                to_write = to_write + parent_info
+
+                writer.writerow(to_write)
 
 def get_parent(word: Word) -> Word | None:
     """
@@ -984,16 +951,15 @@ if __name__ == "__main__":
 
     prefix = "./../canonical-latinLit/data/"
 
-    caesar = [
-        f"{prefix}phi0448/phi001/phi0448.phi001.perseus-lat2.xml",
-        f"{prefix}phi0448/phi002/phi0448.phi002.perseus-lat3.xml",  # using later edition, lat3 instead of lat2
-        f"{prefix}phi0428/phi001/phi0428.phi001.perseus-lat1.xml",
-        f"{prefix}phi0426/phi001/phi0426.phi001.perseus-lat1.xml",
-        f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
-    ]
+    # caesar = [
+    #     f"{prefix}phi0448/phi001/phi0448.phi001.perseus-lat2.xml",
+    #     f"{prefix}phi0448/phi002/phi0448.phi002.perseus-lat3.xml",  # using later edition, lat3 instead of lat2
+    #     f"{prefix}phi0428/phi001/phi0428.phi001.perseus-lat1.xml",
+    #     f"{prefix}phi0426/phi001/phi0426.phi001.perseus-lat1.xml",
+    #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
+    # ]
 
     csv_postag(
-        path=caesar[1:],
-        skip_finished=False,
+        skip_finished=True,
     )
 
