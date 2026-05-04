@@ -863,23 +863,41 @@ get_vars <- function(mode = "book") {
   #browser()
   
   all_vars <- source_data |>
-    group_by(commentary) |>
+    group_by(title) |>
     group_map(~ run_combos(.x, .y))
   
-  return(all_vars)
+  return(all_vars |> bind_rows())
 }
 ```
 
 ```{r}
-all_vars <- get_vars("book")
-```
-
-```{r}
-
 #Restore the full data
 data <- data_backup
 
 remove(data_backup)
 remove(data_sample)
+
+all_vars <- get_vars("book")
+```
+
+Okay, now we need to transpose the data.
+
+```{r}
+all_vars <- pivot_wider(all_vars, names_from = pasted, values_from = n)
+```
+
+The number of variables is way too high, so we go by Gorman 2020's
+method of only keeping ones that occur in more than 20% of words (n \>
+(\# of rows in data) / 5))
+
+Keep columns where sum of column is greater than that figure:
+
+```{r}
+
+limit <- nrow(data) / 5
+all_vars <- all_vars |> dplyr::select(
+  title, 
+    (where(is.numeric) & where(~ sum(.x) > limit))
+  )
 
 ```
