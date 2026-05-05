@@ -13,20 +13,14 @@ execute code within the notebook, the results appear beneath the code.
 
 ```{r include=TRUE}
 knitr::opts_chunk$set(results = "hold")
-knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
+#knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
+knitr::opts_knit$set(root.dir = '~/GitHub/corpus-caesarianum-authorship')
 ```
 
 # Data Preparation
 
 ```{r Libraries}
-# install.packages("factoextra")
-# install.packages("dplyr")
-# install.packages("ggrepel")
-# install.packages("tidyverse")
-# install.packages("dendextend")
-# install.packages("MASS")
-# install.packages("ggtext")
-#install.packages("printr")
+
 
 library(factoextra)
 library(dplyr)
@@ -822,7 +816,7 @@ variable in it.
 ```{r}
 
 run_combos <- function(source_data, title_str) {
-  # browser()
+  #browser()
   
   all_vars <- bind_rows(
     count_var_combos(one_combinations, source_data),
@@ -841,7 +835,9 @@ run_combos <- function(source_data, title_str) {
 #mode: whether to divide the data into commentaries, books, or chapters
 get_vars <- function(mode = "book") {
   if (mode == "book") {
+    #browser()
     source_data <- data |>
+      rowwise() |>
       mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_"))
   }
   else if (mode == "commentary") {
@@ -860,7 +856,7 @@ get_vars <- function(mode = "book") {
     return(NULL)
   }
   
-  #browser()
+  # browser()
   
   all_vars <- source_data |>
     group_by(title) |>
@@ -872,10 +868,10 @@ get_vars <- function(mode = "book") {
 
 ```{r}
 #Restore the full data
-data <- data_backup
-
-remove(data_backup)
-remove(data_sample)
+#data <- data_backup
+#
+#remove(data_backup)
+#remove(data_sample)
 
 all_vars <- get_vars("book")
 ```
@@ -884,20 +880,23 @@ Okay, now we need to transpose the data.
 
 ```{r}
 all_vars <- pivot_wider(all_vars, names_from = pasted, values_from = n)
+save.image("~/GitHub/corpus-caesarianum-authorship/.RData")
 ```
 
 The number of variables is way too high, so we go by Gorman 2020's
 method of only keeping ones that occur in more than 20% of words (n \>
-(\# of rows in data) / 5))
+(\# of rows in data) / 5)). **However, for testing purposes, let's first
+just get the top 1,000 variables**
 
 Keep columns where sum of column is greater than that figure:
 
 ```{r}
 
-limit <- nrow(data) / 5
-all_vars <- all_vars |> dplyr::select(
-  title, 
-    (where(is.numeric) & where(~ sum(.x) > limit))
-  )
+# limit <- nrow(data) / 5
+# culled_all_vars <- all_vars |> dplyr::select(
+#   title, 
+#     (where(is.numeric) & where(~ sum(.x) > limit))
+#   )
 
+sliced_all_vars <- all_vars |> slice_max(n, n = 1000)
 ```
