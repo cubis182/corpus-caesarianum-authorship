@@ -13,8 +13,8 @@ execute code within the notebook, the results appear beneath the code.
 
 ```{r include=TRUE}
 knitr::opts_chunk$set(results = "hold")
-#knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
-knitr::opts_knit$set(root.dir = '~/GitHub/corpus-caesarianum-authorship')
+knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
+#knitr::opts_knit$set(root.dir = '~/GitHub/corpus-caesarianum-authorship')
 ```
 
 # Data Preparation
@@ -652,7 +652,7 @@ unreasonable is the combination of 5, so for that one we'll split it up.
 I could limit to 1,000 tokens like Gorman does, but we have more leeway.
 I'll give 1,000 tokens randomly selected from each book.
 
-```{r eval=FALSE Extract-1000-tokens}
+```{r eval=FALSE}
 
 #For each work, let's get 1,000 random tokens. Use dplyr::slice_sample
 
@@ -775,6 +775,8 @@ get_var_combos <- function(var_combn, source_data) {
   var_combos <- 
     source_data |>
     dplyr::select(all_of(as.character(var_combn))) |>
+    #Added next line to avoid expensive string comparisons
+    #dplyr::select(where(all(~ !is.na(.x)))) |>
     #Paste the whole row together
     unite("pasted", everything(), sep = "_") |>
     filter(str_detect(pasted, pattern = "NA", negate = TRUE)) #Remove NAs
@@ -796,6 +798,8 @@ list_combn <- apply(test, MARGIN = 1, get_var_combos, source_data = data) |> lis
 
 That worked, so lets put it into a function.
 
+**I'm going to temporarily require a count of more than 30**
+
 ```{r}
 
 count_var_combos <- function(var_combn, source_data) {
@@ -804,7 +808,7 @@ count_var_combos <- function(var_combn, source_data) {
   list_combn <- apply(selected_var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> list_rbind()
   
   #Make sure to remove zeroes
-  return(list_combn |> filter(n > 0))
+  return(list_combn)
 }
 
 #count_var_combos(two_combinations, data)
@@ -868,10 +872,10 @@ get_vars <- function(mode = "book") {
 
 ```{r}
 #Restore the full data
-#data <- data_backup
+data <- data_backup
 #
-#remove(data_backup)
-#remove(data_sample)
+remove(data_backup)
+remove(data_sample)
 
 all_vars <- get_vars("book")
 ```
@@ -880,7 +884,6 @@ Okay, now we need to transpose the data.
 
 ```{r}
 all_vars <- pivot_wider(all_vars, names_from = pasted, values_from = n)
-save.image("~/GitHub/corpus-caesarianum-authorship/.RData")
 ```
 
 The number of variables is way too high, so we go by Gorman 2020's
@@ -892,11 +895,17 @@ Keep columns where sum of column is greater than that figure:
 
 ```{r}
 
-# limit <- nrow(data) / 5
-# culled_all_vars <- all_vars |> dplyr::select(
-#   title, 
-#     (where(is.numeric) & where(~ sum(.x) > limit))
-#   )
+limit <- nrow(data) / 5
+title <- all_vars$title
+culled_all_vars <- all_vars |> dplyr::select(-title) |> 
+  dplyr::select(where(~ sum(.x, na.rm = TRUE) > limit))
 
-sliced_all_vars <- all_vars |> slice_max(n, n = 1000)
+culled_all_vars <- culled_all_vars |> mutate(title = unlist(title)) |> relocate(title, .before = 1)
+
+```
+
+Now save this to a CSV!
+
+```{r}
+write_csv(culled_all_vars, file = "./feature_values_gorman.csv", col_names = TRUE)
 ```

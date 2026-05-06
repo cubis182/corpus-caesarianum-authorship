@@ -9,10 +9,29 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
 ```
 
+```{r Libraries}
+
+
+library(factoextra)
+library(dplyr)
+library(ggrepel)
+library(tidyverse)
+library(cluster)
+library(combinat)
+library(dendextend)
+library(MASS)
+library(multcomp)
+library(ggtext)
+library(printr)
+```
+
 ##Get the data
 
 ```{r}
-final.frame <- read_csv("/feature_values.csv")
+setwd("~/PycharmProjects/corpus-caesarianum-authorship/")
+final.frame <- read.csv("./feature_values.csv")
+
+gorman.vars <- read.csv("./feature_values_gorman.csv")
 ```
 
 # Pre-visualization
@@ -48,6 +67,7 @@ Now that we have a viable DF, let's cut it up a little bit. We don't want the fi
 
 ```{r df_clust & df_scaled}
 df_clust <- final.frame[, 2:length(final.frame)]
+gorman_clust <- gorman.vars |> dplyr::select(-title)
 rownames(df_clust) <- final.frame$title
 # df_clust <- slice_sample(df_clust, n=45)
 
@@ -311,4 +331,77 @@ We need to understand the variables before we go into much more detail. Which on
 
 ```{r}
 "pass"
+```
+
+1.  
+
+```{r K-means clustering}
+set.seed(126126)
+kmeans_basic_cluster <- kmeans(gorman_clust, centers = k, nstart = 25)
+kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
+kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, df_clust)
+```
+
+Let's do our first visualization. Four clusters seems like a reasonable amount, looking at the fviz_nbclust results with the wss method.
+
+```{r}
+# TODO ADD SUMMARIES OF THE ABOVE DATA HERE
+
+# Principal component analysis
+
+pca <- prcomp(df_clust)
+
+summary(pca)
+
+# Visualizations
+
+fviz_nbclust(df_clust, kmeans, method = "wss", nstart = 50)
+
+dim1 <- as.character(summary(pca)$importance[2] * 100)
+dim2 <- as.character(summary(pca)$importance[5] * 100)
+
+cluster_main <- fviz_cluster(kmeans_basic_cluster,
+  data = gorman_clust,
+  palette = palette,
+  geom = geom,
+  ellipse.type = ellipse.type,
+  ggtheme = ggtheme
+) +
+  geom_text_repel(
+    aes(label = gorman.vars$title),
+    vjust = "inward",
+    hjust = "inward",
+    max.overlaps = 14,
+    size = 2,
+    seed = 12927
+  ) +
+  labs(
+    x = paste(strwrap(paste("Dim1", dim1, ""), 70),
+      collapse = "\n"
+    ),
+    y = paste(strwrap(paste("Dim2", dim2, ""), 50), collapse = "\n"),
+    title = "(1) K-means clustering applied to PHI Latin Texts, k= "
+  ) +
+  theme(axis.title = element_text(size = 12))
+
+cluster_main
+
+
+ggsave(filename = "Images/cluster-diagram-gorman-style", dpi = "print")
+
+str(kmeans_basic_cluster)
+
+```
+
+The rotations suggest that the explanation of the data is poor; the plot is negatively correlated with plural words in general on the x axis, and present tense on the y axis
+
+```{r}
+
+
+distance <- get_dist(df_scaled)
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
+
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07")) + distance_labels + theme(axis.text = element_text(size = 2))
+
+ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
 ```
