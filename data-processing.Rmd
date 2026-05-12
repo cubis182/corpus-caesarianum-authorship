@@ -383,101 +383,9 @@ Okay, that's 992 different combinations. We need to:
     field with the count retrieved in the previous step.
 
 5.  Sort the tibble by the third field, cull out a percentage based on
-    Gorman 2016
-
-```{r eval=FALSE}
-
-
-
-# 
-# #Return TRUE for every row in the tibble that has an NA either in column 1 or 2
-# no_na <- function (tib) {
-#   len <- length(tib)
-#   
-#   #Go through and get a vector of bools showing whether each item in the row is an NA
-#   bools <- unlist(lapply(tib, is.na))
-#   
-#   #If the sum of the vector of bools is 0, then none are NA
-#   return(sum(bools) == 0)
-# }
-
-# variable_count <- function(matrix) {
-#   
-#   subset_of_data <- data |> 
-#     tidytable::select(matrix)
-#   
-#   #example: tidytable::select(data, two_select_combinations[,1])
-#   
-#   #Get a logical vector of how many rows in the selected columns
-#   #have no NAs
-#   features_exist <- subset_of_data |>
-#     dplyr::rowwise() |>
-#     no_na()
-#   
-#   #TRUE is equal to 1 and FALSE to 0, so summing the vector
-#   #will return the number of rows which have an NA in neither
-#   #column
-#   return(sum(features_exist)) 
-#     
-# }
-
-combination_freqs <- apply(X=two_select_combinations, MARGIN = 2, FUN=variable_count)
-
-tib_two_select_combinations <- as_tibble(two_select_combinations)
-
-tib_two_select_combinations[3,] <- as.list(as.character(combination_freqs))
-
-tib_two_select_combinations
-
-#Use apply and pass variable_count to an apply function over the columns of the matrix titled two_select_combinations
-```
-
-Let's try to transpose this tibble so we can actually make one column
-numeric:
-
-```{r eval=FALSE}
-tib_two_select_combinations <-
-  tib_two_select_combinations |> 
-  mutate(type = c('tag1', 'tag2', 'num')) |> 
-  #Note that the default names all start with V (V1, V2, V3...Vn)
-  pivot_longer(starts_with("V")) |> 
-  pivot_wider(names_from = type, values_from = value) |> 
-  select(!name) |>
-  mutate(across(num, as.integer))
-
-tib_two_select_combinations
-
-arrange(tib_two_select_combinations, num)
-
-```
-
-Now that we have a list of features, let's eliminate any combinations
-that occur zero times together
-
-```{r eval=FALSE}
-tib_two_select_combinations <- tib_two_select_combinations |> filter(num > 0) |> arrange(num) 
-
-tib_two_select_combinations
-```
-
-I'm interested in seeing whether there is any resemblance to normality;
-I would expect not, but I want to visualize the data.
-
-```{r eval=FALSE}
-
-ggplot(tib_two_select_combinations, aes(num)) + geom_histogram(binwidth=200)
-library(dgof)
-
-ks.test(jitter(tib_two_select_combinations$num, amount = 0.01), "pnorm")
-```
-
-The null hypothesis is that the distribution is the same as the normal
-distribution, so we can soundly reject that, not that it was in
-question.
-
-Okay, so, we've gotten data on all the combinations of two variables,
-but what about 3 to 5? Let's refactor the above code into a function we
-can re-use:
+    Gorman 2016Okay, so, we've gotten data on all the combinations of
+    two variables, but what about 3 to 5? Let's refactor the above code
+    into a function we can re-use:
 
 ```{r}
 
@@ -496,7 +404,7 @@ no_na <- function(tib, vec) {
 
 }
 
-
+#Given a matrix which includes a set of column names in the source_data, return the number of rows that have valid data in all columns
 variable_count <- function(matrix, source_data) {
   
   subset_of_data <- source_data %>% 
@@ -509,12 +417,24 @@ variable_count <- function(matrix, source_data) {
 
 #combinations_n <- 2
 
-#combn, data, tag, parent_Deprel, 
+#Get rid of values that don't appear 
+cull_quartile <- function(combinations) {
+  print(paste("Length before culling: ", as.character(length(combinations$a))))
+  
+  #Get rid of features which occur in less than 20% of the corpus
+  filtered <- combinations |> filter(num > (nrow(data) / 5))
+  
+  print(paste("Length after culling: ", as.character(length(filtered$a))))
+  return(filtered)
+}
+
+#This function returns a list of all combinations of a variable which occur 
 variable_combinations <- function(combinations_n, source_data) {
   select_combinations <- combn(colnames(source_data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)), combinations_n)
   
   #length(select_combinations)
   
+  #Get a table showing the number of times all the features in a combination are attested
   combination_freqs <- apply(X=select_combinations, MARGIN = 2, FUN=variable_count, source_data = source_data)
   
   tib_select_combinations <- as_tibble(select_combinations)
@@ -544,7 +464,7 @@ variable_combinations <- function(combinations_n, source_data) {
   
   tib_select_combinations <- tib_select_combinations |> filter(num > 0) |> arrange(num) 
   
-  return(tib_select_combinations)
+  return(tib_select_combinations |> cull_quartile())
 }
 
 
@@ -566,206 +486,12 @@ data <- data |>
   dplyr::slice_sample(n = 1000, by = commentary)
 
 data$commentary <- as.factor(data$commentary)
-```
-
-```{r message=FALSE}
-#Setting message option to false makes sure as_tibble's annoying .name_repair option doesn't print every single repaired name
-
-#Let's test it
-
-system.time({
-  two_combinations <- variable_combinations(2, source_data = data)  
-})
-
-  #   user  system elapsed 
-  # 7.673   0.284   8.735 
 
 ```
 
-Another piece of information we're interested in is whether a variable
-occurs in multiple works. This situation is different from Gorman 2016,
-as he was working with a much larger corpus. We have only five works. I
-say we cull the lower quartile.
-
-Another note: I'm gonna remove feature combinations that never occur
-together BEFORE culling the lower quartile.
-
-```{r}
-#DON'T RUN THIS MORE THAN ONCE IN A SESSION...
-
-#NOTE: I don't get rid of zeroes because the variable_combinations function already removes them
-cull_quartile <- function(combinations, quartile = "25%") {
-  print(paste("Length before culling: ", as.character(length(combinations$a))))
-  
-  #Get rid of features which occur in less than 20% of the corpus
-  filtered <- combinations |> filter(num > (nrow(data) / 5))
-  
-  print(paste("Length after culling: ", as.character(length(filtered$a))))
-  return(filtered)
-}
-
-
-
-two_combinations <- two_combinations |> cull_quartile()
-```
-
-```{r}
-one_combinations <- variable_combinations(1, data)
-
-#one_combinations <- one_combinations |> cull_quartile()
-```
-
-How expensive would it be to brute force it this way for every
-combination? What about three to five? (NOTE: These numbers are
-inflated, as they include the parent_lemma and parent_form, two columns
-the data actually excludes)
-
-```{r}
-combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 3) |> length()
-
-combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 4) |> length()
-
-combn(colnames(data |> tidytable::select(tag:parent_Deprel)), 5) |> length()
-```
-
-The following block gets every combination of 3 variables and uses the
-profiler to see how long we spend in each function. Naturally, the
-function that checks for NA's takes the longest by far, which is how it
-should be.
-
-```{r message=FALSE}
-#library(profvis)
-
-#profvis({
-  three_combinations <- variable_combinations(3, data)
-#})
-
-#    user  system elapsed 
-# 110.418   0.276 112.086 
-
-three_combinations <- three_combinations |> cull_quartile()
-```
-
-It looks like three is doable, and four, if it's roughly 10 times
-larger, should take about 20 minutes. The only one that's really
-unreasonable is the combination of 5, so for that one we'll split it up.
-I could limit to 1,000 tokens like Gorman does, but we have more leeway.
-I'll give 1,000 tokens randomly selected from each book.
-
-```{r eval=FALSE}
-
-#For each work, let's get 1,000 random tokens. Use dplyr::slice_sample
-
-data_sample <- data |>
-  rowwise() |>
-  #inelegant, but it works
-  mutate(commentary = paste(unlist(strsplit(title, "_"))[1], unlist(strsplit(title, "_"))[2])) |>
-  ungroup() |>
-  dplyr::slice_sample(n = 1000, by = commentary)
-
-unique(data_sample$commentary)
-
-```
-
-Let's get the samples of five from this one. Even after optimizing a
-little and reducing the number, it takes about 20 minutes.
-
-```{r message=FALSE}
-
-
-system.time({
-  five_combinations <- variable_combinations(5, data)
-  })
-
-five_combinations <- five_combinations |> cull_quartile()
-
-
-
-
-```
-
-Let's see how fast my computer deals with a combination of 5 without
-culling.
-
-```{r eval=FALSE}
-
-system.time({
-  five_combinations <- variable_combinations(5)
-})
-
-#     user   system  elapsed 
-# 1736.510    7.177 1765.962 
-```
-
-Hm, about 10 minutes longer. Let's stick with the reduced one
-
-Now, get the combinations of four variables. In this one, I'm going to
-use the profiler
-
-```{r message=FALSE}
-
-
-four_combinations <- variable_combinations(4, data)
-
-four_combinations <- four_combinations |> cull_quartile()
-```
-
-The next challenge is that we have a list of all the feature types to
-look at, but now we need to cull to the most common feature-value pairs,
-including simplex, duplex, triplex, quadruplex, and quinqueplex
-variables.
-
-The step-by-step process should be:
-
-1.  Iterate row-by-row over the tibbles of variables
-2.  Select a subset of data using the row from the tibble
-3.  Iterate row-by-row over the subset and concatenate all the values in
-    the row to a string
-4.  Add the string to a vector where all the other strings will go
-5.  To get the counts, use table(). Cull out the least common ones
-
-We need to work our way backwards from these results. First, we create a
-data frame where each row is the string split version of each row in the
-vector created above, so that each row in the data frame is a different
-combination of features with no repeats.
-
-Now we iterate over all the sections of interest. Each section will be a
-row in the new data frame. For each row in the frame created in the
-previous paragraph, we count up how many times that combination of
-features occurs in the targeted section. We create a column with that
-variable name, add the count, and then do this for all variables. Repeat
-for each section.
-
-Test with a single variable
-
-```{r eval=FALSE}
-
-test_var <- one_combinations[1]
-
-var_combos <- 
-  data |>
-  dplyr::select(all_of(test_var)) |>
-  unite("pasted", everything(), sep = "_")
-
-table(var_combos) |> as_tibble()
-```
-
-Now let's test with two:
-
-```{r eval=FALSE}
-test_var <- unlist(transpose(two_combinations[1,1:2]))
-
-var_combos <- 
-  data |>
-  dplyr::select(all_of(test_var)) |>
-  unite("pasted", everything(), sep = "_") |>
-  filter(str_detect(pasted, pattern = "NA", negate = TRUE))
-
-table(var_combos) |> as_tibble()
-```
-
-Okay, let's put that into a function which, for each row of one of the
-combination tables, it lists all the combinations in a table.
+Let's create a function that takes each combination in the list and gets
+the number of times each one occurs. This function also removes any that
+occur in less than 20% of the corpus
 
 ```{r}
 
@@ -777,28 +503,23 @@ get_var_combos <- function(var_combn, source_data) {
     dplyr::select(all_of(as.character(var_combn))) |>
     #Added next line to avoid expensive string comparisons
     #dplyr::select(where(all(~ !is.na(.x)))) |>
-    #Paste the whole row together
-    unite("pasted", everything(), sep = "_") |>
+    #Paste the whole row together; I use a pipe because it's unused elsewhere
+    unite("pasted", everything(), sep = "|") |>
     filter(str_detect(pasted, pattern = "NA", negate = TRUE)) #Remove NAs
   
-  if (length(var_combos$pasted) > 0) {return(table(var_combos) |> as_tibble())}
+  if (length(var_combos$pasted) > 0) {
+    final.tibble <- table(var_combos) |> as_tibble()
+    
+    #Return only the ones where they occur in more than a fifth of the data. 
+    return(final.tibble |> filter(n > nrow(source_data) / 5))
+    }
   else {return(NULL)}
 }
 ```
 
-Now we would need to iterate over every row in the tibble.
-
-```{r eval = FALSE}
-
-#Remove the last row
-
-test <- two_combinations |> dplyr::select(!last_col())
-list_combn <- apply(test, MARGIN = 1, get_var_combos, source_data = data) |> list_rbind()
-```
-
 That worked, so lets put it into a function.
 
-**I'm going to temporarily require a count of more than 30**
+**I'm going to temporarily require a count of more than 340 (30 \* 14)**
 
 ```{r}
 
@@ -886,6 +607,8 @@ Okay, now we need to transpose the data.
 all_vars <- pivot_wider(all_vars, names_from = pasted, values_from = n)
 ```
 
+NOTE: LET'S NOT DO IT POST HOC, BUT DURING THE PROCEDURE
+
 The number of variables is way too high, so we go by Gorman 2020's
 method of only keeping ones that occur in more than 20% of words (n \>
 (\# of rows in data) / 5)). **However, for testing purposes, let's first
@@ -893,7 +616,7 @@ just get the top 1,000 variables**
 
 Keep columns where sum of column is greater than that figure:
 
-```{r}
+```{r eval=FALSE}
 
 limit <- nrow(data) / 5
 title <- all_vars$title
@@ -908,4 +631,13 @@ Now save this to a CSV!
 
 ```{r}
 write_csv(culled_all_vars, file = "./feature_values_gorman.csv", col_names = TRUE)
+```
+
+Iteration would be a lot faster if I could run one function to get all
+the variables. I'll create that here.
+
+```{r}
+
+select_variables <- function(source_data) {
+}
 ```
