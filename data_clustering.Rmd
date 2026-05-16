@@ -34,6 +34,8 @@ final.frame <- read.csv("./feature_values.csv")
 gorman.vars <- read.csv("./feature_values_gorman.csv")
 ```
 
+The new algorithm culls variables at each number of combinations, so
+
 # Pre-visualization
 
 I want to do a little bit of previsualization first.
@@ -66,12 +68,23 @@ Moisl suggests NOT computing z-scores because the method of measurement is the s
 Now that we have a viable DF, let's cut it up a little bit. We don't want the first column, because that's all text. Not every clustering algorithm needs the DF to be pre-scaled (that is, subtracting the mean from every value and dividing it by the standard deviation to make the comparable). However, some do expect the data to be scaled, so lets create two variables. **df_clust** isn't scaled, and **df_scaled** is.
 
 ```{r df_clust & df_scaled}
-df_clust <- final.frame[, 2:length(final.frame)]
+#SELECTED ARBITRARY SUM!!!
+final.frame <- slice_sample(final.frame, n = 100)
+df_clust <- final.frame |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x) > 5))
 gorman_clust <- gorman.vars |> dplyr::select(-title)
 rownames(df_clust) <- final.frame$title
 # df_clust <- slice_sample(df_clust, n=45)
 
 df_scaled <- as.data.frame(scale(df_clust))
+```
+
+## Summary Statistics
+
+Coefficient of variation:
+
+```{r}
+library(goeveg)
+apply(final.frame |> select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
 ```
 
 # Analysis
@@ -98,7 +111,7 @@ Another note is that here is where I remove the variables I'm not considering.
 # Add this with the + operator to fviz_cluster plots. @param data is the original dataset used for cluster analysis (df_clust in the first case)
 cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward", hjust = "inward", max.overlaps = 20, size = 3)
 # Args for fviz_clust
-palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray")
+palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray", "cyan", "black")
 geom <- "point"
 ellipse.type <- "convex"
 ggtheme <- theme_bw()
@@ -135,7 +148,7 @@ Time to cluster! K-means is a good starting point here. I'll check out CLARA as 
 
 ```{r K-means clustering}
 set.seed(126126)
-kmeans_basic_cluster <- kmeans(df_clust, centers = k, nstart = 25)
+kmeans_basic_cluster <- kmeans(df_clust, centers = k, nstart = 50)
 kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
 kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, df_clust)
 ```
@@ -166,7 +179,7 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
   ggtheme = ggtheme
 ) +
   geom_text_repel(
-    aes(label = rownames(df_clust)),
+    aes(label = final.frame$title),
     vjust = "inward",
     hjust = "inward",
     max.overlaps = 14,
@@ -189,6 +202,18 @@ ggsave(filename = "Images/cluster-diagram-kmeans.png", dpi = "print")
 
 str(kmeans_basic_cluster)
 
+```
+
+```{r}
+fviz_dend(hclust(dist(df_clust)),
+  palette = palette,
+  geom = geom,
+  ellipse.type = ellipse.type,
+  ggtheme = ggtheme,
+  cex = 0.4,
+) 
+
+ggsave(filename = "Images/dendrogram.png", dpi = "print")
 ```
 
 ```{r}
@@ -405,3 +430,11 @@ fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4
 
 ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
 ```
+
+## Questions to Investigate
+
+Which variables have the strongest correlation with these texts?
+
+Are variations within the Gallic War enough to suggest episodic publication?
+
+What does the cluster diagram look like when we go section by section?

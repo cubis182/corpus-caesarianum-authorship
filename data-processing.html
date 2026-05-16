@@ -1628,19 +1628,11 @@ display: none;
 Notebook. When you execute code within the notebook, the results appear
 beneath the code.</p>
 <pre class="r"><code>knitr::opts_chunk$set(results = &quot;hold&quot;)
-knitr::opts_knit$set(root.dir = &#39;~/PycharmProjects/corpus-caesarianum-authorship&#39;)</code></pre>
+knitr::opts_knit$set(root.dir = &#39;~/PycharmProjects/corpus-caesarianum-authorship&#39;)
+#knitr::opts_knit$set(root.dir = &#39;~/GitHub/corpus-caesarianum-authorship&#39;)</code></pre>
 <div id="data-preparation" class="section level1">
 <h1>Data Preparation</h1>
-<pre class="r"><code># install.packages(&quot;factoextra&quot;)
-# install.packages(&quot;dplyr&quot;)
-# install.packages(&quot;ggrepel&quot;)
-# install.packages(&quot;tidyverse&quot;)
-# install.packages(&quot;dendextend&quot;)
-# install.packages(&quot;MASS&quot;)
-# install.packages(&quot;ggtext&quot;)
-#install.packages(&quot;printr&quot;)
-
-library(factoextra)
+<pre class="r"><code>library(factoextra)
 library(dplyr)
 library(ggrepel)
 library(tidyverse)
@@ -1677,8 +1669,8 @@ base R pipe, though</p></li>
 <pre class="r"><code>dims &lt;- c(
   &quot;title&quot;, 
   &quot;author&quot;, 
-  &quot;cite1&quot;,
-  &quot;cite2&quot;,
+  &quot;book&quot;,
+  &quot;section&quot;,
   &quot;path&quot;,
   &quot;form&quot;,
   &quot;lemma&quot;,
@@ -1723,31 +1715,10 @@ data &lt;- data |&gt;
   mutate(Person = as.factor(Person))
 
 summary(data)</code></pre>
-<table>
+<table style="width:100%;">
 <colgroup>
 <col width="0%" />
-<col width="3%" />
 <col width="2%" />
-<col width="7%" />
-<col width="1%" />
-<col width="11%" />
-<col width="2%" />
-<col width="2%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="2%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
-<col width="1%" />
 <col width="3%" />
 <col width="2%" />
 <col width="2%" />
@@ -1755,15 +1726,36 @@ summary(data)</code></pre>
 <col width="2%" />
 <col width="2%" />
 <col width="2%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="2%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="1%" />
+<col width="2%" />
+<col width="3%" />
+<col width="3%" />
+<col width="2%" />
+<col width="3%" />
+<col width="2%" />
+<col width="2%" />
+<col width="2%" />
+<col width="2%" />
+<col width="3%" />
 <col width="2%" />
 <col width="2%" />
 <col width="2%" />
 <col width="2%" />
 <col width="2%" />
 <col width="2%" />
-<col width="2%" />
-<col width="2%" />
-<col width="2%" />
+<col width="3%" />
 <col width="3%" />
 </colgroup>
 <thead>
@@ -1771,8 +1763,8 @@ summary(data)</code></pre>
 <th align="left"></th>
 <th align="left">title</th>
 <th align="left">author</th>
-<th align="left">cite1</th>
-<th align="left">cite2</th>
+<th align="left">book</th>
+<th align="left">section</th>
 <th align="left">path</th>
 <th align="left">form</th>
 <th align="left">lemma</th>
@@ -1813,242 +1805,224 @@ summary(data)</code></pre>
 <tbody>
 <tr class="odd">
 <td align="left"></td>
-<td align="left">Bellum Africum :13515</td>
-<td align="left">Anonymous :31010</td>
-<td align="left"><a href="urn:cts:latinLit:phi0448.phi001.perseus-lat2:53378" class="uri">urn:cts:latinLit:phi0448.phi001.perseus-lat2:53378</a></td>
-<td align="left">32 : 846</td>
-<td align="left">./../canonical-latinLit/data/phi0426/phi001/phi0426.phi001.perseus-lat1.xml:13515</td>
-<td align="left">. : 4777</td>
-<td align="left">. : 4777</td>
-<td align="left">NOUN :33739</td>
-<td align="left">Imp :15652</td>
-<td align="left">Imp : 51</td>
-<td align="left">Plur:31920</td>
-<td align="left">1 : 317</td>
-<td align="left">Fut : 71</td>
-<td align="left">Fin :15085</td>
-<td align="left">Act :14614</td>
-<td align="left">Abl :21046</td>
-<td align="left">Prs : 5452</td>
-<td align="left">Fem :20842</td>
-<td align="left">Neg : 1587</td>
-<td align="left">Abs : 678</td>
-<td align="left">Card: 1366</td>
-<td align="left">obl :12359</td>
-<td align="left">parent_posset : 443</td>
-<td align="left">parent_possum: 2138</td>
-<td align="left">parent_VERB:68822</td>
-<td align="left">parent_Imp :39751</td>
-<td align="left">parent_Imp: 146</td>
-<td align="left">parent_Plur:38993</td>
-<td align="left">parent_1: 679</td>
-<td align="left">parent_Fut : 277</td>
-<td align="left">parent_Fin :48110</td>
-<td align="left">parent_Act :47264</td>
-<td align="left">parent_Abl:19361</td>
-<td align="left">parent_Prs: 1563</td>
-<td align="left">parent_Fem :18614</td>
-<td align="left">parent_Neg: 83</td>
-<td align="left">parent_Abs: 261</td>
-<td align="left">parent_Card: 282</td>
-<td align="left">parent_root :30967</td>
+<td align="left">african :14036</td>
+<td align="left">Julius Caesar:121269</td>
+<td align="left">Min. :1.00</td>
+<td align="left">Min. : 0.00</td>
+<td align="left">african :14036</td>
+<td align="left">. : 4847</td>
+<td align="left">. : 4847</td>
+<td align="left">NOUN :33825</td>
+<td align="left">Imp :15641</td>
+<td align="left">Imp: 44</td>
+<td align="left">Plur:32126</td>
+<td align="left">1 : 315</td>
+<td align="left">Fut : 59</td>
+<td align="left">Fin :15090</td>
+<td align="left">Act :14608</td>
+<td align="left">Abl:20621</td>
+<td align="left">Prs : 5606</td>
+<td align="left">Fem :20701</td>
+<td align="left">Neg: 1598</td>
+<td align="left">Abs: 684</td>
+<td align="left">Card: 1434</td>
+<td align="left">obl :12171</td>
+<td align="left">parent_iubet : 457</td>
+<td align="left">parent_possum: 2191</td>
+<td align="left">parent_VERB:71742</td>
+<td align="left">parent_Imp :41190</td>
+<td align="left">parent_Imp: 127</td>
+<td align="left">parent_Plur:40801</td>
+<td align="left">parent_1: 684</td>
+<td align="left">parent_Fut : 223</td>
+<td align="left">parent_Fin :50129</td>
+<td align="left">parent_Act :49213</td>
+<td align="left">parent_Abl:19386</td>
+<td align="left">parent_Prs: 1653</td>
+<td align="left">parent_Fem :18957</td>
+<td align="left">parent_Neg: 91</td>
+<td align="left">parent_Abs: 260</td>
+<td align="left">parent_Card: 304</td>
+<td align="left">parent_root :29661</td>
 </tr>
 <tr class="even">
 <td align="left"></td>
-<td align="left">Bellum Alexandrinum:11059</td>
-<td align="left">Julius Caesar:87077</td>
-<td align="left">3 :16172</td>
-<td align="left">9 : 711</td>
-<td align="left">./../canonical-latinLit/data/phi0428/phi001/phi0428.phi001.perseus-lat1.xml:11059</td>
-<td align="left">in : 2585</td>
-<td align="left">qui : 3000</td>
-<td align="left">VERB :25214</td>
-<td align="left">Perf :11007</td>
-<td align="left">Ind : 10710</td>
-<td align="left">Sing:48519</td>
-<td align="left">2 : 281</td>
-<td align="left">Past: 9087</td>
-<td align="left">Inf : 4454</td>
-<td align="left">Pass:10600</td>
-<td align="left">Acc :19393</td>
-<td align="left">Rel : 4994</td>
-<td align="left">Masc:29370</td>
-<td align="left">NA’s:116500</td>
-<td align="left">Cmp : 1342</td>
-<td align="left">Dist: 30</td>
-<td align="left">case : 9750</td>
-<td align="left">parent_iubet : 437</td>
-<td align="left">parent_facio : 1980</td>
-<td align="left">parent_NOUN:33308</td>
-<td align="left">parent_Perf :27790</td>
-<td align="left">parent_Ind:35105</td>
-<td align="left">parent_Sing:63094</td>
-<td align="left">parent_2: 760</td>
-<td align="left">parent_Past:29847</td>
-<td align="left">parent_Inf : 7421</td>
-<td align="left">parent_Pass:21558</td>
-<td align="left">parent_Acc:14635</td>
-<td align="left">parent_Dem: 566</td>
-<td align="left">parent_Masc:22381</td>
-<td align="left">NA’s :118004</td>
-<td align="left">parent_Cmp: 511</td>
-<td align="left">parent_Dist: 2</td>
-<td align="left">parent_obl :14869</td>
+<td align="left">alexandrine:11185</td>
+<td align="left">NA</td>
+<td align="left">1st Qu.:1.00</td>
+<td align="left">1st Qu.: 15.00</td>
+<td align="left">alexandrine:11185</td>
+<td align="left">in : 2601</td>
+<td align="left">qui : 3030</td>
+<td align="left">VERB :25352</td>
+<td align="left">Perf :11145</td>
+<td align="left">Ind: 10690</td>
+<td align="left">Sing:48332</td>
+<td align="left">2 : 254</td>
+<td align="left">Past: 9129</td>
+<td align="left">Inf : 4458</td>
+<td align="left">Pass:10744</td>
+<td align="left">Acc:19419</td>
+<td align="left">Rel : 5050</td>
+<td align="left">Masc:29542</td>
+<td align="left">NAs:119671</td>
+<td align="left">Cmp: 1332</td>
+<td align="left">Dist: 35</td>
+<td align="left">case : 9831</td>
+<td align="left">parent_posset : 451</td>
+<td align="left">parent_facio : 2063</td>
+<td align="left">parent_NOUN:33916</td>
+<td align="left">parent_Perf :29223</td>
+<td align="left">parent_Ind:36641</td>
+<td align="left">parent_Sing:64973</td>
+<td align="left">parent_2: 709</td>
+<td align="left">parent_Past:31121</td>
+<td align="left">parent_Inf : 7598</td>
+<td align="left">parent_Pass:22529</td>
+<td align="left">parent_Acc:14976</td>
+<td align="left">parent_Dem: 579</td>
+<td align="left">parent_Masc:23380</td>
+<td align="left">NAs :121178</td>
+<td align="left">parent_Cmp: 535</td>
+<td align="left">parent_Dist: 3</td>
+<td align="left">parent_conj :18210</td>
 </tr>
 <tr class="odd">
 <td align="left"></td>
-<td align="left">Bellum Hispaniense : 6436</td>
+<td align="left">civil :34841</td>
 <td align="left">NA</td>
-<td align="left">1 :11906</td>
-<td align="left">85 : 634</td>
-<td align="left">./../canonical-latinLit/data/phi0430/phi001/phi0430.phi001.perseus-lat1.xml:
-6436</td>
-<td align="left">et : 2297</td>
-<td align="left">in : 2642</td>
-<td align="left">ADP : 9842</td>
-<td align="left">Prosp: 1047</td>
-<td align="left">Sub : 4312</td>
-<td align="left">NA’s:37648</td>
-<td align="left">3 :18417</td>
-<td align="left">Pqp : 683</td>
-<td align="left">Part: 8169</td>
-<td align="left">NA’s:92873</td>
-<td align="left">Dat : 1937</td>
-<td align="left">Dem : 2714</td>
-<td align="left">Neut:14979</td>
+<td align="left">Median :2.00</td>
+<td align="left">Median : 30.00</td>
+<td align="left">civil :34841</td>
+<td align="left">que : 2592</td>
+<td align="left">in : 2641</td>
+<td align="left">ADP : 9905</td>
+<td align="left">Prosp: 1055</td>
+<td align="left">Sub: 4346</td>
+<td align="left">NAs :40811</td>
+<td align="left">3 : 18557</td>
+<td align="left">Pqp : 688</td>
+<td align="left">Part: 8294</td>
+<td align="left">NAs :95917</td>
+<td align="left">Dat: 1945</td>
+<td align="left">Dem : 2695</td>
+<td align="left">Neut:14996</td>
 <td align="left">NA</td>
-<td align="left">NA’s:116067</td>
-<td align="left">Ord : 397</td>
-<td align="left">obj : 8834</td>
-<td align="left">parent_castris: 414</td>
-<td align="left">parent_habeo : 1512</td>
-<td align="left">parent_ADJ : 4101</td>
-<td align="left">parent_Prosp: 1447</td>
-<td align="left">parent_Sub:12845</td>
-<td align="left">NA’s :16000</td>
-<td align="left">parent_3:48070</td>
-<td align="left">parent_Pqp : 2117</td>
-<td align="left">parent_Part:13457</td>
-<td align="left">NA’s :49265</td>
-<td align="left">parent_Dat: 739</td>
-<td align="left">parent_Ind: 480</td>
-<td align="left">parent_Neut:12899</td>
+<td align="left">NAs:119253</td>
+<td align="left">Ord : 407</td>
+<td align="left">obj : 8872</td>
+<td align="left">parent_castris: 423</td>
+<td align="left">parent_habeo : 1566</td>
+<td align="left">parent_ADJ : 4172</td>
+<td align="left">parent_Prosp: 1521</td>
+<td align="left">parent_Sub:13341</td>
+<td align="left">NAs :15495</td>
+<td align="left">parent_3:50220</td>
+<td align="left">parent_Pqp : 2188</td>
+<td align="left">parent_Part:14207</td>
+<td align="left">NAs :49527</td>
+<td align="left">parent_Dat: 780</td>
+<td align="left">parent_Ind: 501</td>
+<td align="left">parent_Neut:13219</td>
 <td align="left">NA</td>
-<td align="left">NA’s :117315</td>
-<td align="left">parent_Ord : 73</td>
-<td align="left">parent_conj :14428</td>
+<td align="left">NAs :120474</td>
+<td align="left">parent_Ord : 79</td>
+<td align="left">parent_obl :14751</td>
 </tr>
 <tr class="even">
 <td align="left"></td>
-<td align="left">De Bello Civili :33699</td>
+<td align="left">gallic :54666</td>
 <td align="left">NA</td>
-<td align="left">2 : 6989</td>
-<td align="left">18 : 581</td>
-<td align="left">./../canonical-latinLit/data/phi0448/phi001/phi0448.phi001.perseus-lat2.xml:53378</td>
-<td align="left">ad : 1716</td>
+<td align="left">Mean :3.05</td>
+<td align="left">Mean : 35.68</td>
+<td align="left">gallic :54666</td>
+<td align="left">et : 2306</td>
+<td align="left">que : 2592</td>
+<td align="left">ADJ : 8439</td>
+<td align="left">NAs :93428</td>
+<td align="left">NAs:106189</td>
+<td align="left">NA</td>
+<td align="left">NAs:102143</td>
+<td align="left">Pres: 5202</td>
+<td align="left">NAs :93427</td>
+<td align="left">NA</td>
+<td align="left">Gen: 7942</td>
+<td align="left">Ind : 1691</td>
+<td align="left">NAs :56030</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NAs :119393</td>
+<td align="left">conj : 8084</td>
+<td align="left">parent_possent: 409</td>
+<td align="left">parent_mitto : 1313</td>
+<td align="left">parent_PRON: 1926</td>
+<td align="left">NAs :49335</td>
+<td align="left">NAs :71160</td>
+<td align="left">NA</td>
+<td align="left">NAs :69656</td>
+<td align="left">parent_<a href="Pres:16570" class="uri">Pres:16570</a></td>
+<td align="left">NAs :49335</td>
+<td align="left">NA</td>
+<td align="left">parent_Gen: 2654</td>
+<td align="left">parent_Rel: 280</td>
+<td align="left">NAs :65713</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NAs :120883</td>
+<td align="left">parent_advcl :12910</td>
+</tr>
+<tr class="odd">
+<td align="left"></td>
+<td align="left">spanish : 6541</td>
+<td align="left">NA</td>
+<td align="left">3rd Qu.:5.00</td>
+<td align="left">3rd Qu.: 51.00</td>
+<td align="left">spanish : 6541</td>
+<td align="left">ad : 1726</td>
 <td align="left">sum : 2496</td>
-<td align="left">ADJ : 8759</td>
-<td align="left">NA’s :90381</td>
-<td align="left">NA’s:103014</td>
-<td align="left">NA</td>
-<td align="left">NA’s:99072</td>
-<td align="left">Pres: 5226</td>
-<td align="left">NA’s:90379</td>
-<td align="left">NA</td>
-<td align="left">Gen : 7901</td>
-<td align="left">Ind : 1768</td>
-<td align="left">NA’s:52896</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA’s:116294</td>
-<td align="left">nsubj : 7244</td>
-<td align="left">parent_possent: 395</td>
-<td align="left">parent_mitto : 1257</td>
-<td align="left">parent_PRON: 1811</td>
-<td align="left">NA’s :49099</td>
-<td align="left">NA’s :69991</td>
-<td align="left">NA</td>
-<td align="left">NA’s :68578</td>
-<td align="left">parent_<a href="Pres:15833" class="uri">Pres:15833</a></td>
-<td align="left">NA’s :49099</td>
-<td align="left">NA</td>
-<td align="left">parent_Gen: 2483</td>
-<td align="left">parent_Rel: 252</td>
-<td align="left">NA’s :64193</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA’s :117730</td>
-<td align="left">parent_advcl :12316</td>
-</tr>
-<tr class="odd">
-<td align="left"></td>
-<td align="left">De bello Gallico :53378</td>
-<td align="left">NA</td>
-<td align="left">20 : 887</td>
-<td align="left">10 : 574</td>
-<td align="left">./../canonical-latinLit/data/phi0448/phi002/phi0448.phi002.perseus-lat3.xml:33699</td>
-<td align="left">cum : 1152</td>
-<td align="left">is : 2452</td>
-<td align="left">DET : 7407</td>
+<td align="left">CCONJ : 7767</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">NA’s:103020</td>
+<td align="left">NAs :106191</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">Loc : 9</td>
-<td align="left">Tot : 1225</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">root : 6997</td>
-<td align="left">parent_mittit : 372</td>
-<td align="left">parent_is : 1027</td>
-<td align="left">parent_DET : 1332</td>
+<td align="left">Loc: 10</td>
+<td align="left">Tot : 1266</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">NA’s :70013</td>
+<td align="left">cc : 7570</td>
+<td align="left">parent_mittit : 391</td>
+<td align="left">parent_is : 1065</td>
+<td align="left">parent_DET : 1399</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">parent_Nom:17034</td>
-<td align="left">parent_Con: 162</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NAs :71167</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">parent_Nom:18195</td>
+<td align="left">parent_Con: 172</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">parent_acl:relcl: 5646</td>
+<td align="left">parent_acl:relcl: 5990</td>
 </tr>
 <tr class="even">
 <td align="left"></td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">30 : 658</td>
-<td align="left">(Other):83731</td>
+<td align="left">Max. :8.00</td>
+<td align="left">Max. :111.00</td>
 <td align="left">NA</td>
-<td align="left">ex : 1116</td>
-<td align="left">et : 2308</td>
-<td align="left">PRON : 7290</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">Nom :16360</td>
-<td align="left">(Other): 626</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">conj : 6886</td>
-<td align="left">(Other) :109029</td>
-<td align="left">(Other) :103176</td>
-<td align="left">(Other) : 1716</td>
+<td align="left">cum : 1252</td>
+<td align="left">is : 2484</td>
+<td align="left">DET : 7428</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
@@ -2056,41 +2030,41 @@ summary(data)</code></pre>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">NA’s :63835</td>
-<td align="left">(Other) : 156</td>
+<td align="left">Nom:16824</td>
+<td align="left">(Other): 627</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">(Other) :32864</td>
+<td align="left">nsubj : 7323</td>
+<td align="left">(Other) :112807</td>
+<td align="left">(Other) :106740</td>
+<td align="left">(Other) : 1783</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NAs :65278</td>
+<td align="left">(Other) : 178</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">(Other) :33416</td>
 </tr>
 <tr class="odd">
 <td align="left"></td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">(Other) :28097</td>
-<td align="left">NA’s :31010</td>
-<td align="left">NA</td>
-<td align="left">(Other):104444</td>
-<td align="left">(Other):100412</td>
-<td align="left">(Other):25836</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA’s:51441</td>
-<td align="left">NA’s :101308</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">(Other):66017</td>
-<td align="left">NA’s : 6997</td>
-<td align="left">NA’s : 6997</td>
-<td align="left">NA’s : 6997</td>
+<td align="left">(Other):105945</td>
+<td align="left">(Other):103179</td>
+<td align="left">(Other):28553</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
@@ -2098,13 +2072,30 @@ summary(data)</code></pre>
 <td align="left">NA</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">NA</td>
-<td align="left">NA’s :114908</td>
-<td align="left">NA</td>
-<td align="left">NA</td>
+<td align="left">NAs:54508</td>
+<td align="left">NAs :104334</td>
 <td align="left">NA</td>
 <td align="left">NA</td>
-<td align="left">NA’s : 6997</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">(Other):67418</td>
+<td align="left">NAs : 6331</td>
+<td align="left">NAs : 6331</td>
+<td align="left">NAs : 6331</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NAs :117906</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NA</td>
+<td align="left">NAs : 6331</td>
 </tr>
 </tbody>
 </table>
@@ -2165,19 +2156,53 @@ the base one.</p>
 the data so that each column is a feature value instead of a feature
 type and the values in the columns are the number of times each feature
 appears.</p>
-<pre class="r"><code># Rename &quot;Imp&quot; to &quot;Imperative&quot; in mood category
-levels(data$Mood) &lt;- c(levels(data$Mood), &quot;Imperative&quot;)
-sequence &lt;- which(data$Mood == &quot;Imp&quot;)
-data$Mood[sequence] &lt;- &quot;Imperative&quot;
-remove(sequence)
+<pre class="r"><code># # Rename &quot;Imp&quot; to &quot;Imperative&quot; in mood category
+# levels(data$Mood) &lt;- c(levels(data$Mood), &quot;Imperative&quot;)
+# sequence &lt;- which(data$Mood == &quot;Imp&quot;)
+# data$Mood[sequence] &lt;- &quot;Imperative&quot;
+# remove(sequence)
+# 
+# data$Mood[data$Mood == &quot;Imp&quot;] &lt;- &quot;Imperative&quot;
+# data$Mood &lt;- droplevels(data$Mood) # Remove the old &quot;Imp
 
-data$Mood[data$Mood == &quot;Imp&quot;] &lt;- &quot;Imperative&quot;
-data$Mood &lt;- droplevels(data$Mood) # Remove the old &quot;Imp
+#Turn it into a function
+replace_value &lt;- function(column, to_replace, replace_string) {
+  # Rename &quot;Imp&quot; to &quot;Imperative&quot; in mood category
+  levels(data[[column]]) &lt;- c(levels(data[[column]]), replace_string)
+  sequence &lt;- which(data[[column]] == to_replace)
+  data[[column]][sequence] &lt;- replace_string
+  remove(sequence)
+  
+  data[[column]][data[[column]] == to_replace] &lt;- replace_string
+  data[[column]] &lt;- droplevels(data[[column]]) # Remove the old &quot;Imp
+  return(data)
+}
+
+data &lt;- replace_value(&quot;Mood&quot;, &quot;Imp&quot;, &quot;Imperative&quot;)
+data &lt;- replace_value(&quot;Mood&quot;, &quot;Ind&quot;, &quot;Indicative&quot;)
+data &lt;- replace_value(&quot;parent_Mood&quot;, &quot;parent_Ind&quot;, &quot;parent_Indicative&quot;)
+data &lt;- replace_value(&quot;parent_Mood&quot;, &quot;parent_Imp&quot;, &quot;parent_Imperative&quot;)
 
 #Remove unneeded variables
 data &lt;- data |&gt; tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree)
+data &lt;- data |&gt;
+  filter(tag != &#39;PUNCT&#39;)
 
 #An argument could be made for removing Polarity, but I&#39;ll wait to see how common it is and how much variance there is between the texts</code></pre>
+<div id="subsetting-booksection-numbers" class="section level2">
+<h2>Subsetting Book/Section Numbers</h2>
+<p>I want a simple way to subset book as section numbers, with a
+function that combines only the desired pieces together. Book AND
+section isn’t currently possible, just the following combinations:</p>
+<ul>
+<li><p>Commentary</p></li>
+<li><p>Book</p></li>
+<li><p>Section</p></li>
+<li><p>Commentary and book</p></li>
+<li><p>Commentary, book, and section</p></li>
+<li><p>Book and section</p></li>
+</ul>
+</div>
 <div id="simple-variable-counts" class="section level2">
 <h2>Simple Variable Counts</h2>
 <p>Now that we have the data, what we’re <em>really</em> interested in
@@ -2253,7 +2278,7 @@ file.</p>
 <p>That’s a huge number, so let’s start by working with the original
 data.</p>
 <pre class="r"><code>length(data[1,])</code></pre>
-<pre><code>## [1] 37</code></pre>
+<pre><code>## [1] 35</code></pre>
 <p>Gorman considered only number of base features, not number of parent
 features, in feature selection. So, he was considering 20 features,
 while I consider 40, with the number doubled. The frequency of a feature
@@ -2285,121 +2310,64 @@ function</p></li>
 <li><p>In that column of the pairwise_combinations tibble, add a third
 field with the count retrieved in the previous step.</p></li>
 <li><p>Sort the tibble by the third field, cull out a percentage based
-on Gorman 2016</p></li>
+on Gorman 2016Okay, so, we’ve gotten data on all the combinations of two
+variables, but what about 3 to 5? Let’s refactor the above code into a
+function we can re-use:</p></li>
 </ol>
-<pre class="r"><code>#Return TRUE for every row in the tibble that has an NA either in column 1 or 2
-no_na &lt;- function (tib) {
-  bool &lt;- is.na(tib[,1]) | is.na(tib[,2]) 
-  
-  return(!bool)
+<pre class="r"><code>if (!(&quot;combinat&quot; %in% (.packages()))) {
+  library(combinat)
 }
 
-variable_count &lt;- function(matrix) {
+#Filters a row to rows which have ZERO NA values in them
+no_na &lt;- function(tib, vec) {
+  if(NA %in% vec) {
+    return(tib)
+  }
+  tib &lt;- filter(tib, .data[[vec[1]]] != FALSE)
+  vec &lt;- vec[2:length(vec)]
+  return(no_na(tib, vec))
+
+}
+
+#Given a matrix which includes a set of column names in the source_data, return the number of rows that have valid data in all columns
+variable_count &lt;- function(matrix, source_data) {
   
-  subset_of_data &lt;- data |&gt; 
-    tidytable::select(matrix)
+  subset_of_data &lt;- source_data %&gt;% 
+    tidytable::select(all_of(matrix)) %&gt;%
+    no_na(colnames(.))
   
-  #example: tidytable::select(data, two_select_combinations[,1])
-  
-  #Get a logical vector of how many rows in the selected columns
-  #have no NAs
-  features_exist &lt;- subset_of_data |&gt;
-    dplyr::rowwise() |&gt;
-    no_na()
-  
-  #TRUE is equal to 1 and FALSE to 0, so summing the vector
-  #will return the number of rows which have an NA in neither
-  #column
-  return(sum(features_exist)) 
+  return(nrow(subset_of_data)) 
     
 }
 
-combination_freqs &lt;- apply(X=two_select_combinations, MARGIN = 2, FUN=variable_count)
+#combinations_n &lt;- 2
 
-tib_two_select_combinations &lt;- as_tibble(two_select_combinations)
-
-tib_two_select_combinations[3,] &lt;- as.list(as.character(combination_freqs))
-
-tib_two_select_combinations
-
-#Use apply and pass variable_count to an apply function over the columns of the matrix titled two_select_combinations</code></pre>
-<p>Let’s try to transpose this tibble so we can actually make one column
-numeric:</p>
-<pre class="r"><code>tib_two_select_combinations &lt;-
-  tib_two_select_combinations |&gt; 
-  mutate(type = c(&#39;tag1&#39;, &#39;tag2&#39;, &#39;num&#39;)) |&gt; 
-  #Note that the default names all start with V (V1, V2, V3...Vn)
-  pivot_longer(starts_with(&quot;V&quot;)) |&gt; 
-  pivot_wider(names_from = type, values_from = value) |&gt; 
-  select(!name) |&gt;
-  mutate(across(num, as.integer))
-
-tib_two_select_combinations
-
-arrange(tib_two_select_combinations, num)</code></pre>
-<p>Now that we have a list of features, let’s eliminate any combinations
-that occur zero times together</p>
-<pre class="r"><code>tib_two_select_combinations &lt;- tib_two_select_combinations |&gt; filter(num &gt; 0) |&gt; arrange(num) 
-
-tib_two_select_combinations</code></pre>
-<p>I’m interested in seeing whether there is any resemblance to
-normality; I would expect not, but I want to visualize the data.</p>
-<pre class="r"><code>ggplot(tib_two_select_combinations, aes(num)) + geom_histogram(binwidth=200)
-library(dgof)
-
-ks.test(jitter(tib_two_select_combinations$num, amount = 0.01), &quot;pnorm&quot;)</code></pre>
-<p>The null hypothesis is that the distribution is the same as the
-normal distribution, so we can soundly reject that, not that it was in
-question.</p>
-<p>Okay, so, we’ve gotten data on all the combinations of two variables,
-but what about 3 to 5? Let’s refactor the above code into a function we
-can re-use:</p>
-<pre class="r"><code>library(combinat)
-
-#Return TRUE for every row in the tibble that has an NA either in column 1 or 2
-no_na &lt;- function (tib) {
-  bool &lt;- is.na(tib[,1]) | is.na(tib[,2]) 
+#Get rid of values that don&#39;t appear 
+cull &lt;- function(combinations) {
+  print(paste(&quot;Length before culling: &quot;, as.character(length(combinations$a))))
   
-  return(!bool)
+  #Get rid of features which occur in less than 20% of the corpus
+  filtered &lt;- combinations |&gt; filter(num &gt; (nrow(data) / 5))
+  
+  print(paste(&quot;Length after culling: &quot;, as.character(length(filtered$a))))
+  return(filtered)
 }
 
-variable_count &lt;- function(matrix) {
-  
-  subset_of_data &lt;- data |&gt; 
-    tidytable::select(matrix)
-  
-  #example: tidytable::select(data, two_select_combinations[,1])
-  
-  #Get a logical vector of how many rows in the selected columns
-  #have no NAs
-  features_exist &lt;- subset_of_data |&gt;
-    dplyr::rowwise() |&gt;
-    no_na()
-  
-  #TRUE is equal to 1 and FALSE to 0, so summing the vector
-  #will return the number of rows which have an NA in neither
-  #column
-  return(sum(features_exist)) 
-    
-}
-
-combinations_n &lt;- 2
-
-#combn, data, tag, parent_Deprel, 
-variable_combinations &lt;- function(combinations_n) {
-  ###DEBUG, PLEASE DELETE NEXT LINE
-  combinations_n &lt;- 3
-  select_combinations &lt;- combn(colnames(data |&gt; tidytable::select(tag:parent_Deprel)), combinations_n)
+#This function returns a list of all combinations of a variable which occur 
+variable_combinations &lt;- function(combinations_n, source_data) {
+  select_combinations &lt;- combn(colnames(source_data |&gt; tidytable::select(tag:parent_Deprel &amp; !parent_form &amp; !parent_lemma)), combinations_n)
   
   #length(select_combinations)
   
-  combination_freqs &lt;- apply(X=select_combinations, MARGIN = 2, FUN=variable_count)
+  #Get a table showing the number of times all the features in a combination are attested
+  combination_freqs &lt;- apply(X=select_combinations, MARGIN = 2, FUN=variable_count, source_data = source_data)
   
   tib_select_combinations &lt;- as_tibble(select_combinations)
   
   #Get the length of the column
   col_len &lt;- nrow(tib_select_combinations)
-    
+  
+  #Add a new row with the frequency each one occurs
   tib_select_combinations[(col_len + 1),] &lt;- as.list(as.character(combination_freqs))
   
   #Time to take out the trash!
@@ -2407,92 +2375,164 @@ variable_combinations &lt;- function(combinations_n) {
   
   #transpose
   
-  browser()
   tib_select_combinations &lt;-
     tib_select_combinations |&gt; 
     #The number of columns depends on the $ of combinations, hence the code in the following line
     mutate(type = c(letters[1:combinations_n], &#39;num&#39;)) |&gt; 
-    #Note that the default names all start with V (V1, V2, V3...Vn)
-    pivot_longer(starts_with(&quot;V&quot;)) |&gt; 
+    #Don&#39;t select &#39;num&#39;
+    pivot_longer(!type) |&gt; 
     pivot_wider(names_from = type, values_from = value) |&gt; 
     dplyr::select(!name) |&gt;
     mutate(across(num, as.integer))
-  browser()
   
   arrange(tib_select_combinations, num)
   
   tib_select_combinations &lt;- tib_select_combinations |&gt; filter(num &gt; 0) |&gt; arrange(num) 
   
-  return(tib_select_combinations)
+  return(tib_select_combinations |&gt; cull())
+}</code></pre>
+<p>I’ve realized that counting up feature-value pairs at the end of this
+file is proceeding too slowly, so I need to sample from the full
+dataset.</p>
+<pre class="r"><code>data_backup &lt;- data
+
+data &lt;- data |&gt;
+  rowwise() |&gt;
+  #inelegant, but it works
+  mutate(commentary = paste(unlist(strsplit(title, &quot;_&quot;))[1], unlist(strsplit(title, &quot;_&quot;))[2])) |&gt;
+  ungroup() |&gt;
+  dplyr::slice_sample(n = 1000, by = commentary)
+
+data$commentary &lt;- as.factor(data$commentary)</code></pre>
+<p>Let’s get every combination of variables.</p>
+<pre class="r"><code>one_combinations &lt;- variable_combinations(1, data)
+two_combinations &lt;- variable_combinations(2, data)
+three_combinations &lt;- variable_combinations(3, data)
+four_combinations &lt;- variable_combinations(4, data)
+five_combinations &lt;- variable_combinations(5, data)</code></pre>
+<pre><code>## [1] &quot;Length before culling:  26&quot;
+## [1] &quot;Length after culling:  19&quot;
+## [1] &quot;Length before culling:  295&quot;
+## [1] &quot;Length after culling:  119&quot;
+## [1] &quot;Length before culling:  1948&quot;
+## [1] &quot;Length after culling:  443&quot;
+## [1] &quot;Length before culling:  8473&quot;
+## [1] &quot;Length after culling:  1150&quot;
+## [1] &quot;Length before culling:  26020&quot;
+## [1] &quot;Length after culling:  2200&quot;</code></pre>
+<p>Let’s create a function that takes each combination in the list and
+gets the number of times each one occurs. This function also removes any
+that occur in less than 20% of the corpus</p>
+<pre class="r"><code>#Requires a row from a tibble that only includes valid column names and no numerics / other data types
+get_var_combos &lt;- function(var_combn, source_data) {
+  #browser()
+  var_combos &lt;- 
+    source_data |&gt;
+    dplyr::select(all_of(as.character(var_combn))) |&gt;
+    #Added next line to avoid expensive string comparisons
+    #dplyr::select(where(all(~ !is.na(.x)))) |&gt;
+    #Paste the whole row together; I use a pipe because it&#39;s unused elsewhere
+    unite(&quot;pasted&quot;, everything(), sep = &quot;|&quot;) |&gt;
+    filter(str_detect(pasted, pattern = &quot;NA&quot;, negate = TRUE)) #Remove NAs
+  
+  if (length(var_combos$pasted) &gt; 0) {
+    final.tibble &lt;- table(var_combos) |&gt; as_tibble()
+    
+    #Return only the ones where they occur in more than a fifth of the data. 
+    return(final.tibble |&gt; filter(n &gt; nrow(source_data) / 5))
+    }
+  else {return(NULL)}
+}</code></pre>
+<p>This function takes a set of variable combinations (one_combinations,
+two_combinations, etc.) and applies the get_var_combos function to all
+of them, creating a data frame out of it.</p>
+<pre class="r"><code>count_var_combos &lt;- function(var_combn, source_data) {
+  selected_var_combn &lt;- var_combn |&gt; dplyr::select(!last_col())
+  #browser()
+  list_combn &lt;- apply(selected_var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |&gt; list_rbind()
+  
+  #Make sure to remove zeroes
+  return(list_combn)
 }
 
-#Let&#39;s test it
-
-two_combinations &lt;- variable_combinations(2)</code></pre>
-<pre><code>## Called from: variable_combinations(2)
-## Called from: variable_combinations(2)</code></pre>
-<p>Another piece of information we’re interested in is whether a
-variable occurs in multiple works. This situation is different from
-Gorman 2016, as he was working with a much larger corpus. We have only
-five works. I say we cull the lower quartile.</p>
-<pre class="r"><code>cull_quartile &lt;- function(combinations, quartile = &quot;25%&quot;) {
-  filtered &lt;- combinations |&gt; filter(num &gt; quantile(num)[[&#39;25%&#39;]])
-  return(filtered)
+#count_var_combos(two_combinations, data)</code></pre>
+<p>Now, lets create a function that gets one long tibble with every
+single variable in it.</p>
+<pre class="r"><code>run_combos &lt;- function(source_data, title_str) {
+  #browser()
+  
+  all_vars &lt;- bind_rows(
+    count_var_combos(one_combinations, source_data),
+    count_var_combos(two_combinations, source_data),
+    count_var_combos(three_combinations, source_data),
+    count_var_combos(four_combinations, source_data),
+    count_var_combos(five_combinations, source_data),
+  )
+  
+  all_vars &lt;- all_vars |&gt;
+    mutate(title = title_str) #The titles should all be the same...
+  
+  return(all_vars)
 }
 
-two_combinations &lt;- two_combinations |&gt; cull_quartile()</code></pre>
-<p>How expensive would it be to brute force it this way for every
-combination? What about three to five?</p>
-<pre class="r"><code>combn(colnames(data |&gt; tidytable::select(tag:parent_Deprel)), 3) |&gt; length()
+#mode: whether to divide the data into commentaries, books, or chapters
+get_vars &lt;- function(mode = &quot;book&quot;) {
+  if (mode == &quot;book&quot;) {
+    #browser()
+    source_data &lt;- data |&gt;
+      rowwise() |&gt;
+      mutate(title = unlist(strsplit(title, &quot;_&quot;))[1:2] |&gt; paste(collapse=&quot;_&quot;))
+  }
+  else if (mode == &quot;commentary&quot;) {
+    source_data &lt;- data |&gt;
+      mutate(title = unlist(strsplit(title, &quot;_&quot;))[1])
+  }
+  else if (mode == &quot;chapter&quot;) {
+    source_data &lt;- data |&gt;
+      mutate(title = paste( 
+        unlist(strsplit(title, &quot;_&quot;))[1], 
+        unlist(strsplit(title, &quot;_&quot;))[3], 
+        sep=&quot;_&quot;)
+        )
+  }
+  else {
+    return(NULL)
+  }
+  
+  # browser()
+  
+  all_vars &lt;- source_data |&gt;
+    group_by(title) |&gt;
+    group_map(~ run_combos(.x, .y))
+  
+  return(all_vars |&gt; bind_rows())
+}</code></pre>
+<pre class="r"><code>#Restore the full data
+# data &lt;- data_backup
+# #
+# remove(data_backup)
+# remove(data_sample)
 
-combn(colnames(data |&gt; tidytable::select(tag:parent_Deprel)), 4) |&gt; length()
+all_vars &lt;- get_vars(&quot;book&quot;)</code></pre>
+<p>Okay, now we need to transpose the data.</p>
+<pre class="r"><code>all_vars &lt;- pivot_wider(all_vars, names_from = pasted, values_from = n)</code></pre>
+<p>NOTE: LET’S NOT DO IT POST HOC, BUT DURING THE PROCEDURE</p>
+<p>The number of variables is way too high, so we go by Gorman 2020’s
+method of only keeping ones that occur in more than 20% of words (n &gt;
+(# of rows in data) / 5)). <strong>However, for testing purposes, let’s
+first just get the top 1,000 variables</strong></p>
+<p>Keep columns where sum of column is greater than that figure:</p>
+<pre class="r"><code>limit &lt;- nrow(data) / 5
+title &lt;- all_vars$title
+culled_all_vars &lt;- all_vars |&gt; dplyr::select(-title) |&gt; 
+  dplyr::select(where(~ sum(.x, na.rm = TRUE) &gt; limit))
 
-combn(colnames(data |&gt; tidytable::select(tag:parent_Deprel)), 5) |&gt; length()</code></pre>
-<pre><code>## [1] 9828
-## [1] 81900
-## [1] 491400</code></pre>
-<p>Let’s see how fast my computer deals with a combination of 5.</p>
-<pre class="r"><code>system.time({
-  five_combinations &lt;- variable_combinations(5)
-})</code></pre>
-<p>Okay, that didn’t even finish, what about 3:</p>
-<pre class="r"><code>system.time({
-  five_combinations &lt;- variable_combinations(3)
-})</code></pre>
-<pre><code>## Called from: variable_combinations(3)
-## Called from: variable_combinations(3)
-##    user  system elapsed 
-## 110.007   0.097 151.402</code></pre>
-<p>We’re talking in the lower millions. I could limit to 1,000 tokens
-like Gorman does, but we have more leeway. We could try to select 7,000,
-since we have one seventh the number of texts. That feels like an
-arbitrary number, but let’s start there.</p>
-<p>The next challenge is that we have a list of all the feature types to
-look at, but now we need to cull to the most common feature-value pairs,
-including simplex, duplex, triplex, quadruplex, and quinqueplex
-variables.</p>
-<p>The step-by-step process should be:</p>
-<ol style="list-style-type: decimal">
-<li>Iterate row-by-row over the tibbles of variables</li>
-<li>Select a subset of data using the row from the tibble</li>
-<li>Iterate row-by-row over the subset and concatenate all the values in
-the row to a string</li>
-<li>Add the string to a vector where all the other strings will go</li>
-<li>To get the counts, use table(). Cull out the least common ones</li>
-</ol>
-<p>We need to work our way backwards from these results. First, we
-create a data frame where each row is the string split version of each
-row in the vector created above, so that each row in the data frame is a
-different combination of features with no repeats.</p>
-<p>Now we iterate over all the sections of interest. Each section will
-be a row in the new data frame. For each row in the frame created in the
-previous paragraph, we count up how many times that combination of
-features occurs in the targeted section. We create a column with that
-variable name, add the count, and then do this for all variables. Repeat
-for each section.</p>
-<p>Pseudo-code version:</p>
-<pre class="data"><code>  group_by()
-</code></pre>
+culled_all_vars &lt;- culled_all_vars |&gt; mutate(title = unlist(title)) |&gt; relocate(title, .before = 1)</code></pre>
+<p>Now save this to a CSV!</p>
+<pre class="r"><code>#unnest so that it doesn&#39;t throw an error when some columns are lists
+write_csv(all_vars |&gt; unnest(everything()), file = &quot;./feature_values_gorman.csv&quot;, col_names = TRUE)</code></pre>
+<p>Iteration would be a lot faster if I could run one function to get
+all the variables. I’ll create that here. TODO</p>
 </div>
 </div>
 
