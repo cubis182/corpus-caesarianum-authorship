@@ -393,7 +393,7 @@ if (!("combinat" %in% (.packages()))) {
   library(combinat)
 }
 
-#Filters a row to rows which have ZERO NA values in them
+#Filters to rows which have ZERO NA values in them
 no_na <- function(tib, vec) {
   if(NA %in% vec) {
     return(tib)
@@ -464,7 +464,7 @@ variable_combinations <- function(combinations_n, source_data) {
   
   tib_select_combinations <- tib_select_combinations |> filter(num > 0) |> arrange(num) 
   
-  return(tib_select_combinations |> cull())
+  return(tib_select_combinations |> cull() |> dplyr::select(-num))
 }
 
 
@@ -492,11 +492,19 @@ data$commentary <- as.factor(data$commentary)
 Let's get every combination of variables.
 
 ```{r}
-one_combinations <- variable_combinations(1, data)
-two_combinations <- variable_combinations(2, data)
-three_combinations <- variable_combinations(3, data)
-four_combinations <- variable_combinations(4, data)
-five_combinations <- variable_combinations(5, data)
+# one_combinations <- variable_combinations(1, data)
+# two_combinations <- variable_combinations(2, data)
+# three_combinations <- variable_combinations(3, data)
+# four_combinations <- variable_combinations(4, data)
+# five_combinations <- variable_combinations(5, data)
+
+combinations <- bind_rows(
+  variable_combinations(1, data),
+  variable_combinations(2, data),
+  variable_combinations(3, data),
+  variable_combinations(4, data),
+  variable_combinations(5, data)
+)
 ```
 
 Let's create a function that takes each combination in the list and gets
@@ -506,23 +514,35 @@ occur in less than 20% of the corpus
 ```{r}
 
 #Requires a row from a tibble that only includes valid column names and no numerics / other data types
+
 get_var_combos <- function(var_combn, source_data) {
   #browser()
+  
+  #This is used to select the desired columns
+  selection_char <- as.character(var_combn) |> na.omit()
+  
   var_combos <- 
     source_data |>
-    dplyr::select(all_of(as.character(var_combn))) |>
+    #Now remove NAs, since the combinations vector might include them
+    dplyr::select(all_of(as.character(var_combn) |> na.omit())) %>%
+    #na.omit might be faster than my custom function, and it performs the same task.
+    #I've tested to ensure the number of rows is the same no matter which function I use, and even when multiple columns are selected
+    na.omit() |>
     #Added next line to avoid expensive string comparisons
     #dplyr::select(where(all(~ !is.na(.x)))) |>
     #Paste the whole row together; I use a pipe because it's unused elsewhere
-    unite("pasted", everything(), sep = "|") |>
-    filter(str_detect(pasted, pattern = "NA", negate = TRUE)) #Remove NAs
+    unite("pasted", everything(), sep = "|") 
+    #Tried to replace the unite() function just above with the below code, but it was significantly slower
+    #apply(MARGIN = 1, FUN = paste0, collapse = "|") 
+    #filter(str_detect(pasted, pattern = "NA", negate = TRUE)) #Remove NAs
   
+  # browser()
   if (length(var_combos$pasted) > 0) {
-    final.tibble <- table(var_combos) |> as_tibble()
+    #final.table <- table(var_combos) #|> as_tibble()
     
     #browser()
-    #Return only the ones where they occur in more than a fifth of the data. 
-    return(final.tibble |> filter(n > 30)) #initially not 30, but nrow(source_data / 5)
+    #Return only the ones above an arbitrary threshold. 
+    return(var_combos$pasted) #|> filter(n > 30)) #initially not 30, but nrow(source_data / 5)
     }
   else {return(NULL)}
 }
@@ -534,13 +554,15 @@ of them, creating a data frame out of it.
 
 ```{r}
 
+
 count_var_combos <- function(var_combn, source_data) {
-  selected_var_combn <- var_combn |> dplyr::select(!last_col())
+  selected_var_combn <- var_combn #|> dplyr::select(!last_col())
   #browser()
-  list_combn <- apply(selected_var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> list_rbind()
+  list_combn <- apply(selected_var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> unlist() |> table() #cbind()
   
-  #Make sure to remove zeroes
-  return(list_combn)
+  #browser()
+  #Make sure to remove low-frequency items; ADJUST THIS TO BE ROBUST IN BOTH CHAPTER AND BOOK MODE
+  return(subset(list_combn, list_combn > nrow(source_data) / 10)) # |> as_tibble() |> filter(V1 > 30))
 }
 
 #count_var_combos(two_combinations, data)
@@ -550,26 +572,27 @@ Now, lets create a function that gets one long tibble with every single
 variable in it.
 
 ```{r}
+#library(dtplyr)
 
 run_combos <- function(source_data, title_str) {
+  t1 <- proc.time()
+  #browser()
+  
+  all_vars <- count_var_combos(combinations, source_data) |> as_tibble(.name_repair = "universal_quiet")
+  
+  names(all_vars)[1] <- "pasted"
   
   #browser()
   
-  all_vars <- bind_rows(
-    count_var_combos(one_combinations, source_data),
-    count_var_combos(two_combinations, source_data),
-    count_var_combos(three_combinations, source_data),
-    count_var_combos(four_combinations, source_data),
-    count_var_combos(five_combinations, source_data),
-  )
+  #Normalize frequencies by occurrence per 1000 words
+  norm_val <- 1000 / nrow(source_data)
+  all_vars <- all_vars |> 
+    mutate(n = n * norm_val)
   
   all_vars <- all_vars |>
     mutate(title = title_str) #The titles should all be the same...
   
-  #Normalize frequencies by occurrence per 1000 words
-  all_vars <- all_vars |>
-    mutate(n = (n / nrow(source_data)) * 1000 )
-  
+  print(proc.time() - t1)
   return(all_vars)
 }
 
@@ -583,24 +606,21 @@ get_vars <- function(mode = "book") {
   }
   else if (mode == "commentary") {
     source_data <- data |>
+      rowwise() |>
       mutate(title = unlist(strsplit(title, "_"))[1])
   }
   else if (mode == "chapter") {
-    source_data <- data |>
-      mutate(title = paste( 
-        unlist(strsplit(title, "_"))[1], 
-        unlist(strsplit(title, "_"))[3], 
-        sep="_")
-        )
+    source_data <- data 
   }
   else {
     return(NULL)
   }
   
-  # browser()
+  #browser()
   
   all_vars <- source_data |>
     group_by(title) |>
+    #lazy_dt() |>
     group_map(~ run_combos(.x, .y))
   
   return(all_vars |> bind_rows() |> mutate(title = unlist(title)))
@@ -614,7 +634,11 @@ get_vars <- function(mode = "book") {
 # remove(data_backup)
 # remove(data_sample)
 
-all_vars <- get_vars("book")
+if (!("future.apply" %in% (.packages()))) library(future.apply)
+if (!("profvis" %in% (.packages()))) library(profvis)
+if (!("dtplyr" %in% (.packages()))) library(dtplyr)
+
+all_vars <- get_vars("chapter")
 ```
 
 Okay, now we need to transpose the data.
@@ -631,7 +655,7 @@ all_vars <- pivot_wider(
   values_fill = 0)
 
 title_temp <- all_vars$title
-all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > 420)) |> mutate(title = title_temp)
+all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
 
 all_vars <- all_vars |> relocate(title, .before = everything())
 

@@ -57,9 +57,21 @@ means <- final.frame |>
 options(scipen=999)
 
 as.data.frame(sort(means))
+
+
 ```
 
 Notice that a feature being common on a word isn't the same as it being common on a parent. Not every part of speech is equally likely to be a parent of another word. As a result, a parent being an auxiliary in a passive verb is very uncommon, for example, coming close to the top of the above list.
+
+Let's look at means across variables in the Gorman-style variables:
+
+```{r eval=FALSE}
+means <- gorman.vars |>
+  tidytable::select(-title) |>
+  apply(MARGIN=2, FUN=mean)
+
+sort(means, decreasing = TRUE)
+```
 
 Moisl suggests NOT computing z-scores because the method of measurement is the same across variables. t-tests
 
@@ -84,7 +96,19 @@ Coefficient of variation:
 
 ```{r}
 library(goeveg)
-apply(final.frame |> select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
+apply(final.frame |> dplyr::select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
+```
+
+CoV for Gorman-style variables:
+
+```{r}
+apply(gorman.vars |> dplyr::select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
+
+#In a Poisson distribution, the variance and mean are identical. Let's do the same thing we did above with coefficient of variation to see if any variables appear to be random. This is in accordance with Moisl p. 71
+
+apply(gorman.vars |> dplyr::select(-title), MARGIN=2, function(x) var(x) / mean(x)) |> sort(decreasing = TRUE) #|> plot()
+
+#It seems that most of the variables aren't to be totally discarded, based on the plot
 ```
 
 # Analysis
@@ -364,7 +388,7 @@ We need to understand the variables before we go into much more detail. Which on
 set.seed(126126)
 kmeans_basic_cluster <- kmeans(gorman_clust, centers = k, nstart = 25)
 kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
-kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, df_clust)
+kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, gorman_clust)
 ```
 
 Let's do our first visualization. Four clusters seems like a reasonable amount, looking at the fviz_nbclust results with the wss method.
@@ -374,7 +398,7 @@ Let's do our first visualization. Four clusters seems like a reasonable amount, 
 
 # Principal component analysis
 
-pca <- prcomp(df_clust)
+pca <- prcomp(gorman_clust)
 
 summary(pca)
 
@@ -412,13 +436,27 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
 cluster_main
 
 
-ggsave(filename = "Images/cluster-diagram-gorman-style", dpi = "print")
+ggsave(filename = "Images/cluster-diagram-gorman-style.png", dpi = "print")
 
 str(kmeans_basic_cluster)
 
 ```
 
 The rotations suggest that the explanation of the data is poor; the plot is negatively correlated with plural words in general on the x axis, and present tense on the y axis
+
+Here's a dendrogram:
+
+```{r}
+fviz_dend(hclust(dist(gorman_clust)),
+  palette = palette,
+  geom = geom,
+  ellipse.type = ellipse.type,
+  ggtheme = ggtheme,
+  cex = 0.4,
+) 
+
+ggsave(filename = "Images/dendrogram_gorman.png", dpi = "print")
+```
 
 ```{r}
 
