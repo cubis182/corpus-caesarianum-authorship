@@ -556,13 +556,12 @@ of them, creating a data frame out of it.
 
 
 count_var_combos <- function(var_combn, source_data) {
-  selected_var_combn <- var_combn #|> dplyr::select(!last_col())
-  #browser()
-  list_combn <- apply(selected_var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> unlist() |> table() #cbind()
+  
+  list_combn <- apply(var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> unlist() |> table() #cbind()
   
   #browser()
-  #Make sure to remove low-frequency items; ADJUST THIS TO BE ROBUST IN BOTH CHAPTER AND BOOK MODE
-  return(subset(list_combn, list_combn > nrow(source_data) / 10)) # |> as_tibble() |> filter(V1 > 30))
+  #Initially removed low-frequency items, but that resulted in NA values in the final data.
+  return(list_combn) #subset(list_combn, list_combn > nrow(source_data) / 10)) # |> as_tibble() |> filter(V1 > 30))
 }
 
 #count_var_combos(two_combinations, data)
@@ -638,7 +637,7 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-all_vars <- get_vars("chapter")
+all_vars <- get_vars("book")
 ```
 
 Okay, now we need to transpose the data.
@@ -671,5 +670,27 @@ Now save this to a CSV!
 write_csv(all_vars |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
 ```
 
-Iteration would be a lot faster if I could run one function to get all
-the variables. I'll create that here. TODO
+We need to be able to reselect small segments of the corpus and count
+the same variables, so we need a function to find and count each column
+again.
+
+## Data Verification
+
+### Ensuring counts of variables are done correctly
+
+### Ensuring get_var_combos works correctly with different values
+
+## Taking a closer look at the Bellum Hispaniense
+
+I think that there might be some inaccuracies in the parsing on the BH.
+The data has been trained on a corpus of Classical Latin including
+Caesar, but nothing resembling the BH. The parser is likely to mistag
+unusual constructions in the BH incorrectly as a result. Even worse, it
+might make the text seem more similar to "genuine" Caesar than it
+actually is.
+
+Let's look at the head of the BH data.
+
+```{r}
+View(data |> filter(path == 'spanish'))
+```
