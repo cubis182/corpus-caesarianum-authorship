@@ -13,8 +13,9 @@ execute code within the notebook, the results appear beneath the code.
 
 ```{r include=TRUE}
 knitr::opts_chunk$set(results = "hold")
-knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
+#knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
 #knitr::opts_knit$set(root.dir = '~/GitHub/corpus-caesarianum-authorship')
+knitr::opts_knit$set(root.dir = '/Users/matthewdehass/Documents/GitHub/corpus-caesarianum-authorship')
 ```
 
 # Data Preparation
@@ -449,6 +450,7 @@ variable_combinations <- function(combinations_n, source_data) {
   remove(col_len)
   
   #transpose
+  #browser()
   
   tib_select_combinations <-
     tib_select_combinations |> 
@@ -459,6 +461,8 @@ variable_combinations <- function(combinations_n, source_data) {
     pivot_wider(names_from = type, values_from = value) |> 
     dplyr::select(!name) |>
     mutate(across(num, as.integer))
+  
+  #browser()
   
   arrange(tib_select_combinations, num)
   
@@ -474,7 +478,7 @@ I've realized that counting up feature-value pairs at the end of this
 file is proceeding too slowly, so I need to sample from the full
 dataset.
 
-```{r eval=FALSE}
+```{r}
 
 data_backup <- data
 
@@ -505,6 +509,10 @@ combinations <- bind_rows(
   variable_combinations(4, data),
   variable_combinations(5, data)
 )
+
+data <- data_backup
+
+rm(data_backup)
 ```
 
 Let's create a function that takes each combination in the list and gets
@@ -637,14 +645,17 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-all_vars <- get_vars("book")
+all_vars <- get_vars("chapter")
 ```
 
 Okay, now we need to transpose the data.
 
 ```{r}
 
-#all_vars <- all_vars |> mutate(title = unlist(title))
+#all_vars <- all_vars |> mutate(title = unlist(title)
+
+#First, like Gorman, remove ones appearing in less than 20% of the corpus. For section-by-section, that's 134 / 5 = 27
+
 all_vars <- all_vars |> mutate(title = as.factor(title))
 
 all_vars <- pivot_wider(
