@@ -664,12 +664,25 @@ all_vars <- pivot_wider(
   values_from = n,
   values_fill = 0)
 
-title_temp <- all_vars$title
-all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
+top_cols <- all_vars |>
+  dplyr::select(-title) |>
+  summarize(across(everything(), sum, na.rm = TRUE)) |>
+  pivot_longer(cols = everything(), names_to = "col_name", values_to = "total") |>
+  arrange(desc(total)) |>
+  slice_head(n = 1000) |>
+  pull(col_name)
 
-all_vars <- all_vars |> relocate(title, .before = everything())
+all_vars_top_thousand <- all_vars |>
+  dplyr::select(any_of(top_cols)) |>
+  mutate(title = all_vars$title) |>
+  relocate(title, .before = 1)
 
-remove(title_temp)
+# title_temp <- all_vars$title
+# all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
+# 
+# all_vars <- all_vars |> relocate(title, .before = everything())
+# 
+# remove(title_temp)
 ```
 
 NOTE: LET'S NOT DO IT POST HOC, BUT DURING THE PROCEDURE
@@ -678,7 +691,7 @@ Now save this to a CSV!
 
 ```{r}
 #unnest so that it doesn't throw an error when some columns are lists
-write_csv(all_vars |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
+write_csv(all_vars_top_thousand |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 ```
 
 We need to be able to reselect small segments of the corpus and count
