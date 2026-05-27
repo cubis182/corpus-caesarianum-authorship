@@ -34,6 +34,7 @@ library(MASS)
 library(multcomp)
 library(ggtext)
 library(printr)
+library(magrittr)
 ```
 
 Note that I was learning dplyr and tidyverse as I created this file, so
@@ -658,26 +659,34 @@ Okay, now we need to transpose the data.
 
 #First, like Gorman, remove ones appearing in less than 20% of the corpus. For section-by-section, that's 134 / 5 = 27
 
-all_vars <- all_vars |> mutate(title = as.factor(title))
+#Recommended operation on the output of get_vars()
+transpose_all_vars <- function(all_vars) {
+  all_vars <- all_vars |> mutate(title = as.factor(title))
+  
+  all_vars <- pivot_wider(
+    all_vars, 
+    names_from = pasted, 
+    values_from = n,
+    values_fill = 0)
+  
+  return(all_vars)
+}
 
-all_vars <- pivot_wider(
-  all_vars, 
-  names_from = pasted, 
-  values_from = n,
-  values_fill = 0)
-
-top_cols <- all_vars |>
-  dplyr::select(-title) |>
-  summarize(across(everything(), sum, na.rm = TRUE)) |>
-  pivot_longer(cols = everything(), names_to = "col_name", values_to = "total") |>
-  arrange(desc(total)) |>
-  slice_head(n = 1000) |>
-  pull(col_name)
-
-all_vars_top_thousand <- all_vars |>
-  dplyr::select(any_of(top_cols)) |>
-  mutate(title = all_vars$title) |>
-  relocate(title, .before = 1)
+#Reduces output of transpose_all_vars to top n variables
+select_top_variables <- function(all_vars, n) {
+  top_cols <- all_vars |>
+    dplyr::select(-title) |>
+    summarize(across(everything(), sum, na.rm = TRUE)) |>
+    pivot_longer(cols = everything(), names_to = "col_name", values_to = "total") |>
+    arrange(desc(total)) |>
+    slice_head(n = n) |>
+    pull(col_name)
+  
+  all_vars_top_thousand <- all_vars |>
+    dplyr::select(any_of(top_cols)) |>
+    mutate(title = all_vars$title) |>
+    relocate(title, .before = 1)
+}
 
 # title_temp <- all_vars$title
 # all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
@@ -688,6 +697,8 @@ all_vars_top_thousand <- all_vars |>
 ```
 
 We need to create a function that takes a set of columns and returns the same value that variable_combinations() does.
+
+NOTE: This could be refactored into the get_vars() function, and probably should be. It also needs to be documented in more detail
 
 ```{r}
 #Get the names() attribute
@@ -712,13 +723,54 @@ combinations_new <- t(combinations_new) |> as_tibble(.name_repair = 'unique') |>
 #Now, we should have something which looks identical to the result of the variable_combinations() function
 
 combinations <- combinations_new
+rm(combinations_new)
 
-has_all_feature_types <- function(character_vector_of_feature_values, row_from_source_data) {
+has_all_feature_types <- function(row_from_source_data, character_vector_of_feature_values) {
+  
+  #Unnecessary when using apply() around this function
+  #row_from_source_data %<>% mutate(across(everything(), as.character))
+  #browser()
+  #Only return true for this row if ALL characters in the vector on the left are in the row on the right
   all(as.character(character_vector_of_feature_values) %in% row_from_source_data)
 }
 
-#For every row in combinations, pass it to mutate, and make the new column nrow(data |> filter())
+get_number_rows_with_feature_types <- function(row_of_feature_values, source_data) {
+  #browser()
+  count_of_feature_values <- sum(
+    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = row_of_feature_values)
+  )
+  count_of_feature_values
+}
 
+#
+#character select : A character value which is the section/book we're using in this function
+count_combinations_per_section <- function(combinations, source_data, title_str) {
+  norm_val <- 1000 / nrow(source_data)
+  
+  combinations |>
+    dplyr::rowwise() |>
+    summarize(
+      n = get_number_rows_with_feature_types(c_across(everything()), source_data)
+      ) %>%
+    bind_cols(combinations, .) |>
+    mutate(n = n * norm_val) |>
+    mutate(title = title_str)
+}
+
+all_vars_by_book <- data |>
+  #For debugging:
+  #slice_sample(n = 100) |>
+  rowwise() |>
+  mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
+  group_by(title) |>
+  group_map(~ count_combinations_per_section(combinations, source_data = .x, title_str = .y)) |>
+  bind_rows() |>
+  mutate(title = unlist(title)) |>
+  unite(col = "pasted", 1:5, sep = "|", na.rm = TRUE)
+  
+all_vars_by_book %<>%
+  transpose_all_vars() |>
+  select_top_variables(n = 1000)
 ```
 
 
@@ -729,6 +781,8 @@ Now save this to a CSV!
 ```{r}
 #unnest so that it doesn't throw an error when some columns are lists
 write_csv(all_vars_top_thousand |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
+
+write_csv(all_vars_by_book |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
 ```
 
 We need to be able to reselect small segments of the corpus and count

@@ -3,7 +3,7 @@
     "path": "~/Documents/GitHub/corpus-caesarianum-authorship/data-processing.Rmd",
     "project_path": "data-processing.Rmd",
     "type": "r_markdown",
-    "hash": "3408533426",
+    "hash": "1654819600",
     "contents": "",
     "dirty": false,
     "created": 1779835663854.0,
@@ -12,15 +12,15 @@
     "properties": {
         "source_window_id": "",
         "Source": "Source",
-        "cursorPosition": "716,80",
-        "scrollLine": "709"
+        "cursorPosition": "785,0",
+        "scrollLine": "777"
     },
     "folds": "",
-    "lastKnownWriteTime": 1779835946,
+    "lastKnownWriteTime": 1779847099,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1779835946783,
+    "last_content_update": 1779847099615,
     "read_only": false,
     "read_only_alternatives": []
 }
