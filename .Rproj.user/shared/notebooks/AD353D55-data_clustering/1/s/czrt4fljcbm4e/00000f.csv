@@ -1,0 +1,6 @@
+"0",""
+"0","prop <- 0.25"
+"0","african_scores <- within.book.similarity(""gallic _ 2 "", sectioned.gorman.vars, 25)  "
+"0",""
+"0","hist(african_scores)"
+"0",""

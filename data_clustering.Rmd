@@ -24,12 +24,13 @@ library(MASS)
 library(multcomp)
 library(ggtext)
 library(printr)
+library(ggdendro)
 ```
 
 ##Get the data
 
 ```{r}
-setwd("~/PycharmProjects/corpus-caesarianum-authorship/")
+
 final.frame <- read.csv("./feature_values.csv")
 
 gorman.vars <- read.csv("./feature_values_gorman.csv")
@@ -510,7 +511,7 @@ rownames(gorman_clust) <- gorman.vars$title
 #   lwd = 0.1
 # ) + dend_theme
 
-hclust_gorman <- hclust(dist(gorman_clust |> dplyr::select(-title)), method = 'complete')
+hclust_gorman <- hclust(dist(gorman_clust), method = 'complete')
 ggdendrogram(hclust_gorman)
 
 ggsave(filename = "Images/dendrogram_gorman.png", dpi = "print")
@@ -597,7 +598,7 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
 cluster_main
 
 
-ggsave(filename = "Images/cluster-diagram-gorman-style.png", dpi = "print")
+ggsave(filename = "Images/cluster-diagram-gorman-style-by-section.png", dpi = "print")
 
 str(kmeans_basic_cluster)
 

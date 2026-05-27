@@ -1,0 +1,8 @@
+"0",""
+"0","#Add a 'path' variable which is just the commentary name"
+"0",""
+"0","sectioned.gorman.vars %<>% "
+"0","  rowwise() %>%"
+"0","  mutate(path = (strsplit(title, ""_"") |> unlist())[1:2] |> paste0(collapse = ""_"")) %>%"
+"0","  relocate(path, .before = 2)"
+"0",""
