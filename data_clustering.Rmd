@@ -38,13 +38,15 @@ gorman.vars <- read.csv("./feature_values_gorman.csv")
 sectioned.gorman.vars <- read.csv("./feature_values_gorman_by_section.csv")
 ```
 
+What about euclidean or manhattan distance?
+
 Here's a transposed version for correlation coefficient calculation.
 
 ```{r}
 
 t.sectioned.gorman.vars <- sectioned.gorman.vars |> 
   as.data.frame() |>
-  dplyr::select(-title) |>
+  dplyr::select(-title, -path) |>
   t()
 
 colnames(t.sectioned.gorman.vars) <- sectioned.gorman.vars$title
@@ -645,25 +647,37 @@ Now we'll create a list of vectors, and each one is the set of correlations retr
 ```{r}
 library(pspearman)
 library(Kendall)
+library(lsa)
 
-retrieve_combination_similarity <- function(combo, section_vectors) {
+retrieve_combination_similarity <- function(combo, section_vectors, type) {
   vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path)
+  browser()
+  vec_a <- vectors[1,] |> t() |> as.vector() 
+  vec_b <- vectors[2,] |> t() |> as.vector() 
   
-  #Need a jitter value to avoid ties; NOT NECESSARY WITH KENDALL PACKAGE
-  amount_jitter <- 0.001
-  
-  vec_a <- vectors[1,] |> t() |> as.vector() |> jitter(amount = amount_jitter)
-  vec_b <- vectors[2,] |> t() |> as.vector() |> jitter(amount = amount_jitter)
-  
+  #browser()
   #If using Spearman, use approximation AS89 when the number of variables is under 1,290
-  return(spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate)
+  if (type == "spearman") {
+    amount_jitter <- 0.001
+    vec_a %<>% jitter(amount = amount_jitter)
+    vec_b %<>% jitter(amount = amount_jitter)
+    
+    rho_estimate <- spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate
+    #Note: we'll be comparing this with dissimilarity scores, which are actually the absolute value of rho - 1
+    return(abs(rho_estimate - 1.0))  
+  } else if (type == "cosine" ) {
+    return(cosine(vec_a, vec_b))  
+  } else if (type == "euclidean") {
+    return(dist(rbind(vec_a, vec_b)))
+  }
+  
 }
 
 #Parameters:
 #  character book: Name of commentary book. Valid values: "gallic _ 1", "gallic _ 2", etc.
 #  tibble section_vectors: In this file, the variable stored in sectioned.gorman.vars is assumed
 # double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
-within.book.similarity <- function(book, section_vectors, rows) {
+within.book.similarity <- function(book, section_vectors, rows, type_of_similarity = "spearman") {
   sub_section_vectors <- section_vectors %>%
     filter(path == book) |>
     slice_sample(n = rows)
@@ -672,7 +686,7 @@ within.book.similarity <- function(book, section_vectors, rows) {
   #combn(sectioned.gorman.vars |> filter(path == "african ") |> pull(title), 2)
   combos <- combn(sub_section_vectors |> pull(title), 2)
   
-  similarities <- apply(X = combos, MARGIN = 2, FUN = retrieve_combination_similarity, sub_section_vectors)
+  similarities <- apply(X = combos, MARGIN = 2, FUN = retrieve_combination_similarity, section_vectors = sub_section_vectors, type = type_of_similarity)
   
   return(similarities)
   
@@ -702,14 +716,36 @@ titles <- unique(sectioned.gorman.vars$path)
 
 #Get the spearman correlation coefficients, add them to a list, with the label being the title
 
-scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15)))
+scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15, type_of_similarity = "spearman")))
+
+cosine.scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15, type_of_similarity = "cosine")))
+
+euclid.scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15, type_of_similarity = "euclidean")))
 
 names(scores.correlation.per.text) <- titles
 
+names(cosine.scores.correlation.per.text) <- titles
+
+names(euclid.scores.correlation.per.text) <- titles
+
 rownames(gorman.vars) <- gorman.vars$title
 gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "spearman")
+#gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
+#gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
 
-fviz_dist(gorman_dist) 
+mat <- as.matrix(gorman_dist)
+d_long <- expand.grid(Var1 = rownames(mat), Var2 = colnames(mat))
+d_long$value <- as.vector(mat)
+d_long$value <- round(d_long$value, digits = 2)
+
+graph <- fviz_dist(gorman_dist, show_labels = TRUE) 
+graph <- graph + geom_text(data = d_long, 
+              aes(x = x, y = y, label = value), 
+              color = "black", size = 3, inherit.aes = FALSE)
+graph + scale_fill_gradient2(low = "blue", high = "red", midpoint = mean(unlist(scores.correlation.per.text)))
+graph + scale_fill_gradient2(low = "blue", high = "red", midpoint = 0.3)
+
+View(as.data.frame(as.matrix(gorman_dist)))
 
 ```
 

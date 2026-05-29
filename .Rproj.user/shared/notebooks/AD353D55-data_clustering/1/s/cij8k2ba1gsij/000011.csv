@@ -1,1 +1,0 @@
-"0","fviz_nbclust(gorman_clust, kmeans, method = ""silhouette"", nstart = 50)"

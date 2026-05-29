@@ -1,8 +1,0 @@
-"0","#SELECTED ARBITRARY SUM!!!"
-"0","final.frame <- slice_sample(final.frame, n = 100)"
-"0","df_clust <- final.frame |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x) > 5))"
-"0","gorman_clust <- gorman.vars |> dplyr::select(-title)"
-"0","rownames(df_clust) <- final.frame$title"
-"0","# df_clust <- slice_sample(df_clust, n=45)"
-"0",""
-"0","df_scaled <- as.data.frame(scale(df_clust))"
