@@ -21,7 +21,7 @@ Contact: matthew_dehass@yahoo.com
 from _csv import Writer
 from stanza.models.common.doc import Word
 
-from typing import Any
+from typing import Any, Union
 
 import os
 from copy import deepcopy
@@ -619,7 +619,7 @@ def select_random(tries=1) -> str:
                 )  # Remove the last character, because it's a comma
 
 
-def csv_postag(skip_finished=True) -> None:
+def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', path_destination: str | Path=results_file, skip_finished: bool=True) -> None:
     """
     Docstring for csv_postag
 
@@ -627,6 +627,7 @@ def csv_postag(skip_finished=True) -> None:
 
     This function relies on the CSV being serialized with commas, not another separation character.
 
+    :rtype: None
     :param path: An optional path of the file to write manually
     :type path: str
     :param skip_finished: NEEDSDOC
@@ -651,7 +652,7 @@ def csv_postag(skip_finished=True) -> None:
     sPathsRemoved = []
 
     # Get Sig's tokenized data. The data matches the defaults (separator is ',', quote is '"')
-    with open('full_data_text_perseus_tokenized.csv', 'r', encoding='utf-8', errors='replace', newline='') as tokenized:
+    with open(path_origin, 'r', encoding='utf-8', errors='replace', newline='') as tokenized:
         tokenized_csv: Reader = csv.reader(tokenized, escapechar="#")
 
         # # If we want to keep a line, we place it in the temp file.
@@ -681,7 +682,7 @@ def csv_postag(skip_finished=True) -> None:
         #         os.remove("./temp.csv")
 
         # Get the csv.writer
-        with open(results_file, "w", encoding="utf-8", errors="replace", newline="") as f:
+        with open(path_destination, "w", encoding="utf-8", errors="replace", newline="") as f:
             writer: Writer = csv.writer(f, escapechar="#")
 
             #s_docs = []
@@ -706,7 +707,7 @@ def csv_postag(skip_finished=True) -> None:
                 string_process_export(body_text=body, author=authorString, title=titleString, custom_pipeline=custom_pipeline, line=p, writer=writer)
 
 
-def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line, writer: Writer):
+def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line, writer: Writer) -> None:
     """
     This function takes a section from the Corpus Caesarianum and parses it using stanza, writing the results to postagged-texts.csv
 
@@ -960,6 +961,8 @@ if __name__ == "__main__":
     # ]
 
     csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="postagged-cicero.csv",
         skip_finished=True,
     )
 
