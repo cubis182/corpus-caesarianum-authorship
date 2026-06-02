@@ -21,10 +21,8 @@ Contact: matthew_dehass@yahoo.com
 from _csv import Writer
 from stanza.models.common.doc import Word
 
-from typing import Any, Union
-
 import os
-from copy import deepcopy
+#from copy import deepcopy
 import pdfplumber
 import re
 import regex
@@ -38,7 +36,7 @@ import random
 import sys
 
 from dotenv import load_dotenv
-
+from typing import List
 
 Y_DENSITY = 4
 EMPTY = 4
@@ -284,7 +282,7 @@ def get_text(element) -> str:
     return string
 
 
-def get_paths() -> list[Path]:
+def get_paths() -> List[Path]:
     """
     Returns a list of paths to all Perseus DL Latin texts"""
 
@@ -406,7 +404,6 @@ def automatic_validation():
 
 from cltk.nlp import NLP
 import cltk.core.data_types as types
-import cltk.morphosyntax.conll as conll
 
 
 def process_text(text: str, nlp: NLP) -> types.Doc:
@@ -443,7 +440,7 @@ def __get_paths(path):  # -> list[str]:
         return [str(path)]
 
     if path == "":
-        paths: list[str] = [str(x) for x in get_paths()]
+        paths: List[str] = [str(x) for x in get_paths()]
         return paths
     elif isinstance(path, list):
         return path
@@ -815,7 +812,7 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
                 )  # Add the dependency relation to the end
 
                 #put all the info about the parent word in a list
-                parent_info: list[str] = [
+                parent_info: List[str] = [
                     s_parent_form,
                     s_parent_lemma,
                     s_parent_tag
@@ -853,7 +850,7 @@ def get_parent(word: Word) -> Word | None:
 
 
 
-def extract_features(word, f_set: list[Any]) -> dict[Any, Any]:
+def extract_features(word, f_set: List[Any]) -> Dict[Any, Any]:
     """
     This function takes a Stanza word and a list of features and returns their values.
 
