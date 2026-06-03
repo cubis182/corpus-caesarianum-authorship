@@ -127,11 +127,11 @@ Let's modify the titles first:
 
 ```{r}
 
-data %<>%
+data <- data |>
   rowwise() |>
   mutate(title = paste(title, "_", book, "_", section))
 
-cicero_data %<>%
+cicero_data <- cicero_data |>
   rowwise() |>
   mutate(title = paste(title, "_", book, "_", section))
 ```
@@ -540,6 +540,46 @@ count_var_combos <- function(var_combn, source_data) {
 #count_var_combos(two_combinations, data)
 ```
 
+Some helper functions for the upcoming run_combos and get_vars function
+which creates the final data frame are in the cell below. They're a
+refactoring of the above cell, which should get replaced soon.
+
+```{r}
+
+has_all_feature_types <- function(row_from_source_data, character_vector_of_feature_values) {
+  
+  # Unnecessary when using apply() around this function
+  # row_from_source_data %<>% mutate(across(everything(), as.character))
+  # browser()
+  # Only return true for this row if ALL characters in the vector on the left are in the row on the right
+  all(as.character(character_vector_of_feature_values) %in% row_from_source_data)
+}
+
+get_number_rows_with_feature_types <- function(row_of_feature_values, source_data) {
+  #browser()
+  count_of_feature_values <- sum(
+    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = row_of_feature_values)
+  )
+  count_of_feature_values
+}
+
+#
+#character select : A character value which is the section/book we're using in this function
+count_combinations_per_section <- function(combinations, source_data, title_str) {
+  #browser()
+  norm_val <- 1000 / nrow(source_data)
+  
+  combinations |>
+    dplyr::rowwise() |>
+    summarize(
+      n = get_number_rows_with_feature_types(c_across(everything()), source_data)
+    ) %>%
+    bind_cols(combinations, .) |>
+    mutate(n = n * norm_val) |>
+    mutate(title = title_str)
+}
+```
+
 Now, lets create a function that gets one long tibble with every single
 variable in it.
 
@@ -571,20 +611,21 @@ run_combos <- function(source_data, title_str) {
 #mode: whether to divide the data into commentaries, books, or chapters
 #If getting the variables from an existing data frame, make sure they're
 # in the combinations variable and use_preset is set to TRUE
-get_vars <- function(mode = "book", use_preset = FALSE) {
+get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
+  
   if (mode == "book") {
     #browser()
-    source_data <- data |>
+    source_data <- source |>
       rowwise() |>
       mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_"))
   }
   else if (mode == "commentary") {
-    source_data <- data |>
+    source_data <- source |>
       rowwise() |>
       mutate(title = unlist(strsplit(title, "_"))[1])
   }
   else if (mode == "chapter") {
-    source_data <- data 
+    source_data <- source 
   }
   else {
     return(NULL)
@@ -592,12 +633,32 @@ get_vars <- function(mode = "book", use_preset = FALSE) {
   
   #browser()
   
-  all_vars <- source_data |>
+  if (is.null(presupplied_variables)) {
+    all_vars <- source_data |>
+        group_by(title) |>
+        #lazy_dt() |>
+        group_map(~ run_combos(.x, .y)) |>
+        bind_rows() |>
+        mutate(title = unlist(title))
+  } else {
+    #browser()
+    all_vars <- source_data |>
+      #For debugging:
+      #slice_sample(n = 100) |>
+      rowwise() |>
+      mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
       group_by(title) |>
-      #lazy_dt() |>
-      group_map(~ run_combos(.x, .y)) 
+      group_map(~ count_combinations_per_section(presupplied_variables, source_data = .x, title_str = .y)) |>
+      bind_rows() |>
+      mutate(title = unlist(title)) |>
+      unite(col = "pasted", 1:5, sep = "|", na.rm = TRUE)
+    
+    all_vars %<>%
+      transpose_all_vars() |>
+      select_top_variables(n = 1000)
+  }
   
-  return(all_vars |> bind_rows() |> mutate(title = unlist(title)))
+  return(all_vars)
 }
 ```
 
@@ -612,7 +673,7 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-all_vars <- get_vars("chapter")
+all_vars <- get_vars("chapter", presupplied_variables=NULL)
 ```
 
 Okay, now we need to transpose the data.
@@ -667,76 +728,43 @@ NOTE: This could be refactored into the get_vars() function, and
 probably should be. It also needs to be documented in more detail
 
 ```{r}
-#Get the names() attribute
-vars_unsplit <- all_vars_top_thousand |> dplyr::select(-title) |> colnames()
 
-
-#lapply over the names, using strsplit on each one
-split_vars <- lapply(X = vars_unsplit, FUN = strsplit, split="[|]")
-
-split_vars <- unlist(split_vars, recursive = FALSE)
-
-#For each item in the list (which is a character vector), we construct a data frame where each column is the character vector. NAs should appear in rows that aren't attested
-combinations_new <- data.frame(labels = letters[1:5])
-
-for (item in split_vars) {
-  combinations_new <- cbind(combinations_new, item[1:5])
-}
-
-#Transpose the data frame
-combinations_new <- t(combinations_new) |> as_tibble(.name_repair = 'unique') |> slice(-1)
-
-#Now, we should have something which looks identical to the result of the variable_combinations() function
-
-combinations <- combinations_new
-rm(combinations_new)
-
-has_all_feature_types <- function(row_from_source_data, character_vector_of_feature_values) {
+#Pass an output from get_vars(), get the variables back in table form so they can be passed into the get_vars() function with a new dataset. That way, a new dataset can be processed with the same variables as another.
+combinations_from_existing <- function(all_vars) {
+  #Get the names() attribute
+  vars_unsplit <- all_vars_top_thousand |> dplyr::select(-title) |> colnames()
   
-  #Unnecessary when using apply() around this function
-  #row_from_source_data %<>% mutate(across(everything(), as.character))
-  #browser()
-  #Only return true for this row if ALL characters in the vector on the left are in the row on the right
-  all(as.character(character_vector_of_feature_values) %in% row_from_source_data)
-}
-
-get_number_rows_with_feature_types <- function(row_of_feature_values, source_data) {
-  #browser()
-  count_of_feature_values <- sum(
-    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = row_of_feature_values)
-  )
-  count_of_feature_values
-}
-
-#
-#character select : A character value which is the section/book we're using in this function
-count_combinations_per_section <- function(combinations, source_data, title_str) {
-  norm_val <- 1000 / nrow(source_data)
   
-  combinations |>
-    dplyr::rowwise() |>
-    summarize(
-      n = get_number_rows_with_feature_types(c_across(everything()), source_data)
-      ) %>%
-    bind_cols(combinations, .) |>
-    mutate(n = n * norm_val) |>
-    mutate(title = title_str)
+  #lapply over the names, using strsplit on each one
+  split_vars <- lapply(X = vars_unsplit, FUN = strsplit, split="[|]")
+  
+  split_vars <- unlist(split_vars, recursive = FALSE)
+  
+  #For each item in the list (which is a character vector), we construct a data frame where each column is the character vector. NAs should appear in rows that aren't attested
+  combinations_new <- data.frame(labels = letters[1:5])
+  
+  for (item in split_vars) {
+    combinations_new <- cbind(combinations_new, item[1:5])
+  }
+  
+  #Transpose the data frame
+  combinations_new <- t(combinations_new) |> as_tibble(.name_repair = 'unique') |> slice(-1)
+  
+  combinations_new
 }
 
-all_vars_by_book <- data |>
-  #For debugging:
-  #slice_sample(n = 100) |>
-  rowwise() |>
-  mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
-  group_by(title) |>
-  group_map(~ count_combinations_per_section(combinations, source_data = .x, title_str = .y)) |>
-  bind_rows() |>
-  mutate(title = unlist(title)) |>
-  unite(col = "pasted", 1:5, sep = "|", na.rm = TRUE)
-  
-all_vars_by_book %<>%
-  transpose_all_vars() |>
-  select_top_variables(n = 1000)
+```
+
+Get the variables for the Cicero data.
+
+```{r}
+combinations <- combinations_from_existing(all_vars)
+cic_all_vars <- get_vars("book", cicero_data |> slice(1:50), combinations)
+
+#post-processing
+# cic_all_vars_top <- cic_all_vars
+#   transpose_all_vars() |>
+#   select_top_variables(1000)
 ```
 
 NOTE: LET'S NOT DO IT POST HOC, BUT DURING THE PROCEDURE
@@ -748,6 +776,8 @@ Now save this to a CSV!
 write_csv(all_vars_top_thousand |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 
 write_csv(all_vars_by_book |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
+
+write_csv(cic_all_vars |> unnest(everything()), file = "./feature_values_cicero.csv", col_names = TRUE)
 ```
 
 We need to be able to reselect small segments of the corpus and count

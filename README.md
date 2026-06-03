@@ -3,11 +3,7 @@ Collaboration between Signe Janoska-Bedi and Matthew DeHass on a study of the au
 
 Files:
 
-**feature_values.csv**: The columns of this file are feature values (i.e. singular, indicative, nominative, etc.), the rows are sections of the Corpus Caesarianum. Each field is the number of times that feature occurs in the text.
-
-**feature_values_gorman.csv**: Same as above, except the feature values are combined according to Gorman, 2020.
-
-**feature_values_gorman.csv**: Same as above, except data is by chapter instead of by book.
+**feature_values\*\*\*.csv**: The columns of this file are feature values (i.e. singular, indicative, nominative, etc.), the rows are sections of a work. The asterisks are additional information about the style of variables (whether they are arranged like Gorman 2020 or bare frequencies of individual features). If unnamed, the data includes the Corpus Caesarianum. Each field is the number of times that feature occurs in the text.
 
 **full_data_text_perseus_tokens.csv**: A file containing the tokenized (i.e. word split) version of the corpus caesarianum. The columns come in the following format:
   (line): line number
