@@ -105,14 +105,16 @@ dims <- c(
   "parent_Deprel"
 )
 
-data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
-cicero_data <- read.csv("postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
+data <- bind_rows(
+  read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE),
+  read.csv("postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
+)
 
 #This isn't a ratio or count variable
 data %<>%
   mutate(Person = as.factor(Person))
-cicero_data %<>%
-  mutate(Person = as.factor(Person))
+# cicero_data %<>%
+#   mutate(Person = as.factor(Person))
 
 summary(data)
 ```
@@ -131,9 +133,9 @@ data <- data |>
   rowwise() |>
   mutate(title = paste(title, "_", book, "_", section))
 
-cicero_data <- cicero_data |>
-  rowwise() |>
-  mutate(title = paste(title, "_", book, "_", section))
+# cicero_data <- cicero_data |>
+#   rowwise() |>
+#   mutate(title = paste(title, "_", book, "_", section))
 ```
 
 The following two code blocks come from the [cltk-2025-atticus
@@ -173,17 +175,17 @@ data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
 data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
 
 #Cicero
-cicero_data <- replace_value("Mood", "Imp", "Imperative")
-cicero_data <- replace_value("Mood", "Ind", "Indicative")
-cicero_data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
-cicero_data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
+# cicero_data <- replace_value("Mood", "Imp", "Imperative")
+# cicero_data <- replace_value("Mood", "Ind", "Indicative")
+# cicero_data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
+# cicero_data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
 
 #Remove unneeded variables
 data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
   filter(tag != 'PUNCT')
 
-cicero_data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
-  filter(tag != 'PUNCT')
+# cicero_data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
+#   filter(tag != 'PUNCT')
 
 #An argument could be made for removing Polarity, but I'll wait to see how common it is and how much variance there is between the texts
 

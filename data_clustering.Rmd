@@ -36,6 +36,8 @@ final.frame <- read.csv("./feature_values.csv")
 gorman.vars <- read.csv("./feature_values_gorman.csv")
 
 sectioned.gorman.vars <- read.csv("./feature_values_gorman_by_section.csv")
+
+cic.gorman.vars <- read.csv("./feature_values_cicero.csv")
 ```
 
 What about euclidean or manhattan distance?
