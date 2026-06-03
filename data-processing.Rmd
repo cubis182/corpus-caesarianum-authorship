@@ -106,64 +106,15 @@ dims <- c(
 )
 
 data <- read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
+cicero_data <- read.csv("postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
 
 #This isn't a ratio or count variable
-data <- data |>
+data %<>%
+  mutate(Person = as.factor(Person))
+cicero_data %<>%
   mutate(Person = as.factor(Person))
 
 summary(data)
-```
-
-Add book numbers, if applicable. I add them to a separate column and the
-title; a bit unclean, but I'll have to fix it later.
-
-```{r eval=FALSE}
-
-get_book <- function(title, cite1, cite2) {
-  if (title == "De bello Gallico") {
-    return(substr(x=cite2, start=1, stop=1))
-  }
-  else if (title == "De Bello Civili") {
-    return(cite1)
-  }
-  else {
-    return('0')
-  }
-}
-
-data <- data |>
-  rowwise() |>
-  mutate(book = get_book(title, cite1, cite2)) |>
-  relocate(book, .before = form)
-
-# data <- data |>
-#   rowwise() |>
-#   mutate(title = paste(title, "_", book))
-# 
-# data <- tidytable::select(data, -book)
-```
-
-Now let's get the section number.
-
-```{r eval=FALSE}
-get_sec <- function(title, cite1, cite2) {
-  if (title == "De bello Gallico") {
-    return(unlist(
-      strsplit(as.character(cite2), '[.]')
-    )[2])
-  }
-  else if (title == "De Bello Civili") {
-    return(cite2)
-  }
-  else {
-    return(cite1)
-  }
-}
-
-data <- data |>
-  rowwise() |>
-  mutate(section = get_sec(title, cite1, cite2)) |>
-  relocate(section, .before = form)
 ```
 
 The data needs to be split up by section first, then put back into
@@ -176,7 +127,11 @@ Let's modify the titles first:
 
 ```{r}
 
-data <- data |>
+data %<>%
+  rowwise() |>
+  mutate(title = paste(title, "_", book, "_", section))
+
+cicero_data %<>%
   rowwise() |>
   mutate(title = paste(title, "_", book, "_", section))
 ```
@@ -211,14 +166,23 @@ replace_value <- function(column, to_replace, replace_string) {
   return(data)
 }
 
+#Caesar
 data <- replace_value("Mood", "Imp", "Imperative")
 data <- replace_value("Mood", "Ind", "Indicative")
 data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
 data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
 
+#Cicero
+cicero_data <- replace_value("Mood", "Imp", "Imperative")
+cicero_data <- replace_value("Mood", "Ind", "Indicative")
+cicero_data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
+cicero_data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
+
 #Remove unneeded variables
-data <- data |> tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree)
-data <- data |>
+data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
+  filter(tag != 'PUNCT')
+
+cicero_data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
   filter(tag != 'PUNCT')
 
 #An argument could be made for removing Polarity, but I'll wait to see how common it is and how much variance there is between the texts
@@ -696,9 +660,11 @@ select_top_variables <- function(all_vars, n) {
 # remove(title_temp)
 ```
 
-We need to create a function that takes a set of columns and returns the same value that variable_combinations() does.
+We need to create a function that takes a set of columns and returns the
+same value that variable_combinations() does.
 
-NOTE: This could be refactored into the get_vars() function, and probably should be. It also needs to be documented in more detail
+NOTE: This could be refactored into the get_vars() function, and
+probably should be. It also needs to be documented in more detail
 
 ```{r}
 #Get the names() attribute
@@ -772,7 +738,6 @@ all_vars_by_book %<>%
   transpose_all_vars() |>
   select_top_variables(n = 1000)
 ```
-
 
 NOTE: LET'S NOT DO IT POST HOC, BUT DURING THE PROCEDURE
 
