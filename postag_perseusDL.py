@@ -850,7 +850,7 @@ def get_parent(word: Word) -> Word | None:
 
 
 
-def extract_features(word, f_set: List[Any]) -> Dict[Any, Any]:
+def extract_features(word, f_set: list) -> dict:
     """
     This function takes a Stanza word and a list of features and returns their values.
 
