@@ -35,6 +35,7 @@ library(multcomp)
 library(ggtext)
 library(printr)
 library(magrittr)
+library(logrittr)
 ```
 
 Note that I was learning dplyr and tidyverse as I created this file, so
@@ -144,7 +145,7 @@ and they transpose the data so that each column is a feature value
 instead of a feature type and the values in the columns are the number
 of times each feature appears.
 
-```{r Atticus-processing-1}
+```{r processing-1}
 
 # # Rename "Imp" to "Imperative" in mood category
 # levels(data$Mood) <- c(levels(data$Mood), "Imperative")
@@ -449,6 +450,7 @@ dataset.
 
 data_backup <- data
 
+#Weighting by book gives about a 50/50 split between Caesar and Cicero
 data <- data |>
   rowwise() |>
   #inelegant, but it works
@@ -569,17 +571,66 @@ get_number_rows_with_feature_types <- function(row_of_feature_values, source_dat
 #character select : A character value which is the section/book we're using in this function
 count_combinations_per_section <- function(combinations, source_data, title_str) {
   #browser()
+  t1 <- proc.time()
   norm_val <- 1000 / nrow(source_data)
   
-  combinations |>
-    dplyr::rowwise() |>
+  return_value <- combinations |>
+    dplyr::rowwise() %>%
     summarize(
       n = get_number_rows_with_feature_types(c_across(everything()), source_data)
     ) %>%
     bind_cols(combinations, .) |>
     mutate(n = n * norm_val) |>
     mutate(title = title_str)
+  
+  print(proc.time() - t1)
+  return_value
 }
+```
+
+Okay, now we need to transpose the data.
+
+```{r}
+
+#all_vars <- all_vars |> mutate(title = unlist(title)
+
+#First, like Gorman, remove ones appearing in less than 20% of the corpus. For section-by-section, that's 134 / 5 = 27
+
+#Recommended operation on the output of get_vars()
+transpose_all_vars <- function(all_vars) {
+  all_vars <- all_vars |> mutate(title = as.factor(title))
+  
+  all_vars <- pivot_wider(
+    all_vars, 
+    names_from = pasted, 
+    values_from = n,
+    values_fill = 0)
+  
+  return(all_vars)
+}
+
+#Reduces output of transpose_all_vars to top n variables
+select_top_variables <- function(all_vars, n) {
+  top_cols <- all_vars |>
+    dplyr::select(-title) |>
+    summarize(across(everything(), sum, na.rm = TRUE)) |>
+    pivot_longer(cols = everything(), names_to = "col_name", values_to = "total") |>
+    arrange(desc(total)) |>
+    slice_head(n = n) |>
+    pull(col_name)
+  
+  all_vars_top_thousand <- all_vars |>
+    dplyr::select(any_of(top_cols)) |>
+    mutate(title = all_vars$title) |>
+    relocate(title, .before = 1)
+}
+
+# title_temp <- all_vars$title
+# all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
+# 
+# all_vars <- all_vars |> relocate(title, .before = everything())
+# 
+# remove(title_temp)
 ```
 
 Now, lets create a function that gets one long tibble with every single
@@ -642,6 +693,10 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
         group_map(~ run_combos(.x, .y)) |>
         bind_rows() |>
         mutate(title = unlist(title))
+    
+    all_vars %<>%
+      transpose_all_vars() |>
+      select_top_variables(n = 1000)
   } else {
     #browser()
     all_vars <- source_data |>
@@ -649,7 +704,7 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
       #slice_sample(n = 100) |>
       rowwise() |>
       mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
-      group_by(title) |>
+      group_by(title) %>%
       group_map(~ count_combinations_per_section(presupplied_variables, source_data = .x, title_str = .y)) |>
       bind_rows() |>
       mutate(title = unlist(title)) |>
@@ -675,52 +730,8 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-all_vars <- get_vars("chapter", presupplied_variables=NULL)
-```
-
-Okay, now we need to transpose the data.
-
-```{r}
-
-#all_vars <- all_vars |> mutate(title = unlist(title)
-
-#First, like Gorman, remove ones appearing in less than 20% of the corpus. For section-by-section, that's 134 / 5 = 27
-
-#Recommended operation on the output of get_vars()
-transpose_all_vars <- function(all_vars) {
-  all_vars <- all_vars |> mutate(title = as.factor(title))
+all_vars <- get_vars("book", data |> slice(1:10, .by = path), presupplied_variables=NULL)
   
-  all_vars <- pivot_wider(
-    all_vars, 
-    names_from = pasted, 
-    values_from = n,
-    values_fill = 0)
-  
-  return(all_vars)
-}
-
-#Reduces output of transpose_all_vars to top n variables
-select_top_variables <- function(all_vars, n) {
-  top_cols <- all_vars |>
-    dplyr::select(-title) |>
-    summarize(across(everything(), sum, na.rm = TRUE)) |>
-    pivot_longer(cols = everything(), names_to = "col_name", values_to = "total") |>
-    arrange(desc(total)) |>
-    slice_head(n = n) |>
-    pull(col_name)
-  
-  all_vars_top_thousand <- all_vars |>
-    dplyr::select(any_of(top_cols)) |>
-    mutate(title = all_vars$title) |>
-    relocate(title, .before = 1)
-}
-
-# title_temp <- all_vars$title
-# all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
-# 
-# all_vars <- all_vars |> relocate(title, .before = everything())
-# 
-# remove(title_temp)
 ```
 
 We need to create a function that takes a set of columns and returns the
