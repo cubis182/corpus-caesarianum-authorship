@@ -641,7 +641,7 @@ variable in it.
 
 run_combos <- function(source_data, title_str) {
   t1 <- proc.time()
-  #browser()
+  # browser()
   
   all_vars <- count_var_combos(combinations, source_data) |> as_tibble(.name_repair = "universal_quiet")  
 
@@ -730,7 +730,7 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-all_vars <- get_vars("book", data |> slice(1:10, .by = path), presupplied_variables=NULL)
+all_vars <- get_vars("book", data, presupplied_variables=NULL)
   
 ```
 

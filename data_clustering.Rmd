@@ -713,7 +713,7 @@ Let's create a function that does this all for us and gets us a list of vectors.
 
 ```{r}
 
-#Get a vector of all the titles
+#Get a vector of all the titles2
 titles <- unique(sectioned.gorman.vars$path)
 
 #Get the spearman correlation coefficients, add them to a list, with the label being the title
