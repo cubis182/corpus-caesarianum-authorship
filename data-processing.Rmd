@@ -41,9 +41,14 @@ library(logrittr)
 library(data.table)
 library(collapse)
 
-library(duckplyr)
 conflict_prefer("filter", "dplyr")
-Sys.setenv(DUCKPLYR_FALLBACK_INFO = TRUE)
+conflicted::conflicts_prefer(combinat::combn)
+# 
+# library(duckplyr)
+# conflict_prefer("filter", "dplyr")
+# Sys.setenv(DUCKPLYR_FALLBACK_INFO = TRUE)
+# 
+# conflicts_prefer(dplyr::filter)
 ```
 
 Note that I was learning dplyr and tidyverse as I created this file, so
@@ -479,15 +484,13 @@ get_var_combos <- function(var_combn, source_data) {
   selection_char <- as.character(var_combn)
   selection_char <- selection_char[!is.na(selection_char)]
   
-  #browser()
-  var_combos <- 
-    source_data[selection_char]
+  var_combos <- source_data[selection_char]
+  #Added this line to avoid the expensive na.omit() operation
+  var_combos <-  var_combos[complete.cases(var_combos),]
   
-  var_combos <- collapse::fcount(var_combos) |> na.omit()
+  var_combos <- collapse::fcount(var_combos, drop = TRUE) #|> na.omit()
     #Added next line to avoid expensive string comparisons
-    
   
-  # browser()
   if (nrow(var_combos) > 0) {
     #final.table <- table(var_combos) #|> as_tibble()
     
@@ -559,14 +562,9 @@ Okay, now we need to transpose the data.
 
 #Recommended operation on the output of get_vars()
 transpose_all_vars <- function(all_vars) {
-  all_vars <- all_vars |> mutate(title = as.factor(title))
+  all_vars <- all_vars |> mutate(title = unlist(title))
   
-  temp <- "./tmp.csv"
-  write_csv(temp)
-  
-  duck_all_vars <- read_csv_duckdb(temp)
-  
-  duck_all_vars %<>% pivot_wider(
+  all_vars <- pivot_wider(
     all_vars, 
     names_from = pasted, 
     values_from = n,
@@ -639,7 +637,8 @@ run_combos <- function(source_data, title_str) {
   #Normalize frequencies by occurrence per 1000 words
   norm_val <- 1000 / nrow(source_data)
   all_vars <- all_vars |> 
-    mutate(n = N * norm_val)
+    mutate(n = N * norm_val) |>
+    dplyr::select(-N)
   
   all_vars <- all_vars |>
     mutate(title = title_str) #The titles should all be the same...
@@ -704,9 +703,9 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-
-  all_vars_by_book <- get_vars("book", data |> filter(path == 'amicitia'), presupplied_variables=NULL)
-
+# profvis({
+  all_vars_by_book <- get_vars("book", data, presupplied_variables=NULL)
+# })
 
 
   
@@ -714,11 +713,14 @@ if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 ```{r}
 
+columns <- all_vars_by_book$pasted |> unique()
 
-profvis({
-  all_vars_by_book %<>%
-    transpose_all_vars()
-})
+
+
+all_vars_by_book <- all_vars_by_book |>
+  transpose_all_vars()
+  select_top_variables()
+
 
 # all_vars_by_book %<>% transpose_all_vars() %<>%
 #   select_top_variables(n = 1000)
