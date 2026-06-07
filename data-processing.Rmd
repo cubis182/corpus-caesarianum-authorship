@@ -40,6 +40,7 @@ library(magrittr)
 library(logrittr)
 library(data.table)
 library(collapse)
+library(logger)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
@@ -531,12 +532,18 @@ which creates the final data frame are in the cell below. They're a
 refactoring of the above cell, which should get replaced soon.
 
 ```{r}
+convert_row_to_character <- function(row_of_factors) {
+  row_of_factors |> mutate(across(where(is.factor), as.character)) 
+}
 
 has_all_feature_types <- function(row_from_source_data, character_vector_of_feature_values) {
   
   # Unnecessary when using apply() around this function
   # row_from_source_data %<>% mutate(across(everything(), as.character))
-  # browser()
+  #browser()
+  if (!is.character(row_from_source_data)) {
+    row_from_source_data %<>% mutate(across(where(is.factor), as.character)) 
+  } 
   # Only return true for this row if ALL characters in the vector on the left are in the row on the right
   all(as.character(character_vector_of_feature_values) %in% row_from_source_data)
 }
@@ -546,7 +553,6 @@ get_number_rows_with_feature_types <- function(row_of_feature_values, source_dat
   count_of_feature_values <- sum(
     apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = row_of_feature_values)
   )
-  #browser()
   count_of_feature_values
 }
 
@@ -711,7 +717,7 @@ if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 # profvis({
-all_vars_by_book <- get_vars("book", data, presupplied_variables=NULL)
+all_vars_by_section <- get_vars("chapter", data, presupplied_variables=NULL)
 # })
 
 
@@ -720,16 +726,12 @@ all_vars_by_book <- get_vars("book", data, presupplied_variables=NULL)
 
 ```{r}
 
-profvis({ .GlobalEnv$all_vars_by_book <- all_vars_by_book |>
+profvis({ .GlobalEnv$all_vars_by_section <- all_vars_by_section |>
   select_top_variables(n = 1000) |>
   transpose_all_vars()
 })
 
-
-# all_vars_by_book %<>% transpose_all_vars() %<>%
-#   select_top_variables(n = 1000)
-# 
-# write_csv(all_vars_by_book |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
+write_csv(all_vars_by_section |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 ```
 
 We need to create a function that takes a set of columns and returns the
@@ -743,7 +745,7 @@ probably should be. It also needs to be documented in more detail
 #Pass an output from get_vars(), get the variables back in table form so they can be passed into the get_vars() function with a new dataset. That way, a new dataset can be processed with the same variables as another.
 combinations_from_existing <- function(all_vars) {
   #Get the names() attribute
-  vars_unsplit <- all_vars_top_thousand |> dplyr::select(-title) |> colnames()
+  vars_unsplit <- all_vars |> dplyr::select(-title) |> colnames()
   
   
   #lapply over the names, using strsplit on each one
@@ -806,18 +808,38 @@ if ("stringr" %notin% .packages()) {
   library(stringr)
 }
 
-verify_random_cell(all_vars, source_data) {
+verify_random_cell <- function(all_vars, source_data) {
+  # For logging purposes
+  fn_name <- get_logger_meta_variables(log_level = INFO)$fn
+  
   # Select a random cell from all_vars
+  rand_row <- slice_sample(all_vars)
+  column_number <- sample(2:ncol(rand_row), size = 1)# column number of the targeted cell, excluding titles
+  cell <- rand_row[,column_number]
   
   # Get its title and column name
+  title <- rand_row$title
+  colname <- names(all_vars)[ column_number ]
+  
+  log_info("{fn_name}: Selecting all_vars[title == {title}, '{colname}']")
+  log_info("{fn_name}: Value of cell is {cell}")
   
   # Remove space from the title
+  title_selected <- gsub(pattern = " ", replacement = "", title)
   
   # Split column name into a character vector
+  vars_unsplit <- unlist(strsplit(colname, "[|]"))
   
   # Filter source_data to the title, using partial matches with str_starts() from stringr package
+  filtered_data <- source_data |> filter(str_starts(gsub(" ", "", title), title_selected))
   
   # Pass character vector and source_data to get_number_rows_with_feature_types()
+  count_from_source_data <- get_number_rows_with_feature_types(vars_unsplit, source_data = filtered_data)
+  #Normalize the value per 1000 words
+  count_from_source_data <- (count_from_source_data / nrow(filtered_data)) * 1000
+  
+  log_info("{fn_name}: The count retrieved from the source data is {count_from_source_data}")
+  log_info("{fn_name}: count == cell: {signif(count_from_source_data, digits = 2) == signif(cell, digits = 2)}")
 }
 ```
 
