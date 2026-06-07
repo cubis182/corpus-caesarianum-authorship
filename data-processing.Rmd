@@ -24,6 +24,7 @@ knitr::opts_knit$set(root.dir = '/Users/matthewdehass/Documents/GitHub/corpus-ca
 
 ```{r Libraries}
 
+library(conflicted)
 library(factoextra)
 library(dplyr)
 library(ggrepel)
@@ -39,6 +40,10 @@ library(magrittr)
 library(logrittr)
 library(data.table)
 library(collapse)
+
+library(duckplyr)
+conflict_prefer("filter", "dplyr")
+Sys.setenv(DUCKPLYR_FALLBACK_INFO = TRUE)
 ```
 
 Note that I was learning dplyr and tidyverse as I created this file, so
@@ -556,13 +561,18 @@ Okay, now we need to transpose the data.
 transpose_all_vars <- function(all_vars) {
   all_vars <- all_vars |> mutate(title = as.factor(title))
   
-  all_vars <- pivot_wider(
+  temp <- "./tmp.csv"
+  write_csv(temp)
+  
+  duck_all_vars <- read_csv_duckdb(temp)
+  
+  duck_all_vars %<>% pivot_wider(
     all_vars, 
     names_from = pasted, 
     values_from = n,
     values_fill = 0)
   
-  return(all_vars)
+  return(all_vars |> as_tibble())
 }
 
 #Reduces output of transpose_all_vars to top n variables
@@ -694,9 +704,9 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-profvis({
+
   all_vars_by_book <- get_vars("book", data |> filter(path == 'amicitia'), presupplied_variables=NULL)
-})
+
 
 
   
