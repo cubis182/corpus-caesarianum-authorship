@@ -6,6 +6,8 @@ output:
 editor_options:
   markdown:
     wrap: 72
+params:
+  use_att: FALSE
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you
@@ -22,7 +24,6 @@ knitr::opts_knit$set(root.dir = '/Users/matthewdehass/Documents/GitHub/corpus-ca
 
 ```{r Libraries}
 
-
 library(factoextra)
 library(dplyr)
 library(ggrepel)
@@ -36,6 +37,8 @@ library(ggtext)
 library(printr)
 library(magrittr)
 library(logrittr)
+library(data.table)
+library(collapse)
 ```
 
 Note that I was learning dplyr and tidyverse as I created this file, so
@@ -107,8 +110,8 @@ dims <- c(
 )
 
 data <- bind_rows(
-  read.csv("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE),
-  read.csv("postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
+  fread("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE),
+  fread("postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
 )
 
 #This isn't a ratio or count variable
@@ -132,7 +135,8 @@ Let's modify the titles first:
 
 data <- data |>
   rowwise() |>
-  mutate(title = paste(title, "_", book, "_", section))
+  mutate(title = paste(gsub(' ', '', title), "_", gsub(' ', '', book), "_", gsub(' ', '', section)))
+
 
 # cicero_data <- cicero_data |>
 #   rowwise() |>
@@ -218,79 +222,56 @@ verbs, whatever). The point is, we're not interested in every individual
 word.
 
 NOTE: I've created a heading (currently empty) down below where we test
-formatting variables like Gorman 2016.
+formatting variables like Gorman 2020.
 
 This block of code will loop through and create a new data frame called
 ***final.frame*** (which is probably poorly named, but I'll fix it later
 or I won't). This data frame has a variable for the count of each tag,
 and every row is a unique work.
 
-```{r Atticus-processing-Create final.frame}
+```{r Create final.frame}
 
-titles <- unique(data$title)
-num_words <- table(data$title)
-final.frame <- data.frame(title = titles)
+#NOTE: There's a parameter for using these variables in the yaml header. By default, it is false and the next three cells (three if we include this one) will not run.
 
-for (i in 1:length(titles)) {
-    frame <- data[data$title == titles[i],]
-    frame <- tidytable::select(frame, title, tag:parent_Deprel & !parent_form & !parent_lemma) #Leave off everything unnecessary except for the title
-    for (n in 2:length(frame)) {
-      t <- table(frame[, ..n])
-      # t <- prop.table(t)
-      names <- names(t)
+if (params$use_att) {
+  titles <- unique(data$title)
+  num_words <- table(data$title)
+  final.frame <- data.frame(title = titles)
   
-      for (name_index in seq(1, length(names))) {
-        final.frame[i, names[name_index]] <- unname(t[names[name_index]])
+  for (i in 1:length(titles)) {
+      frame <- data[data$title == titles[i],]
+      frame <- tidytable::select(frame, title, tag:parent_Deprel & !parent_form & !parent_lemma) #Leave off everything unnecessary except for the title
+      for (n in 2:length(frame)) {
+        t <- table(frame[, ..n])
+        # t <- prop.table(t)
+        names <- names(t)
+    
+        for (name_index in seq(1, length(names))) {
+          final.frame[i, names[name_index]] <- unname(t[names[name_index]])
+        }
       }
-    }
-}
-
-# Normalize by number of words in each work
-for (i in 2:length(final.frame[1, ])) {
-  for (n in 1:length(final.frame[, 1])) {
-    final.frame[n, i] <- final.frame[n, i] * (10000 / num_words[[final.frame[n, ]$title]])
   }
+  
+  # Normalize by number of words in each work
+  for (i in 2:length(final.frame[1, ])) {
+    for (n in 1:length(final.frame[, 1])) {
+      final.frame[n, i] <- final.frame[n, i] * (10000 / num_words[[final.frame[n, ]$title]])
+    }
+  }
+  
+  # Removed punctuation because PCA showed that it was an "important" variable
+  final.frame <- subset(final.frame, select = c(-PUNCT, -X))
+  
+  # Clean up NAs
+  final.frame[is.na(final.frame)] <- 0
 }
-```
-
-A few things will make our life easier. We don't want any NAs in there,
-because that'll gum up the clustering. We'll replace any missing values
-with 0, because 0 occurrences of a variable is the only reason there
-would be NA values at this stage.
-
-The numbers aren't normalized according to the size of their respective
-works yet, so I've divided each number by the total number of words in
-the given work in the next chunk. I multiplied each by 100,000 too, just
-to get numbers that look a little nicer and aren't in scientific
-notation.
-
-Finally, we do what I said above, turning the rownames into the title. I
-shorten them to 12 characters max.
-
-```{r Clean up final.frame}
-# Removed punctuation because PCA showed that it was an "important" variable
-final.frame <- subset(final.frame, select = c(-PUNCT, -X))
-
-# Clean up NAs
-final.frame[is.na(final.frame)] <- 0
-
-#Add rownames
-# 
-# for (i in 1:length(final.frame$title)) {
-#   final.frame$title <- as.character(final.frame$title)
-#   final.frame$title[i] <- paste(as.character(i), final.frame$title[i])
-# }
-# 
-# rownames(final.frame) <- final.frame$title
-# final.frame$title <- lapply(X = final.frame$title, FUN = substr, start = 1, stop = 16)
-# rownames(final.frame) <- lapply(X = rownames(final.frame), FUN = substr, start = 1, stop = 16)
 ```
 
 Let's save this to a file so we can open it in another RMarkdown file.
 
-```{r}
+```{r save-simplex-vars}
 
-write_csv(final.frame, file = "./feature_values.csv")
+if (params$use_att) write_csv(final.frame, file = "./feature_values.csv")
 ```
 
 ## Gorman-Style Variables
@@ -448,40 +429,34 @@ dataset.
 
 ```{r}
 
-data_backup <- data
+if (!exists("combinations")){
+  data_backup <- data
 
-#Weighting by book gives about a 50/50 split between Caesar and Cicero
-data <- data |>
-  rowwise() |>
-  #inelegant, but it works
-  mutate(commentary = paste(unlist(strsplit(title, "_"))[1], unlist(strsplit(title, "_"))[2])) |>
-  ungroup() |>
-  dplyr::slice_sample(n = 1000, by = commentary)
+  #Weighting by book gives about a 50/50 split between Caesar and Cicero
+  data <- data |>
+    rowwise() |>
+    #inelegant, but it works
+    mutate(commentary = paste(unlist(strsplit(title, "_"))[1], unlist(strsplit(title, "_"))[2])) |>
+    ungroup() |>
+    dplyr::slice_sample(n = 1000, by = commentary)
+  
+  data$commentary <- as.factor(data$commentary)
+  
+  #Let's get every combination of variables.
+  
+  combinations <- bind_rows(
+    variable_combinations(1, data),
+    variable_combinations(2, data),
+    variable_combinations(3, data),
+    variable_combinations(4, data),
+    variable_combinations(5, data)
+  )
+  
+  data <- data_backup
+  
+  rm(data_backup)
+}
 
-data$commentary <- as.factor(data$commentary)
-
-```
-
-Let's get every combination of variables.
-
-```{r}
-# one_combinations <- variable_combinations(1, data)
-# two_combinations <- variable_combinations(2, data)
-# three_combinations <- variable_combinations(3, data)
-# four_combinations <- variable_combinations(4, data)
-# five_combinations <- variable_combinations(5, data)
-
-combinations <- bind_rows(
-  variable_combinations(1, data),
-  variable_combinations(2, data),
-  variable_combinations(3, data),
-  variable_combinations(4, data),
-  variable_combinations(5, data)
-)
-
-data <- data_backup
-
-rm(data_backup)
 ```
 
 Let's create a function that takes each combination in the list and gets
@@ -496,30 +471,24 @@ get_var_combos <- function(var_combn, source_data) {
   #browser()
   
   #This is used to select the desired columns
-  selection_char <- as.character(var_combn) |> na.omit()
+  selection_char <- as.character(var_combn)
+  selection_char <- selection_char[!is.na(selection_char)]
   
+  #browser()
   var_combos <- 
-    source_data |>
-    #Now remove NAs, since the combinations vector might include them
-    dplyr::select(all_of(as.character(var_combn) |> na.omit())) %>%
-    #na.omit might be faster than my custom function, and it performs the same task.
-    #I've tested to ensure the number of rows is the same no matter which function I use, and even when multiple columns are selected
-    na.omit() |>
+    source_data[selection_char]
+  
+  var_combos <- collapse::fcount(var_combos) |> na.omit()
     #Added next line to avoid expensive string comparisons
-    #dplyr::select(where(all(~ !is.na(.x)))) |>
-    #Paste the whole row together; I use a pipe because it's unused elsewhere
-    unite("pasted", everything(), sep = "|") 
-    #Tried to replace the unite() function just above with the below code, but it was significantly slower
-    #apply(MARGIN = 1, FUN = paste0, collapse = "|") 
-    #filter(str_detect(pasted, pattern = "NA", negate = TRUE)) #Remove NAs
+    
   
   # browser()
-  if (length(var_combos$pasted) > 0) {
+  if (nrow(var_combos) > 0) {
     #final.table <- table(var_combos) #|> as_tibble()
     
     #browser()
     #Return only the ones above an arbitrary threshold. 
-    return(var_combos$pasted) #|> filter(n > 30)) #initially not 30, but nrow(source_data / 5)
+    return(var_combos) #|> filter(n > 30)) #initially not 30, but nrow(source_data / 5)
     }
   else {return(NULL)}
 }
@@ -534,7 +503,12 @@ of them, creating a data frame out of it.
 
 count_var_combos <- function(var_combn, source_data) {
   
-  list_combn <- apply(var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> unlist() |> table() #cbind()
+  list_combn <- apply(var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> bind_rows()
+  
+    #unlist()
+  
+  #browser()
+  #list_combn <- list_combn
   
   #browser()
   #Initially removed low-frequency items, but that resulted in NA values in the final data.
@@ -564,28 +538,10 @@ get_number_rows_with_feature_types <- function(row_of_feature_values, source_dat
   count_of_feature_values <- sum(
     apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = row_of_feature_values)
   )
+  #browser()
   count_of_feature_values
 }
 
-#
-#character select : A character value which is the section/book we're using in this function
-count_combinations_per_section <- function(combinations, source_data, title_str) {
-  #browser()
-  t1 <- proc.time()
-  norm_val <- 1000 / nrow(source_data)
-  
-  return_value <- combinations |>
-    dplyr::rowwise() %>%
-    summarize(
-      n = get_number_rows_with_feature_types(c_across(everything()), source_data)
-    ) %>%
-    bind_cols(combinations, .) |>
-    mutate(n = n * norm_val) |>
-    mutate(title = title_str)
-  
-  print(proc.time() - t1)
-  return_value
-}
 ```
 
 Okay, now we need to transpose the data.
@@ -619,8 +575,7 @@ select_top_variables <- function(all_vars, n) {
     slice_head(n = n) |>
     pull(col_name)
   
-  all_vars_top_thousand <- all_vars |>
-    dplyr::select(any_of(top_cols)) |>
+  all_vars_top_thousand <- all_vars[top_cols] |>
     mutate(title = all_vars$title) |>
     relocate(title, .before = 1)
 }
@@ -639,11 +594,33 @@ variable in it.
 ```{r}
 #library(dtplyr)
 
+#
+#character select : A character value which is the section/book we're using in this function
+count_combinations_per_section <- function(combinations, source_data, title_str) {
+  #browser()
+  t1 <- proc.time()
+  norm_val <- 1000 / nrow(source_data)
+  
+  return_value <- combinations |>
+    dplyr::rowwise() %>%
+    summarize(
+      n = get_number_rows_with_feature_types(c_across(everything()), source_data)
+    ) %>%
+    bind_cols(combinations, .) |>
+    mutate(n = n * norm_val, title = title_str) |>
+  
+  print(proc.time() - t1)
+  return_value
+}
+
 run_combos <- function(source_data, title_str) {
   t1 <- proc.time()
-  # browser()
   
-  all_vars <- count_var_combos(combinations, source_data) |> as_tibble(.name_repair = "universal_quiet")  
+  all_vars <- count_var_combos(combinations, source_data) |>
+    unite(col = "pasted", -N, sep = "|", na.rm = TRUE) |>
+    as_tibble(.name_repair = "universal_quiet")  
+  
+  #browser()
 
   names(all_vars)[1] <- "pasted"
   
@@ -652,7 +629,7 @@ run_combos <- function(source_data, title_str) {
   #Normalize frequencies by occurrence per 1000 words
   norm_val <- 1000 / nrow(source_data)
   all_vars <- all_vars |> 
-    mutate(n = n * norm_val)
+    mutate(n = N * norm_val)
   
   all_vars <- all_vars |>
     mutate(title = title_str) #The titles should all be the same...
@@ -684,8 +661,6 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
     return(NULL)
   }
   
-  #browser()
-  
   if (is.null(presupplied_variables)) {
     all_vars <- source_data |>
         group_by(title) |>
@@ -693,26 +668,19 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
         group_map(~ run_combos(.x, .y)) |>
         bind_rows() |>
         mutate(title = unlist(title))
-    
-    all_vars %<>%
-      transpose_all_vars() |>
-      select_top_variables(n = 1000)
   } else {
     #browser()
     all_vars <- source_data |>
       #For debugging:
       #slice_sample(n = 100) |>
       rowwise() |>
-      mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
+      #check whether this line is necessary
+      #mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
       group_by(title) %>%
       group_map(~ count_combinations_per_section(presupplied_variables, source_data = .x, title_str = .y)) |>
       bind_rows() |>
       mutate(title = unlist(title)) |>
       unite(col = "pasted", 1:5, sep = "|", na.rm = TRUE)
-    
-    all_vars %<>%
-      transpose_all_vars() |>
-      select_top_variables(n = 1000)
   }
   
   return(all_vars)
@@ -720,18 +688,32 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
 ```
 
 ```{r}
-#Restore the full data
-# data <- data_backup
-# #
-# remove(data_backup)
-# remove(data_sample)
+#You can start the program here and hit "Run all chunks above" to 
 
 if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-all_vars <- get_vars("book", data, presupplied_variables=NULL)
+profvis({
+  all_vars_by_book <- get_vars("book", data |> filter(path == 'amicitia'), presupplied_variables=NULL)
+})
+
+
   
+```
+
+```{r}
+
+
+profvis({
+  all_vars_by_book %<>%
+    transpose_all_vars()
+})
+
+# all_vars_by_book %<>% transpose_all_vars() %<>%
+#   select_top_variables(n = 1000)
+# 
+# write_csv(all_vars_by_book |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
 ```
 
 We need to create a function that takes a set of columns and returns the
@@ -788,7 +770,7 @@ Now save this to a CSV!
 #unnest so that it doesn't throw an error when some columns are lists
 write_csv(all_vars_top_thousand |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 
-write_csv(all_vars_by_book |> unnest(everything()), file = "./feature_values_gorman.csv", col_names = TRUE)
+
 
 write_csv(cic_all_vars |> unnest(everything()), file = "./feature_values_cicero.csv", col_names = TRUE)
 ```
