@@ -573,19 +573,26 @@ transpose_all_vars <- function(all_vars) {
   return(all_vars |> as_tibble())
 }
 
-#Reduces output of transpose_all_vars to top n variables
+#Reduces output of transpose_all_vars to top n variables; maximum value for n is 18,000
 select_top_variables <- function(all_vars, n) {
-  top_cols <- all_vars |>
-    dplyr::select(-title) |>
-    summarize(across(everything(), sum, na.rm = TRUE)) |>
-    pivot_longer(cols = everything(), names_to = "col_name", values_to = "total") |>
-    arrange(desc(total)) |>
-    slice_head(n = n) |>
-    pull(col_name)
+  #An optimization step to reduce the size of the data we're dealing with
+  all_vars_reduced <- all_vars %>=% filter(n > 20)
   
-  all_vars_top_thousand <- all_vars[top_cols] |>
-    mutate(title = all_vars$title) |>
-    relocate(title, .before = 1)
+  # Get a list of the distinct variables
+  variables <- unique(all_vars_reduced$pasted)
+  print(format(length(variables), big.mark = ','))
+  
+  # For each distinct variable, sum up its values across all works, thens store in a list
+  combined_vars <- lapply(variables, FUN = function(var) sum(all_vars_reduced[all_vars_reduced$pasted == var,]$n))
+  combined_vars %<>% unlist
+  
+  #Add the names to the list
+  names(combined_vars) <- variables
+  
+  sorted <- sort(combined_vars, decreasing = TRUE)[1:n]
+  to_filter_by <- names(sorted)
+  
+  all_vars_reduced |> filter(pasted %in% to_filter_by)
 }
 
 # title_temp <- all_vars$title
@@ -704,7 +711,7 @@ if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 # profvis({
-  all_vars_by_book <- get_vars("book", data, presupplied_variables=NULL)
+all_vars_by_book <- get_vars("book", data, presupplied_variables=NULL)
 # })
 
 
@@ -713,13 +720,10 @@ if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 ```{r}
 
-columns <- all_vars_by_book$pasted |> unique()
-
-
-
-all_vars_by_book <- all_vars_by_book |>
+profvis({ .GlobalEnv$all_vars_by_book <- all_vars_by_book |>
+  select_top_variables(n = 1000) |>
   transpose_all_vars()
-  select_top_variables()
+})
 
 
 # all_vars_by_book %<>% transpose_all_vars() %<>%
@@ -794,6 +798,29 @@ again.
 ## Data Verification
 
 ### Ensuring counts of variables are done correctly
+
+This function takes a random cell from the final data frame and checks its frequency in the main data frame.
+
+```{r}
+if ("stringr" %notin% .packages()) {
+  library(stringr)
+}
+
+verify_random_cell(all_vars, source_data) {
+  # Select a random cell from all_vars
+  
+  # Get its title and column name
+  
+  # Remove space from the title
+  
+  # Split column name into a character vector
+  
+  # Filter source_data to the title, using partial matches with str_starts() from stringr package
+  
+  # Pass character vector and source_data to get_number_rows_with_feature_types()
+}
+```
+
 
 ### Ensuring get_var_combos works correctly with different values
 
