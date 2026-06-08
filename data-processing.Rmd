@@ -581,10 +581,14 @@ transpose_all_vars <- function(all_vars) {
 
 #Reduces output of transpose_all_vars to top n variables; maximum value for n is 18,000
 select_top_variables <- function(all_vars, n) {
-  #An optimization step to reduce the size of the data we're dealing with
-  all_vars_reduced <- all_vars %>=% filter(n > 20)
+ 
   
-  # Get a list of the distinct variables
+  #An optimization step to reduce the size of the data we're dealing with
+  number_of_sections <- length(unique(all_vars))
+  min <- min(sort(all_vars$n, decreasing = TRUE)[1:(n * number_of_sections)])
+  all_vars_reduced <- all_vars %>=% filter(n > min)
+  
+   # Get a list of the distinct variables
   variables <- unique(all_vars_reduced$pasted)
   print(format(length(variables), big.mark = ','))
   
@@ -726,12 +730,12 @@ all_vars_by_section <- get_vars("chapter", data, presupplied_variables=NULL)
 
 ```{r}
 
-profvis({ .GlobalEnv$all_vars_by_section <- all_vars_by_section |>
+profvis({ .GlobalEnv$all_vars_by_section_ <- all_vars_by_section |>
   select_top_variables(n = 1000) |>
   transpose_all_vars()
 })
 
-write_csv(all_vars_by_section |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
+# write_csv(all_vars_by_section |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 ```
 
 We need to create a function that takes a set of columns and returns the
