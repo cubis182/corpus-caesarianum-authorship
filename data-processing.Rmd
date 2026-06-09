@@ -44,6 +44,10 @@ library(logger)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
+
+#For debugging purposes, here is a vector to save the size of the lower quartile that is discarded when variables are counted. This number is the minimum number of times per 1000 words a variable can occur in that section without getting discarded
+lower_quartiles <- vector(mode = "double")
+
 # 
 # library(duckplyr)
 # conflict_prefer("filter", "dplyr")
@@ -477,6 +481,7 @@ occur in less than 20% of the corpus
 ```{r}
 
 #Requires a row from a tibble that only includes valid column names and no numerics / other data types
+#Discards any data points that occur less than 30 times
 
 get_var_combos <- function(var_combn, source_data) {
   #browser()
@@ -486,6 +491,7 @@ get_var_combos <- function(var_combn, source_data) {
   selection_char <- selection_char[!is.na(selection_char)]
   
   var_combos <- source_data[selection_char]
+  #browser()
   #Added this line to avoid the expensive na.omit() operation
   var_combos <-  var_combos[complete.cases(var_combos),]
   
@@ -496,7 +502,7 @@ get_var_combos <- function(var_combn, source_data) {
     #final.table <- table(var_combos) #|> as_tibble()
     
     #browser()
-    #Return only the ones above an arbitrary threshold. 
+    
     return(var_combos) #|> filter(n > 30)) #initially not 30, but nrow(source_data / 5)
     }
   else {return(NULL)}
@@ -519,9 +525,12 @@ count_var_combos <- function(var_combn, source_data) {
   #browser()
   #list_combn <- list_combn
   
-  #browser()
+  # browser()
   #Initially removed low-frequency items, but that resulted in NA values in the final data.
-  return(list_combn) #subset(list_combn, list_combn > nrow(source_data) / 10)) # |> as_tibble() |> filter(V1 > 30))
+  #I've decided, though, that the reduction in quality is worth the increase in performance and lower memory usage. I remove anything below the lower quartile
+  lower_quartile <- quantile(list_combn$N)[['25%']]
+  .GlobalEnv$lower_quartiles <- c(.GlobalEnv$lower_quartiles, lower_quartile)
+  return(list_combn[list_combn$N > lower_quartile,]) #subset(list_combn, list_combn > nrow(source_data) / 10)) # |> as_tibble() |> filter(V1 > 30))
 }
 
 #count_var_combos(two_combinations, data)
@@ -581,28 +590,37 @@ transpose_all_vars <- function(all_vars) {
 
 #Reduces output of transpose_all_vars to top n variables; maximum value for n is 18,000
 select_top_variables <- function(all_vars, n) {
- 
+  #For logging
+  fn_name <- get_logger_meta_variables(log_level = INFO)$fn
   
   #An optimization step to reduce the size of the data we're dealing with
-  number_of_sections <- length(unique(all_vars))
-  min <- min(sort(all_vars$n, decreasing = TRUE)[1:(n * number_of_sections)])
-  all_vars_reduced <- all_vars %>=% filter(n > min)
+  number_of_variables <- length(unique(all_vars$pasted))
+  number_of_rows <- nrow(all_vars)
+  min_val <- sort(all_vars$n, decreasing = TRUE)[1:(n * (number_of_rows / number_of_variables))] |>
+    min()
+  
+  log_info("{fn_name}: Number of variables is {number_of_variables}, minimum value in sections 1:{(n * (number_of_rows / number_of_variables))} is {min_val}.")
+  
+  original_length <- nrow(all_vars)
+  all_vars_reduced <- all_vars %>=% filter(n > min_val)
+  log_info("{fn_name}: Data frame reduced from {original_length} rows to {nrow(all_vars_reduced)}.")
   
    # Get a list of the distinct variables
   variables <- unique(all_vars_reduced$pasted)
-  print(format(length(variables), big.mark = ','))
+  log_info("{fn_name}: Number of variables to compare is {format(length(variables), big.mark = ',')}")
   
-  # For each distinct variable, sum up its values across all works, thens store in a list
-  combined_vars <- lapply(variables, FUN = function(var) sum(all_vars_reduced[all_vars_reduced$pasted == var,]$n))
+  # NOTE: COMMENTING THIS OUT FOR NOW, TO SEE HOW THE HEURISTIC PERFORMS
+  # For each distinct variable, sum up its values across all works, then store in a list
+  combined_vars <- lapply(variables, FUN = function(var) sum(all_vars_reduced$n[all_vars_reduced$pasted == var]))
   combined_vars %<>% unlist
-  
+
   #Add the names to the list
   names(combined_vars) <- variables
-  
+
   sorted <- sort(combined_vars, decreasing = TRUE)[1:n]
   to_filter_by <- names(sorted)
   
-  all_vars_reduced |> filter(pasted %in% to_filter_by)
+  all_vars |> filter(pasted %in% to_filter_by)
 }
 
 # title_temp <- all_vars$title
@@ -658,9 +676,11 @@ run_combos <- function(source_data, title_str) {
     dplyr::select(-N)
   
   all_vars <- all_vars |>
-    mutate(title = title_str) #The titles should all be the same...
+    mutate(title = title_str)  #The titles should all be the same...
+
   
-  print(proc.time() - t1)
+  delta_time <- proc.time() - t1
+  log_debug(paste(names(delta_time), delta_time, sep = ": ", collapse = ", "))
   return(all_vars)
 }
 
@@ -689,7 +709,7 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
   
   if (is.null(presupplied_variables)) {
     all_vars <- source_data |>
-        group_by(title) |>
+        group_by(title) %>%
         #lazy_dt() |>
         group_map(~ run_combos(.x, .y)) |>
         bind_rows() |>
@@ -721,22 +741,34 @@ if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 # profvis({
+
 all_vars_by_section <- get_vars("chapter", data, presupplied_variables=NULL)
 # })
 
-
+# Ran a test of this function on the Bellum Hispaniense without culling 0-length variables.
+# Result: 3,257,298 variables
+# Test removing variables evidenced 0 times:
+# Still 3,257,298. 
+# Removing variables evidenced 1 or 0 times:
+# 1,302,834
+# Removing variables below the 25% quartile:
+# Still 1,302,834, since the lower quartile is always 1
   
 ```
 
 ```{r}
-
-profvis({ .GlobalEnv$all_vars_by_section_ <- all_vars_by_section |>
-  select_top_variables(n = 1000) |>
-  transpose_all_vars()
-})
-
-# write_csv(all_vars_by_section |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
+# Wait until we have all the results to we can select the top variables for ALL sections together
+all_vars_by_section_culled <- all_vars_by_section |>
+  select_top_variables(n = 1000) 
 ```
+
+```{r}
+all_vars_by_section_culled %<>% 
+   transpose_all_vars()
+gc() #free up memory for the OS
+write_csv(all_vars_by_section_culled |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
+```
+
 
 We need to create a function that takes a set of columns and returns the
 same value that variable_combinations() does.
