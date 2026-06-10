@@ -286,7 +286,7 @@ Let's save this to a file so we can open it in another RMarkdown file.
 
 ```{r save-simplex-vars}
 
-if (params$use_att) write_csv(final.frame, file = "./feature_values.csv")
+if (params$use_att) write_csv(final.frame, file = "./feature_csv_files/feature_values.csv")
 ```
 
 ## Gorman-Style Variables
@@ -784,9 +784,8 @@ all_vars_by_section_culled %<>%
 
 if (exists("all_vars_by_section")) rm(all_vars_by_section)
 gc() #free up memory for the OS
-write_csv(all_vars_by_section_culled |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
+write_csv(all_vars_by_section_culled |> unnest(everything()), file = "./feature_csv_files//feature_values_gorman_by_section.csv", col_names = TRUE)
 ```
-
 
 We need to create a function that takes a set of columns and returns the
 same value that variable_combinations() does.
@@ -835,17 +834,16 @@ all_vars_by_book <- get_vars("book", data, combinations)
 #   select_top_variables(1000)
 ```
 
-Transpose, and export to .csv file.
-N.B.: We don't cull uncommon variables, because we already are using a culled set of variables
+Transpose, and export to .csv file. N.B.: We don't cull uncommon
+variables, because we already are using a culled set of variables
 
 ```{r}
 
 all_vars_by_book <- all_vars_by_book %>%
   transpose_all_vars()
 
-write_csv(all_vars_by_book, file = "./feature_values_gorman.csv", col_names = TRUE)
+write_csv(all_vars_by_book, file = "./feature_csv_files/feature_values_gorman.csv", col_names = TRUE)
 ```
-
 
 We need to be able to reselect small segments of the corpus and count
 the same variables, so we need a function to find and count each column
@@ -855,7 +853,8 @@ again.
 
 ### Ensuring counts of variables are done correctly
 
-This function takes a random cell from the final data frame and checks its frequency in the main data frame.
+This function takes a random cell from the final data frame and checks
+its frequency in the main data frame.
 
 ```{r}
 if ("stringr" %notin% .packages()) {
@@ -896,7 +895,6 @@ verify_random_cell <- function(all_vars, source_data) {
   log_info("{fn_name}: count == cell: {signif(count_from_source_data, digits = 2) == signif(cell, digits = 2)}")
 }
 ```
-
 
 ### Ensuring get_var_combos works correctly with different values
 
