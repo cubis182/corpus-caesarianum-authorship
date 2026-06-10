@@ -549,19 +549,25 @@ has_all_feature_types <- function(row_from_source_data, character_vector_of_feat
   
   # Unnecessary when using apply() around this function
   # row_from_source_data %<>% mutate(across(everything(), as.character))
-  #browser()
-  if (!is.character(row_from_source_data)) {
-    row_from_source_data %<>% mutate(across(where(is.factor), as.character)) 
-  } 
+  
+  # if (!is.character(row_from_source_data)) {
+  #   row_from_source_data %<>% mutate(across(where(is.factor), as.character)) 
+  # } 
+  
   # Only return true for this row if ALL characters in the vector on the left are in the row on the right
-  all(as.character(character_vector_of_feature_values) %in% row_from_source_data)
+  # Note on optimization: %chin% is supposedly faster than %in%
+  all(character_vector_of_feature_values %in% row_from_source_data)
 }
 
-get_number_rows_with_feature_types <- function(row_of_feature_values, source_data) {
+get_number_rows_with_feature_types <- function(vector_of_feature_values, source_data) {
   #browser()
+  fn_name <- "get_number_rows..."
+
   count_of_feature_values <- sum(
-    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = row_of_feature_values)
+    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = vector_of_feature_values)
   )
+  log_debug("{fn_name}: The feature values '{paste(vector_of_feature_values)}' occurred {count_of_feature_values} times in the dataset.")
+  
   count_of_feature_values
 }
 
@@ -644,14 +650,24 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
   t1 <- proc.time()
   norm_val <- 1000 / nrow(source_data)
   
-  return_value <- combinations |>
-    dplyr::rowwise() %>%
-    summarize(
-      n = get_number_rows_with_feature_types(c_across(everything()), source_data)
-    ) %>%
-    bind_cols(combinations, .) |>
-    mutate(n = n * norm_val, title = title_str) |>
+  #save processing time by converting source_data to matrix now
+  source_data <- as.matrix(source_data)
   
+  #more efficient than using rows
+  combinations <- t(as.matrix(combinations))
+  
+  counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types, source_data = source_data)
+  counts <- counts * norm_val
+  return_value <- bind_cols(t(combinations), tibble(n = counts))
+  return_value$title <- title_str
+    # dplyr::rowwise() %>%
+    # summarize(
+    #   n = get_number_rows_with_feature_types(c_across(everything()), source_data)
+    # ) %>%
+    # bind_cols(combinations, .) |>
+    # mutate(n = n * norm_val, title = title_str)
+  
+  #browser()
   print(proc.time() - t1)
   return_value
 }
@@ -765,6 +781,8 @@ all_vars_by_section_culled <- all_vars_by_section |>
 ```{r}
 all_vars_by_section_culled %<>% 
    transpose_all_vars()
+
+if (exists("all_vars_by_section")) rm(all_vars_by_section)
 gc() #free up memory for the OS
 write_csv(all_vars_by_section_culled |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 ```
@@ -807,8 +825,9 @@ combinations_from_existing <- function(all_vars) {
 Get the variables for the Cicero data.
 
 ```{r}
-combinations <- combinations_from_existing(all_vars)
-cic_all_vars <- get_vars("book", cicero_data |> slice(1:50), combinations)
+combinations <- combinations_from_existing(all_vars_by_section_culled)
+all_vars_by_book <- get_vars("book", data, combinations)
+
 
 #post-processing
 # cic_all_vars_top <- cic_all_vars
@@ -816,18 +835,17 @@ cic_all_vars <- get_vars("book", cicero_data |> slice(1:50), combinations)
 #   select_top_variables(1000)
 ```
 
-NOTE: LET'S NOT DO IT POST HOC, BUT DURING THE PROCEDURE
-
-Now save this to a CSV!
+Transpose, and export to .csv file.
+N.B.: We don't cull uncommon variables, because we already are using a culled set of variables
 
 ```{r}
-#unnest so that it doesn't throw an error when some columns are lists
-write_csv(all_vars_top_thousand |> unnest(everything()), file = "./feature_values_gorman_by_section.csv", col_names = TRUE)
 
+all_vars_by_book <- all_vars_by_book %>%
+  transpose_all_vars()
 
-
-write_csv(cic_all_vars |> unnest(everything()), file = "./feature_values_cicero.csv", col_names = TRUE)
+write_csv(all_vars_by_book, file = "./feature_values_gorman.csv", col_names = TRUE)
 ```
+
 
 We need to be able to reselect small segments of the corpus and count
 the same variables, so we need a function to find and count each column
