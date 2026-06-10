@@ -17,6 +17,7 @@ library(dplyr)
 library(ggrepel)
 library(tidyverse)
 library(cluster)
+library(ggplot2)
 library(magrittr)
 library(combinat)
 library(dendextend)
@@ -25,19 +26,40 @@ library(multcomp)
 library(ggtext)
 library(printr)
 library(ggdendro)
+library(stringr)
 ```
 
 ##Get the data
 
 ```{r}
 
-final.frame <- read.csv("./feature_values.csv")
+final.frame <- read.csv("./feature_csv_files/feature_values.csv")
 
-gorman.vars <- read.csv("./feature_values_gorman.csv")
+gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman.csv")
 
-sectioned.gorman.vars <- read.csv("./feature_values_gorman_by_section.csv")
+sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv")
 
-cic.gorman.vars <- read.csv("./feature_values_cicero.csv")
+add_book <- function(source_data) {
+  source_data |>
+    mutate(book = paste0((strsplit(title, "_"))[[1]][1:2], collapse = "_")) |>
+    relocate(book, .before = 2)
+}
+
+sectioned.gorman.vars <- add_book(sectioned.gorman.vars)
+
+cicero_works <- "(philippics|senectute|amicitia)"
+
+sectioned.gorman.vars <- bind_rows(
+  filter(sectioned.gorman.vars, str_starts(title, cicero_works)),
+  filter(sectioned.gorman.vars, !str_starts(title, cicero_works))
+  )
+
+gorman.vars <- bind_rows(
+  filter(gorman.vars, str_starts(title, cicero_works)),
+  filter(gorman.vars, !str_starts(title, cicero_works))
+)
+
+#cic.gorman.vars <- read.csv("./feature_csv_files/feature_values_cicero.csv")
 ```
 
 What about euclidean or manhattan distance?
@@ -647,13 +669,13 @@ sectioned.gorman.vars %<>%
 Now we'll create a list of vectors, and each one is the set of correlations retrieved by comparing pairwise
 
 ```{r}
-library(pspearman)
-library(Kendall)
-library(lsa)
+if (!'pspearman' %in% .packages()) library(pspearman)
+if (!'Kendall' %in% .packages()) library(Kendall)
+if (!'lsa' %in% .packages()) library(lsa)
 
 retrieve_combination_similarity <- function(combo, section_vectors, type) {
-  vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path)
-  browser()
+  vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path, -book)
+  #browser()
   vec_a <- vectors[1,] |> t() |> as.vector() 
   vec_b <- vectors[2,] |> t() |> as.vector() 
   
@@ -665,7 +687,7 @@ retrieve_combination_similarity <- function(combo, section_vectors, type) {
     vec_b %<>% jitter(amount = amount_jitter)
     
     rho_estimate <- spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate
-    #Note: we'll be comparing this with dissimilarity scores, which are actually the absolute value of rho - 1
+    #Note: we'll be comparing this with dissimilarity scores, which are actually the absolute value of (rho - 1)
     return(abs(rho_estimate - 1.0))  
   } else if (type == "cosine" ) {
     return(cosine(vec_a, vec_b))  
@@ -677,19 +699,23 @@ retrieve_combination_similarity <- function(combo, section_vectors, type) {
 
 #Parameters:
 #  character book: Name of commentary book. Valid values: "gallic _ 1", "gallic _ 2", etc.
-#  tibble section_vectors: In this file, the variable stored in sectioned.gorman.vars is assumed
+#  tibble section_vectors: NEEDSDOC
 # double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
-within.book.similarity <- function(book, section_vectors, rows, type_of_similarity = "spearman") {
-  sub_section_vectors <- section_vectors %>%
-    filter(path == book) |>
-    slice_sample(n = rows)
+within.book.similarity <- function(section_vectors, rows, type_of_similarity = "spearman") {
+  sub_section_vectors <- section_vectors[sample(1:nrow(section_vectors), rows),]
+  #browser()
+  
+  log_info("Starting sub_section_vectors...")
+  t1 <- proc.time()
   
   #Use the columns if this to select
   #combn(sectioned.gorman.vars |> filter(path == "african ") |> pull(title), 2)
-  combos <- combn(sub_section_vectors |> pull(title), 2)
+  combos <- combn(sub_section_vectors$title, 2)
   
   similarities <- apply(X = combos, MARGIN = 2, FUN = retrieve_combination_similarity, section_vectors = sub_section_vectors, type = type_of_similarity)
   
+  print("Finished one book in within.book.similarity")
+  print(proc.time() - t1)
   return(similarities)
   
 }
@@ -714,41 +740,62 @@ Let's create a function that does this all for us and gets us a list of vectors.
 ```{r}
 
 #Get a vector of all the titles2
-titles <- unique(sectioned.gorman.vars$path)
+titles <- unique(sectioned.gorman.vars$book)
 
 #Get the spearman correlation coefficients, add them to a list, with the label being the title
 
-scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15, type_of_similarity = "spearman")))
 
-cosine.scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15, type_of_similarity = "cosine")))
-
-euclid.scores.correlation.per.text <- lapply(titles, \(x) (within.book.similarity(x, sectioned.gorman.vars, rows = 15, type_of_similarity = "euclidean")))
+scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$book, FUN = within.book.similarity, rows = 20, type_of_similarity = "spearman")
 
 names(scores.correlation.per.text) <- titles
-
-names(cosine.scores.correlation.per.text) <- titles
-
-names(euclid.scores.correlation.per.text) <- titles
 
 rownames(gorman.vars) <- gorman.vars$title
 gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
+attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
+attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
 
 mat <- as.matrix(gorman_dist)
-d_long <- expand.grid(Var1 = rownames(mat), Var2 = colnames(mat))
+d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
 d_long$value <- as.vector(mat)
 d_long$value <- round(d_long$value, digits = 2)
+d_long$x_axis <- rep(1:length(gorman.vars$title), times = length(gorman.vars$title))
+d_long$y_axis <- rep(1:length(gorman.vars$title), each = length(gorman.vars$title))
+d_long <- as.data.frame(d_long)
 
-graph <- fviz_dist(gorman_dist, show_labels = TRUE) 
-graph <- graph + geom_text(data = d_long, 
-              aes(x = x, y = y, label = value), 
-              color = "black", size = 3, inherit.aes = FALSE)
+graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
+graph <- graph + 
+  geom_tile(
+    data = d_long,
+    aes(x = x_axis, y = y_axis, fill = value), 
+    inherit.aes = FALSE
+            ) +
+  geom_text(
+              data = d_long,
+              aes(x = x_axis, y = y_axis, label = value), 
+              color = "black", 
+              size.unit = "pt",
+              size = 5,
+              inherit.aes = FALSE) 
 graph + scale_fill_gradient2(low = "blue", high = "red", midpoint = mean(unlist(scores.correlation.per.text)))
-graph + scale_fill_gradient2(low = "blue", high = "red", midpoint = 0.3)
+ggsave("Images/dissimilarity_matrix_between_books.png", dpi = "print")
+
+graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = 0.1)
+ggsave("Images/dissimilarity_matrix_between_books.png", dpi = "print")
 
 View(as.data.frame(as.matrix(gorman_dist)))
 
 ```
 
-Let's look at
+How about the mean dissimilarity and the Student's t-test that Li et al. used?
+
+```{r}
+
+#These indices currently only select Caesar
+caesar_counts <- as_tibble(mat[17:30,17:30]) |> rowwise() |> mutate(means = mean(c_across(1:13)))
+caesar_counts$title <- colnames(caesar_counts)[-15]
+
+gallic_counts <- as_tibble(mat[22:29,22:29]) |> rowwise() |> mutate(means = mean(c_across(1:8)))
+gallic_counts$title <- colnames(gallic_counts)[-9]
+```
