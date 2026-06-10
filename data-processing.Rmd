@@ -125,8 +125,8 @@ dims <- c(
 )
 
 data <- bind_rows(
-  fread("postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE),
-  fread("postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
+  fread("./postagged/postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE),
+  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
 )
 
 #This isn't a ratio or count variable
