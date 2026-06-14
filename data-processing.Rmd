@@ -44,6 +44,7 @@ library(logger)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
+conflicted::conflicts_prefer(dplyr::select)
 
 #For debugging purposes, here is a vector to save the size of the lower quartile that is discarded when variables are counted. This number is the minimum number of times per 1000 words a variable can occur in that section without getting discarded
 lower_quartiles <- vector(mode = "double")
@@ -138,20 +139,27 @@ data %<>%
 summary(data)
 ```
 
+```{r}
+#The Bellum Alexandrinum may represent two clear stages of composition, and we might want to respond to Gaertner's argument that the completion of Alex. and the BC. were one project. I'll do this by making sections 1-21 "book" 1 and the rest "book" 2
+
+#Don't forget the sections are zero-indexed, so 0-20 is the supposedly Caesarian section, not 1-21.
+#since I'm using a data table, subset without the comma, unlike base R
+data$book[data$path == "alexandrine" & data$section > 20] <- 2
+```
+
 The data needs to be split up by section first, then put back into
 books. The way I recommend doing this is appending both the book and
 section number to the title to get this result: "*title*\_*x_x(x)*".
 Then, we use the same code blocks below as in the Letters to Atticus,
 feeding this new title instead of the base one.
 
-Let's modify the titles first:
+Let's modify the titles:
 
 ```{r}
 
 data <- data |>
   rowwise() |>
   mutate(title = paste(gsub(' ', '', title), "_", gsub(' ', '', book), "_", gsub(' ', '', section)))
-
 
 # cicero_data <- cicero_data |>
 #   rowwise() |>

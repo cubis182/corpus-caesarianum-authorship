@@ -35,17 +35,17 @@ library(stringr)
 
 final.frame <- read.csv("./feature_csv_files/feature_values.csv")
 
-gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman.csv")
+gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman.csv"); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 
-sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv")
+sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv");sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
 
-add_book <- function(source_data) {
-  source_data |>
-    mutate(book = paste0((strsplit(title, "_"))[[1]][1:2], collapse = "_")) |>
-    relocate(book, .before = 2)
-}
+# add_book <- function(source_data) {
+#   source_data |>
+#     mutate(book = paste0((strsplit(title, "_"))[[1]][1:2], collapse = "_")) |>
+#     relocate(book, .before = 2)
+# }
 
-sectioned.gorman.vars <- add_book(sectioned.gorman.vars)
+# sectioned.gorman.vars <- add_book(sectioned.gorman.vars)
 
 cicero_works <- "(philippics|senectute|amicitia)"
 
@@ -60,6 +60,14 @@ gorman.vars <- bind_rows(
 )
 
 #cic.gorman.vars <- read.csv("./feature_csv_files/feature_values_cicero.csv")
+```
+
+```{r}
+#For converting to readable names in graph labels.
+lookup_table <- setNames(
+  c("BAlex. 1-21", "BAlex. 22-78", "BAfr.", "De Amicitia", "BCiv. 1", "BCiv. 2", "BCiv. 3", "BGall. 1", "BGall. 2", "BGall. 3", "BGall. 4", "BGall. 5", "BGall. 6", "BGall. 7", "BGall. 8", "Philippics 1", "Philippics 2", "Philippics 3", "Philippics 4", "Philippics 5", "Philippics 6", "Philippics 7", "Philippics 8", "Philippics 9", "Philippics 10", "Philippics 11", "Philippics 12", "Philippics 13", "Philippics 14", "De Senectute", "BHisp."),
+  c("alexandrine_1", "alexandrine_2", "african_1", "amicitia_1", "civil_1", "civil_2", "civil_3", "gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "philippics_1", "philippics_2", "philippics_3", "philippics_4", "philippics_5", "philippics_6", "philippics_7", "philippics_8", "philippics_9", "philippics_10", "philippics_11", "philippics_12", "philippics_13", "philippics_14", "senectute_1", "spanish_1")
+)
 ```
 
 What about euclidean or manhattan distance?
@@ -454,8 +462,12 @@ gorman_clust$title <- gorman.vars$title
 labs_kmeans <- gorman_clust$title
 
 gorman_clust <- gorman_clust |> dplyr::select(-title)
+dist_gorman <- get_dist(gorman_clust, method = "spearman")
 
-kmeans_basic_cluster <- kmeans(gorman_clust, centers = k, nstart = 25)
+kmeans_basic_cluster <- pam(dist_gorman, k = k, diss = TRUE)
+kmeans_basic_cluster$data <- gorman_clust
+
+#kmeans_basic_cluster <- kmeans(gorman_clust, centers = k, nstart = 25)
 kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
 kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, gorman_clust)
 ```
@@ -475,7 +487,7 @@ summary(pca)
 
 fviz_nbclust(gorman_clust, kmeans, method = "wss", nstart = 50)
 fviz_nbclust(gorman_clust, kmeans, method = "silhouette", nstart = 50)
-fviz_nbclust(gorman_clust, kmeans, method = "gap", nstart = 50)
+#fviz_nbclust(gorman_clust, kmeans, method = "gap", nstart = 50)
 
 dim1 <- as.character(summary(pca)$importance[2] * 100)
 dim2 <- as.character(summary(pca)$importance[5] * 100)
@@ -674,7 +686,7 @@ if (!'Kendall' %in% .packages()) library(Kendall)
 if (!'lsa' %in% .packages()) library(lsa)
 
 retrieve_combination_similarity <- function(combo, section_vectors, type) {
-  vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path, -book)
+  vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path)
   #browser()
   vec_a <- vectors[1,] |> t() |> as.vector() 
   vec_b <- vectors[2,] |> t() |> as.vector() 
@@ -740,15 +752,16 @@ Let's create a function that does this all for us and gets us a list of vectors.
 ```{r}
 
 #Get a vector of all the titles2
-titles <- unique(sectioned.gorman.vars$book)
+titles <- unique(sectioned.gorman.vars$path)
 
 #Get the spearman correlation coefficients, add them to a list, with the label being the title
 
 
-scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$book, FUN = within.book.similarity, rows = 20, type_of_similarity = "spearman")
+scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$path, FUN = within.book.similarity, rows = 16, type_of_similarity = "spearman")
 
 names(scores.correlation.per.text) <- titles
 
+gorman.vars$title <- lookup_table[gorman.vars$title]
 rownames(gorman.vars) <- gorman.vars$title
 gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
@@ -778,8 +791,10 @@ graph <- graph +
               size.unit = "pt",
               size = 5,
               inherit.aes = FALSE) 
-graph + scale_fill_gradient2(low = "blue", high = "red", midpoint = mean(unlist(scores.correlation.per.text)))
-ggsave("Images/dissimilarity_matrix_between_books.png", dpi = "print")
+
+#Using the 5th percentile here. The 95th percentile is beyond any differences between texts, suggesting that difference doesn't guarantee different authorship. However, below about 0.2 is highly suggestive of same authorship, as that's lower than the lower tail (0.05) of the data
+graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
+ggsave("Images/dissimilarity_matrix_between_books_by_correlation.png", dpi = "print")
 
 graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = 0.1)
 ggsave("Images/dissimilarity_matrix_between_books.png", dpi = "print")
@@ -798,4 +813,23 @@ caesar_counts$title <- colnames(caesar_counts)[-15]
 
 gallic_counts <- as_tibble(mat[22:29,22:29]) |> rowwise() |> mutate(means = mean(c_across(1:8)))
 gallic_counts$title <- colnames(gallic_counts)[-9]
+```
+
+Perform a Student's t-test on each combination of texts in the dissimilarity matrix
+
+```{r}
+
+col1 <- rep(dimnames(mat)[[1]], times = length(dimnames(mat)[[1]]))
+col2 <- rep(dimnames(mat)[[1]], each = length(dimnames(mat)[[1]]))
+
+df <- tibble(col1 = col1, col2 = col2)
+
+df %<>% rowwise() %>%
+  mutate(
+  pvalue = t.test(
+    mat[unlist(col1),], 
+    mat[unlist(col2),])$p.value
+  )
+
+df %<>% pivot_wider(names_from = col2, values_from = pvalue)
 ```
