@@ -15,7 +15,3 @@ Directory:
   tokens: tokenized form of the text
 
 **postagged/**: Directory of files where each row is a separate word in the Corpus Caesarianum, tagged with the (Universal Dependencies)[https://universaldependencies.org/#language-] scheme. Processed in data-processing.Rmd
-
-
-Sources:
-Gorman, Robert. “Author Identification of Short Texts Using Dependency Treebanks without Vocabulary.” Digital   Scholarship in the Humanities 35, no. 4 (2020): 812–25. https://doi.org/10.1093/llc/fqz070.
