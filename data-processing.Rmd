@@ -2,27 +2,35 @@
 title: "corpus-caesarianum-authorship"
 output:
   html_document:
+    toc: true
     df_print: paged
+  html_notebook
 editor_options:
   markdown:
     wrap: 72
 params:
   use_att: FALSE
+bibliography: rmd-notebook.bib
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you
-execute code within the notebook, the results appear beneath the code.
+This notebook includes the code used to process the raw, postagged csv data and extract the variables we'll be using to cluster the the texts of the *Corpus Caesarianum*.
+
+Several headings in this notebook are experiments or alternate methods of variable selection not used in the final version of the article. They are not labeled differently for now, as the project is still in progress, but sections that are old or unnecessary are set to not evaluate with the `knitr::` option `eval=FALSE`.
+
+Some sections are currently unused, but I might revisit them. The `use_att` param in the yaml header above lets us toggle the Simple Variable Counts header on and off.
 
 ```{r include=TRUE}
 knitr::opts_chunk$set(results = "hold")
 #knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
 #knitr::opts_knit$set(root.dir = '~/GitHub/corpus-caesarianum-authorship')
-knitr::opts_knit$set(root.dir = '/Users/matthewdehass/Documents/GitHub/corpus-caesarianum-authorship')
+#knitr::opts_knit$set(root.dir = '/Users/matthewdehass/Documents/GitHub/corpus-caesarianum-authorship')
 ```
 
 # Data Preparation
 
-```{r Libraries}
+This section loads all the necessary libraries and prepares the `data` variable for processing in the sections below. `data` draws from the data in the ./postagged folder.
+
+```{r, Libraries, results='hide'}
 
 library(conflicted)
 library(factoextra)
@@ -57,8 +65,7 @@ lower_quartiles <- vector(mode = "double")
 # conflicts_prefer(dplyr::filter)
 ```
 
-Note that I was learning dplyr and tidyverse as I created this file, so
-there are some confusions I should clear up here.
+Note that I was learning dplyr and tidyverse as I created this file, so there are some confusions I should clear up here.
 
 - tidyverse loads several other packages, including tibble
 
@@ -70,16 +77,11 @@ there are some confusions I should clear up here.
 
   - The former is from the magrittr package, the latter is native to R
 
-  - The former lets you change the position of the piped-in argument by
-    replacing an argument with a dot (.) R's `|>` allows this, but with
-    \_ as the placeholder and the argument must be named
+  - The former lets you change the position of the piped-in argument by replacing an argument with a dot (.) R's `|>` allows this, but with \_ as the placeholder and the argument must be named
 
-  - You can access members of a piped output with `%>%`, so
-    `data.frame %>% mean(.$column)` works with magrittr but not base R.
-    dplyr::pull() can do this with the base R pipe, though
+  - You can access members of a piped output with `%>%`, so `data.frame %>% mean(.$column)` works with magrittr but not base R. dplyr::pull() can do this with the base R pipe, though
 
-(For the above ggrepel library, see
-<https://github.com/slowkow/ggrepel>)
+(For the above ggrepel library, see <https://github.com/slowkow/ggrepel>)
 
 ```{r Get postagged_only.csv. Big data!}
 
@@ -147,11 +149,7 @@ summary(data)
 data$book[data$path == "alexandrine" & data$section > 20] <- 2
 ```
 
-The data needs to be split up by section first, then put back into
-books. The way I recommend doing this is appending both the book and
-section number to the title to get this result: "*title*\_*x_x(x)*".
-Then, we use the same code blocks below as in the Letters to Atticus,
-feeding this new title instead of the base one.
+The data needs to be split up by section first, then put back into books. The way I recommend doing this is appending both the book and section number to the title to get this result: "*title*\_*x_x(x)*". Then, we use the same code blocks below as in the Letters to Atticus, feeding this new title instead of the base one.
 
 Let's modify the titles:
 
@@ -166,11 +164,7 @@ data <- data |>
 #   mutate(title = paste(title, "_", book, "_", section))
 ```
 
-)The following two code blocks come from the [cltk-2025-atticus
-repository](https://github.com/cubis182/cltk-2025-atticus "GitHub Repo"),
-and they transpose the data so that each column is a feature value
-instead of a feature type and the values in the columns are the number
-of times each feature appears.
+The following two code blocks come from the [cltk-2025-atticus repository](https://github.com/cubis182/cltk-2025-atticus "GitHub Repo"), and they transpose the data so that each column is a feature value instead of a feature type and the values in the columns are the number of times each feature appears.
 
 ```{r processing-1}
 
@@ -219,28 +213,9 @@ data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) 
 
 ```
 
-## Subsetting Book/Section Numbers
-
-I want a simple way to subset book as section numbers, with a function
-that combines only the desired pieces together. Book AND section isn't
-currently possible, just the following combinations:
-
-- Commentary
-
-- Book
-
-- Section
-
-- Commentary and book
-
-- Commentary, book, and section
-
-- Book and section
-
 ## Utilities
 
-Getting the book number from the string format
-*title_booknum_sectionnum*
+Getting the book number from the string format *title_booknum_sectionnum*
 
 ```{r}
 
@@ -260,18 +235,11 @@ get_title_segment <- function(string, mode = "book") {
 
 ## Simple Variable Counts
 
-Now that we have the data, what we're *really* interested in is how many
-of each tag appears in each work (how many of each POS, how many perfect
-verbs, whatever). The point is, we're not interested in every individual
-word.
+Now that we have the data, what we're *really* interested in is how many of each tag appears in each work (how many of each POS, how many perfect verbs, etc.). The point is, we're not interested in every individual word.
 
-NOTE: I've created a heading (currently empty) down below where we test
-formatting variables like Gorman 2020.
+NOTE: I've created a heading down below where we test formatting variables like Gorman 2020. That is now the method we've adopted for our most up-to-date results; this section can be safely skipped for the moment.
 
-This block of code will loop through and create a new data frame called
-***final.frame*** (which is probably poorly named, but I'll fix it later
-or I won't). This data frame has a variable for the count of each tag,
-and every row is a unique work.
+This block of code will loop through and create a new data frame called ***final.frame*** (which is probably poorly named, but I'll fix it later or I won't). This data frame has a variable for the count of each tag, and every row is a unique work.
 
 ```{r Create final.frame}
 
@@ -318,25 +286,15 @@ Let's save this to a file so we can open it in another RMarkdown file.
 if (params$use_att) write_csv(final.frame, file = "./feature_csv_files/feature_values.csv")
 ```
 
-## Gorman-Style Variables
+## Gorman Variables
+
+Process is adapted from @gorman_author_2020
 
 Step one of this process is to extract common feature pairs.
 
 The number of feature values is `length(final.frame[1,]`.
 
 That's a huge number, so let's start by working with the original data.
-
-```{r}
-length(data[1,])
-```
-
-Gorman considered only number of base features, not number of parent
-features, in feature selection. So, he was considering 20 features,
-while I consider 40, with the number doubled. The frequency of a feature
-in a parent is not the same as frequency in the whole corpus, so, since
-the frequency of a parent feature can be a variable, it should be
-treated just like any other variable. What I should do is try it both
-ways, of course.
 
 First, let's winnow accounting only for the main tags.
 
@@ -360,26 +318,19 @@ Okay, that's 992 different combinations. We need to:
 
 2.  Apply the following to every combination in the list
 
-3.  Count the number of rows in the data frame that don't have **NA** in
-    either category
+3.  Count the number of rows in the data frame that don't have **NA** in either category
 
-    - Note that selecting those two rows is as easy as the following
-      line of code:
+    - Note that selecting those two rows is as easy as the following line of code:
 
       ```         
       data |> tidytable::select(pairwise_combinations[,1])
       ```
 
-    - Just plug in the column number and the output works in the select
-      function
+    - Just plug in the column number and the output works in the select function
 
-4.  In that column of the pairwise_combinations tibble, add a third
-    field with the count retrieved in the previous step.
+4.  In that column of the pairwise_combinations tibble, add a third field with the count retrieved in the previous step.
 
-5.  Sort the tibble by the third field, cull out a percentage based on
-    Gorman 2016Okay, so, we've gotten data on all the combinations of
-    two variables, but what about 3 to 5? Let's refactor the above code
-    into a function we can re-use:
+5.  Sort the tibble by the third field, cull out a percentage based on Gorman 2016Okay, so, we've gotten data on all the combinations of two variables, but what about 3 to 5? Let's refactor the above code into a function we can re-use:
 
 ```{r}
 
@@ -411,7 +362,7 @@ variable_count <- function(matrix, source_data) {
 
 #combinations_n <- 2
 
-#Get rid of values that don't appear 
+#Get rid of values that don't appear in more than 20% of the corpus
 cull <- function(combinations) {
   print(paste("Length before culling: ", as.character(length(combinations$a))))
   
@@ -467,13 +418,15 @@ variable_combinations <- function(combinations_n, source_data) {
 
 ```
 
-I've realized that counting up feature-value pairs at the end of this
-file is proceeding too slowly, so I need to sample from the full
-dataset.
+I've realized that counting up feature-value pairs at the end of this file is proceeding too slowly, so I need to sample from the full dataset.
 
 ```{r}
 
 if (!exists("combinations")){
+  combos_filename <- "combinations.csv"
+  if (file.exists(combos_filename)) combinations <- read_csv(combos_filename) else {
+  
+  
   data_backup <- data
 
   #Weighting by book gives about a 50/50 split between Caesar and Cicero
@@ -484,7 +437,7 @@ if (!exists("combinations")){
     ungroup() |>
     dplyr::slice_sample(n = 1000, by = commentary)
   
-  data$commentary <- as.factor(data$commentary)
+  data$commentary <- as.factor(unlist(data$commentary))
   
   #Let's get every combination of variables.
   
@@ -496,16 +449,17 @@ if (!exists("combinations")){
     variable_combinations(5, data)
   )
   
+  write_csv(combinations, file = combos_filename,)
+  
   data <- data_backup
   
   rm(data_backup)
+  }
 }
 
 ```
 
-Let's create a function that takes each combination in the list and gets
-the number of times each one occurs. This function also removes any that
-occur in less than 20% of the corpus
+Let's create a function that takes each combination in the list and gets the number of times each one occurs. This function also removes any that occur zero times.
 
 ```{r}
 
@@ -538,9 +492,7 @@ get_var_combos <- function(var_combn, source_data) {
 }
 ```
 
-This function takes a set of variable combinations (one_combinations,
-two_combinations, etc.) and applies the get_var_combos function to all
-of them, creating a data frame out of it.
+This function takes a set of variable combinations (one_combinations, two_combinations, etc.) and applies the get_var_combos function to all of them, creating a data frame out of it.
 
 ```{r}
 
@@ -565,9 +517,7 @@ count_var_combos <- function(var_combn, source_data) {
 #count_var_combos(two_combinations, data)
 ```
 
-Some helper functions for the upcoming run_combos and get_vars function
-which creates the final data frame are in the cell below. They're a
-refactoring of the above cell, which should get replaced soon.
+Some helper functions for the upcoming run_combos and get_vars function which creates the final data frame are in the cell below. They're a refactoring of the above cell, which should get replaced soon.
 
 ```{r}
 convert_row_to_character <- function(row_of_factors) {
@@ -602,7 +552,7 @@ get_number_rows_with_feature_types <- function(vector_of_feature_values, source_
 
 ```
 
-Okay, now we need to transpose the data.
+Okay, now we create functions used down below for transposing the data (ensuring rows are observations and columns are variables) and selecting the top *n* variables by relative frequency.
 
 ```{r}
 
@@ -666,8 +616,7 @@ select_top_variables <- function(all_vars, n) {
 # remove(title_temp)
 ```
 
-Now, lets create a function that gets one long tibble with every single
-variable in it.
+Now, lets create a function that gets one long tibble with every single variable in it.
 
 ```{r}
 #library(dtplyr)
@@ -778,7 +727,9 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
 }
 ```
 
-```{r}
+If we need to re-run the data, we would go to this cell, run all previous cells, and get started.
+
+```{r, entry-point}
 #You can start the program here and hit "Run all chunks above" to 
 
 if (!("future.apply" %in% (.packages()))) library(future.apply)
@@ -816,11 +767,9 @@ gc() #free up memory for the OS
 write_csv(all_vars_by_section_culled |> unnest(everything()), file = "./feature_csv_files//feature_values_gorman_by_section.csv", col_names = TRUE)
 ```
 
-We need to create a function that takes a set of columns and returns the
-same value that variable_combinations() does.
+We need to create a function that takes a set of columns and returns the same value that `variable_combinations()` does.
 
-NOTE: This could be refactored into the get_vars() function, and
-probably should be. It also needs to be documented in more detail
+NOTE: This could be refactored into the get_vars() function, and probably should be. It also needs to be documented in more detail
 
 ```{r}
 
@@ -850,7 +799,7 @@ combinations_from_existing <- function(all_vars) {
 
 ```
 
-Get the variables for the Cicero data.
+Use the function from the above cell, get the variables, and then feed them back into the get_vars function to get the same variables, but with the frequencies calculated book-by-book this time.
 
 ```{r}
 combinations <- combinations_from_existing(all_vars_by_section_culled)
@@ -863,8 +812,7 @@ all_vars_by_book <- get_vars("book", data, combinations)
 #   select_top_variables(1000)
 ```
 
-Transpose, and export to .csv file. N.B.: We don't cull uncommon
-variables, because we already are using a culled set of variables
+Transpose, and export to .csv file. N.B.: We don't cull uncommon variables, because we already are using a culled set of variables
 
 ```{r}
 
@@ -874,16 +822,13 @@ all_vars_by_book <- all_vars_by_book %>%
 write_csv(all_vars_by_book, file = "./feature_csv_files/feature_values_gorman.csv", col_names = TRUE)
 ```
 
-We need to be able to reselect small segments of the corpus and count
-the same variables, so we need a function to find and count each column
-again.
+We need to be able to reselect small segments of the corpus and count the same variables, so we need a function to find and count each column again.
 
 ## Data Verification
 
 ### Ensuring counts of variables are done correctly
 
-This function takes a random cell from the final data frame and checks
-its frequency in the main data frame.
+This function takes a random cell from the final data frame and checks its frequency in the main data frame.
 
 ```{r}
 if ("stringr" %notin% .packages()) {
@@ -929,12 +874,7 @@ verify_random_cell <- function(all_vars, source_data) {
 
 ## Taking a closer look at the Bellum Hispaniense
 
-I think that there might be some inaccuracies in the parsing on the BH.
-The data has been trained on a corpus of Classical Latin including
-Caesar, but nothing resembling the BH. The parser is likely to mistag
-unusual constructions in the BH incorrectly as a result. Even worse, it
-might make the text seem more similar to "genuine" Caesar than it
-actually is.
+I think that there might be some inaccuracies in the parsing on the BH. The data has been trained on a corpus of Classical Latin including Caesar, but nothing resembling the BH. The parser is likely to mistag unusual constructions in the BH incorrectly as a result. Even worse, it might make the text seem more similar to "genuine" Caesar than it actually is.
 
 Let's look at the head of the BH data.
 
