@@ -1,9 +1,9 @@
 # corpus-caesarianum-authorship
 Collaboration between Signe Janoska-Bedi and Matthew DeHass on a study of the authorship of the texts in the Corpus Caesarianum (Bellum Gallicum, Bellum Alexandrinum, Bellum Hispaniense, Bellum Africum)
 
-File Definitions (WIP):
+Directory:
 
-**feature_csv_files**: All .csv files in this directory follow the same format. The columns of these files are feature values (i.e. singular, indicative, nominative, etc.), the rows are sections of a work. The asterisks are additional information about the style of variables (whether they are arranged like Gorman 2020 or bare frequencies of individual features). If unnamed, the data includes the Corpus Caesarianum. Each field is the number of times that feature occurs in the text.
+**feature_csv_files**: Directory containing data after all processing has been complete and variables have been selected. All .csv files in this directory follow the same format. The columns of these files are feature values (i.e. singular, indicative, nominative, etc.), the rows are sections of a work. The asterisks are additional information about the style of variables (whether they are arranged like Gorman 2020 or bare frequencies of individual features). If unnamed, the data includes the Corpus Caesarianum. Each field is the number of times that feature occurs in the text.
 
 **process_perseus_texts/\*_data_text_perseus_tokenized.csv**: Files containing the tokenized (i.e. word split) version of the corpus caesarianum. The columns come in the following format:
   (line): line number
