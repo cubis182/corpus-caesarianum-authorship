@@ -6,6 +6,7 @@ date: "2026-04-25"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(code_folding = "show")
 knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship')
 ```
 
@@ -27,13 +28,16 @@ library(ggtext)
 library(printr)
 library(ggdendro)
 library(stringr)
+library(logger)
 ```
 
-##Get the data
+## Get the data
+
+This data was created with the data-processing.Rmd notebook, which arranged the texts for clustering. This means that each row is an observation (a text), and each column a variable. `simplex_vars_only` generates a vector of only length 865 (as each variable is just the count of each individual feature, such as accusative nouns, participles, 3rd person verbs, and so on). The gorman.vars variables consider the top 1,000 combinations of features, so a single feature might be "masculine, ablative, oblique argument with a 3rd person verb parent".
 
 ```{r}
 
-final.frame <- read.csv("./feature_csv_files/feature_values.csv")
+simplex_vars_only <- read.csv("./feature_csv_files/feature_values.csv")
 
 gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman.csv"); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 
@@ -59,7 +63,7 @@ gorman.vars <- bind_rows(
   filter(gorman.vars, !str_starts(title, cicero_works))
 )
 
-#cic.gorman.vars <- read.csv("./feature_csv_files/feature_values_cicero.csv")
+#cic.gorman.vars <- read.csv("./feature_csv_files/feature_values_cicero.csv")K-d
 ```
 
 ```{r}
@@ -78,7 +82,7 @@ Here's a transposed version for correlation coefficient calculation.
 
 t.sectioned.gorman.vars <- sectioned.gorman.vars |> 
   as.data.frame() |>
-  dplyr::select(-title, -path) |>
+  dplyr::select(-title) |>
   t()
 
 colnames(t.sectioned.gorman.vars) <- sectioned.gorman.vars$title
@@ -88,11 +92,9 @@ t.sectioned.gorman.vars <- t.sectioned.gorman.vars |> as.data.frame()
 
 ```
 
-The new algorithm culls variables at each number of combinations, so
-
 # Pre-visualization
 
-I want to do a little bit of previsualization first.
+I want to do a little bit of previsualization first. This section is mainly some ramblings and experimentation; feel free to skip down to Analysis and its sub-headings if you aren't Matthew.
 
 I want to see if there's any discernible correlation for any of the variables involved. I'll add another column to the data which ranks them, so we can plot it on a graph. First, we'll go by book number (so, the column will be 1-14)
 
@@ -104,19 +106,19 @@ sectioned.gorman.vars <- sectioned.gorman.vars |> mutate(book = as.factor(book))
 
 sectioned.gorman.vars <- sectioned.gorman.vars |> mutate(book = as.numeric(book))
 
-ggplot(sectioned.gorman.vars, aes(x = ))
+#ggplot(sectioned.gorman.vars, aes(x = ))
 ```
 
 Let's see what data type is in each column:
 
-```{r}
-as.data.frame(summary(final.frame))
+```{r, results='hide'}
+as.data.frame(summary(simplex_vars_only))
 ```
 
 Right, I forgot about the title column; let's find the mean of every column except the title column.
 
 ```{r}
-means <- final.frame |>
+means <- simplex_vars_only |>
   tidytable::select(-title) |>
   apply(MARGIN=2, FUN=mean)
 
@@ -140,7 +142,7 @@ means <- gorman.vars |>
 sort(means, decreasing = TRUE)
 ```
 
-Moisl suggests NOT computing z-scores because the method of measurement is the same across variables. t-tests
+Moisl suggests NOT computing z-scores because the method of measurement is the same across variables.
 
 ### Resume Data Prep
 
@@ -148,10 +150,10 @@ Now that we have a viable DF, let's cut it up a little bit. We don't want the fi
 
 ```{r df_clust & df_scaled}
 #SELECTED ARBITRARY SUM!!!
-final.frame <- slice_sample(final.frame, n = 100)
-df_clust <- final.frame |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x) > 5))
+simplex_vars_only <- slice_sample(simplex_vars_only, n = 100)
+df_clust <- simplex_vars_only |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x) > 5))
 gorman_clust <- gorman.vars |> dplyr::select(-title)
-rownames(df_clust) <- final.frame$title
+rownames(df_clust) <- simplex_vars_only$title
 # df_clust <- slice_sample(df_clust, n=45)
 
 df_scaled <- as.data.frame(scale(df_clust))
@@ -163,7 +165,7 @@ Coefficient of variation:
 
 ```{r}
 library(goeveg)
-apply(final.frame |> dplyr::select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
+apply(simplex_vars_only |> dplyr::select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
 ```
 
 CoV for Gorman-style variables:
@@ -181,20 +183,6 @@ apply(gorman.vars |> dplyr::select(-title), MARGIN=2, function(x) var(x) / mean(
 # Analysis
 
 First, to get some of the formatting predefined.
-
-Another note is that here is where I remove the variables I'm not considering.
-
-```{r}
-# These vars I selected based on the Better variable selection heading down below.
-# These are the variables that belonged to the 30 with the highest frequency AND the highest variance
-# I also removed Act because it isn't independent from passive verbs, and I removed gender because there's no reason to believe it's related to register.
-# vars <- c("Pres", "NOUN", "Imp", "2", "Past", "Perf", "3", "PRON", "Fin", "Nom", "Abl", "Prs", "Acc", "ADJ", "Gen", "ADP", "Part", "Pass", "DET", "Rel")
-# 
-# df_clust <- df_clust %>% dplyr::select(all_of(vars))
-# rownames(df_clust) <- rownames(final.frame)
-# df_scaled <- df_scaled %>% dplyr::select(all_of(vars))
-# rownames(df_scaled) <- rownames(df_scaled)
-```
 
 ```{r}
 
@@ -233,11 +221,11 @@ Time to cluster! K-means is a good starting point here. I'll check out CLARA as 
 
 2.  Change the number of centers (between 3 and 5? But we already have a way of visualizing that)
 
-3.  Change the measuring method (i.e. Euclidean
+3.  Change the measuring method (i.e. Euclidean, Manhattan, or even cosine and correlation coefficient-based measures)
 
-4.  Change the algorithm
+4.  Change the algorithm (use agglomerative hierarchical clustering as another method of visualizing the data)
 
-```{r K-means clustering}
+```{r K-means clustering-single-variables}
 set.seed(126126)
 kmeans_basic_cluster <- kmeans(df_clust, centers = k, nstart = 50)
 kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
@@ -270,7 +258,7 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
   ggtheme = ggtheme
 ) +
   geom_text_repel(
-    aes(label = final.frame$title),
+    aes(label = simplex_vars_only$title),
     vjust = "inward",
     hjust = "inward",
     max.overlaps = 14,
@@ -318,20 +306,6 @@ fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4
 ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
 ```
 
-The graph above should be the first visualization in the presentation. Next, we want to see what sets the Letters and other similar texts apart from the others.
-
-The following graph represents the loadings for the X axis of the cluster analysis above. The farther we go to one side, the more 1st/2nd person verbs, personal pronouns, present/future tense verbs, and imperfective aspect verbs there are. Let's talk about what that means.
-
-Person corresponds to a change in tenor accompanied by colloquial texts. Tenor, as a term, refers to the author and their relationship to their audience. Comedy, letters, and works of Seneca which come very close to that cluster have an intimate audience (in the case of Comedy and Seneca, this is an affectation. In such a close situation, the goal is to both get information from the addressee but also communicate information about themselves.
-
-This information about person is fairly obvious, but the situation with personal pronouns is less obvious. Latin has no need of personal pronouns; the grammars say they tend to be used for emphasis or ...(*cite Allen & Greenough and Kühner / Stegmann*).
-
-The information about tense is also expected. Speakers in colloquial texts have a variety of purposes: asking and answering questions, demonstrating their current thoughts and feelings, making plans, and so on. These cover a broad range of statements, each of which requires a different type of verb (*examples here*).
-
-To sum up, texts on the left-hand side of the graph have a highly personal tenor with ....FILL IN HERE, RE-READ BIBER
-
-Texts on the the right-hand side of the cluster graph feature more ablative nouns, participles, and passive verbs.
-
 ```{r}
 pca <- prcomp(df_clust)
 
@@ -375,83 +349,13 @@ ggsave(filename = "Images/PC2_rotations.png", dpi = "print")
 # NOTE: I should try this with Act as a variable too. Pass alone might be high because there are a lot of participles and ablative nouns.
 ```
 
-How different are the values of Atticus compared to the means of its own cluster?
-
-```{r}
-# Lets get a vector of each of the Att values minus the mean of its cluster.
-
-cluster_four <- kmeans_basic_df |> filter(Clusters == 1)
-
-dist <- cluster_four |>
-  dplyr::select(-title) |>
-  map(
-    \(x) x[1] - mean(x[-1])
-  )
-
-dist_df <- data.frame(var = names(dist)[-1], distance = unlist(dist)[-1])
-
-ggplot(dist_df, aes(var, distance)) +
-  geom_col() +
-  scale_fill_continuous(breaks = c(0, 50, 100, 150, 200, 250)) +
-  labs(title = "(3) Difference Between Letters to Atticus and Its Cluster") +
-  xlab("Variable (X1 and X2 = 1st person and 2nd person)") +
-  ylab("Letters to Atticus minus cluster mean") +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
-    axis.title = element_text(size = 14),
-    title = element_text(size = 14)
-  )
-
-ggsave(filename = "Images/att-vs-same-cluster-means.png", dpi = "print")
-```
-
-What about the differences between Comedy and the Letters to Atticus?
-
-```{r}
-kmeans_basic_df$title <- as.vector(final.frame$title)
-cluster_four <- kmeans_basic_df |>
-  filter(Clusters == 4 | title == "1 Letters to Att") |>
-  dplyr::select(-title)
-
-dist <- cluster_four |>
-  map(
-    \(x) x[1] - mean(x[-1])
-  )
-
-dist_df <- data.frame(var = names(dist)[-1], distance = unlist(dist)[-1])
-
-ggplot(dist_df, aes(var, distance)) +
-  geom_col() +
-  scale_fill_continuous(breaks = c(0, 50, 100, 150, 200, 250)) +
-  labs(title = "(4) Difference Between Letters to Atticus and Comedy") +
-  xlab("Variable (X1 and X2 = 1st person and 2nd person)") +
-  ylab("Letters to Atticus minus cluster mean") +
-  theme(
-    axis.text.x = element_text(size = 15, angle = 90, vjust = 0.5, hjust = 1),
-    axis.title = element_text(size = 14),
-    title = element_text(size = 14)
-  )
-
-ggsave(filename = "Images/atticus-vs-comedy-means.png", dpi = "print")
-```
-
 ## Exploratory Visualization
 
-We need to understand the variables before we go into much more detail. Which ones are the most frequent? Which ones vary the most? Do we have a lot of covariates? I'll establish a list of procedures in more detail later, but, for now, just seeing the frequency of each variable by text would be desirable
-
-```{r}
-
-```
+TO DO
 
 ## Gorman-Style Variables
 
-```{r}
-"pass"
-```
-
-1.  
-
-```{r K-means clustering}
+```{r K-means clustering-combined-variables}
 set.seed(126126)
 
 gorman_clust$title <- gorman.vars$title
@@ -504,7 +408,7 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
     vjust = "inward",
     hjust = "inward",
     max.overlaps = 14,
-    size = 2,
+    size = 4,
     seed = 12927
   ) +
   labs(
@@ -525,7 +429,7 @@ str(kmeans_basic_cluster)
 
 ```
 
-Datanovia suggests eclust as a universal function for clustering:
+Datanovia suggests eclust as a universal function for clustering, which performs some of the above operations together:
 
 ```{r}
 
@@ -568,9 +472,7 @@ ggsave(filename = "Images/Distance plot with main d.f.png", dpi = "print")
 
 ## Gorman-style variables section-by-section
 
-1.  
-
-```{r K-means clustering}
+```{r K-means clustering-combined-sectioned}
 set.seed(126126)
 
 #Uncomment this when working with section numbers
@@ -714,6 +616,7 @@ retrieve_combination_similarity <- function(combo, section_vectors, type) {
 #  tibble section_vectors: NEEDSDOC
 # double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
 within.book.similarity <- function(section_vectors, rows, type_of_similarity = "spearman") {
+  
   sub_section_vectors <- section_vectors[sample(1:nrow(section_vectors), rows),]
   #browser()
   
@@ -734,7 +637,7 @@ within.book.similarity <- function(section_vectors, rows, type_of_similarity = "
 
 ```
 
-```{r warning=FALSE}
+```{r, eval=FALSE, warning=FALSE}
 
 prop <- 0.25
 african_scores <- within.book.similarity("gallic _ 2 ", sectioned.gorman.vars, 25)  

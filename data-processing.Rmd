@@ -782,7 +782,7 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
 
-```{r, entry-point}
+```{r, entry-point, eval=FALSE}
 #You can start the program here and hit "Run all chunks above" to 
 
 if (!("future.apply" %in% (.packages()))) library(future.apply)
@@ -805,13 +805,13 @@ all_vars_by_section <- get_vars("chapter", data, presupplied_variables=NULL)
   
 ```
 
-```{r}
+```{r, eval=FALSE}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
   select_top_variables(n = 1000) 
 ```
 
-```{r}
+```{r, eval=FALSE}
 all_vars_by_section_culled %<>% 
    transpose_all_vars()
 
@@ -826,7 +826,7 @@ same value that `variable_combinations()` does.
 NOTE: This could be refactored into the get_vars() function, and
 probably should be. It also needs to be documented in more detail
 
-```{r}
+```{r, eval=FALSE}
 
 #Pass an output from get_vars(), get the variables back in table form so they can be passed into the get_vars() function with a new dataset. That way, a new dataset can be processed with the same variables as another.
 combinations_from_existing <- function(all_vars) {
@@ -858,7 +858,7 @@ Use the function from the above cell, get the variables, and then feed
 them back into the get_vars function to get the same variables, but with
 the frequencies calculated book-by-book this time.
 
-```{r}
+```{r, eval=FALSE}
 combinations <- combinations_from_existing(all_vars_by_section_culled)
 all_vars_by_book <- get_vars("book", data, combinations)
 
@@ -872,7 +872,7 @@ all_vars_by_book <- get_vars("book", data, combinations)
 Transpose, and export to .csv file. N.B.: We don't cull uncommon
 variables, because we already are using a culled set of variables
 
-```{r}
+```{r, eval=FALSE}
 
 all_vars_by_book <- all_vars_by_book %>%
   transpose_all_vars()
@@ -891,7 +891,7 @@ again.
 This function takes a random cell from the final data frame and checks
 its frequency in the main data frame.
 
-```{r}
+```{r, eval=FALSE}
 if ("stringr" %notin% .packages()) {
   library(stringr)
 }
@@ -944,6 +944,6 @@ actually is.
 
 Let's look at the head of the BH data.
 
-```{r}
+```{r, eval=FALSE}
 View(data |> filter(path == 'spanish'))
 ```
