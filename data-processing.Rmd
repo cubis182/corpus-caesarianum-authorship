@@ -4,12 +4,13 @@ output:
   html_document:
     toc: true
     df_print: paged
-  html_notebook:
 editor_options:
   markdown:
     wrap: 72
 params:
   use_att: FALSE
+  use_parent: FALSE
+  new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
 
@@ -148,6 +149,8 @@ data <- bind_rows(
   fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
 )
 
+if (!params$use_parent) data %<>% select(!starts_with("parent"))
+
 #This isn't a ratio or count variable
 data %<>%
   mutate(Person = as.factor(Person))
@@ -217,8 +220,11 @@ replace_value <- function(column, to_replace, replace_string) {
 #Caesar
 data <- replace_value("Mood", "Imp", "Imperative")
 data <- replace_value("Mood", "Ind", "Indicative")
-data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
-data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
+if (params$use_parent) {
+  data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
+  data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")  
+}
+
 
 #Cicero
 # cicero_data <- replace_value("Mood", "Imp", "Imperative")
@@ -227,7 +233,7 @@ data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
 # cicero_data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
 
 #Remove unneeded variables
-data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
+data %<>% tidytable::select(-NumType, if (params$use_parent) -parent_NumType else NULL, -Degree, if (params$use_parent) -parent_Degree else NULL) |>
   filter(tag != 'PUNCT')
 
 # cicero_data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
@@ -279,7 +285,8 @@ and every row is a unique work.
 
 #NOTE: There's a parameter for using these variables in the yaml header. By default, it is false and the next three cells (three if we include this one) will not run.
 
-if (params$use_att) {
+#NOTE 2: This currently only runs if we're using parent variables too
+if (params$use_att && params$use_parent) {
   titles <- unique(data$title)
   num_words <- table(data$title)
   final.frame <- data.frame(title = titles)
@@ -416,7 +423,8 @@ cull <- function(combinations) {
 
 #This function returns a list of all combinations of a variable which occur 
 variable_combinations <- function(combinations_n, source_data) {
-  select_combinations <- combn(colnames(source_data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)), combinations_n)
+  cols <- if (params$use_parent) colnames(source_data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(source_data |> tidytable::select(tag:Deprel))
+  select_combinations <- combn(cols, combinations_n)
   
   #length(select_combinations)
   
@@ -467,7 +475,7 @@ dataset.
 
 if (!exists("combinations")){
   combos_filename <- "combinations.csv"
-  if (file.exists(combos_filename)) combinations <- read_csv(combos_filename) else {
+  if (!params$new_combos && file.exists(combos_filename)) combinations <- read_csv(combos_filename) else {
   
   
   data_backup <- data
@@ -817,7 +825,10 @@ all_vars_by_section_culled %<>%
 
 if (exists("all_vars_by_section")) rm(all_vars_by_section)
 gc() #free up memory for the OS
-write_csv(all_vars_by_section_culled |> unnest(everything()), file = "./feature_csv_files//feature_values_gorman_by_section.csv", col_names = TRUE)
+
+if (params$use_parent) filename <- "./feature_csv_files//feature_values_gorman_by_section.csv" else filename <- "./feature_csv_files//feature_values_wordonly_by_section.csv"
+
+write_csv(all_vars_by_section_culled |> unnest(everything()), file = filename, col_names = TRUE)
 ```
 
 We need to create a function that takes a set of columns and returns the
@@ -862,11 +873,6 @@ the frequencies calculated book-by-book this time.
 combinations <- combinations_from_existing(all_vars_by_section_culled)
 all_vars_by_book <- get_vars("book", data, combinations)
 
-
-#post-processing
-# cic_all_vars_top <- cic_all_vars
-#   transpose_all_vars() |>
-#   select_top_variables(1000)
 ```
 
 Transpose, and export to .csv file. N.B.: We don't cull uncommon
@@ -877,7 +883,9 @@ variables, because we already are using a culled set of variables
 all_vars_by_book <- all_vars_by_book %>%
   transpose_all_vars()
 
-write_csv(all_vars_by_book, file = "./feature_csv_files/feature_values_gorman.csv", col_names = TRUE)
+if (params$use_parent) filename <- "./feature_csv_files/feature_values_gorman.csv" else filename <- "./feature_csv_files/feature_values_wordonly.csv"
+
+write_csv(all_vars_by_book, file = filename, col_names = TRUE)
 ```
 
 We need to be able to reselect small segments of the corpus and count
