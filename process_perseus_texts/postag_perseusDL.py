@@ -20,6 +20,8 @@ Contact: matthew_dehass@yahoo.com
 """
 from __future__ import annotations
 
+import pandas.core.frame
+from pandas import DataFrame
 from stanza.models.common.doc import Word
 
 from tqdm import tqdm
@@ -41,6 +43,7 @@ from dotenv import load_dotenv
 from typing import List
 
 import pandas as pd
+import numpy as np
 
 Y_DENSITY = 4
 EMPTY = 4
@@ -73,47 +76,47 @@ CAESAR = {
 }
 
 #labels for final csv results
-labs = [
-        "title",
-        "author",
-        "book",
-        "section",
-        "path",
-        "form",
-        "lemma",
-        "tag",
-        "Aspect",
-        "Mood",
-        "Number",
-        "Person",
-        "Tense",
-        "VerbForm",
-        "Voice",
-        "Case",
-        "PronType",
-        "Gender",
-        "Polarity",
-        "Degree",
-        "NumType",
-        "Deprel",
-        "parent_form",
-        "parent_lemma",
-        "parent_tag",
-        "parent_Aspect",
-        "parent_Mood",
-        "parent_Number",
-        "parent_Person",
-        "parent_Tense",
-        "parent_VerbForm",
-        "parent_Voice",
-        "parent_Case",
-        "parent_PronType",
-        "parent_Gender",
-        "parent_Polarity",
-        "parent_Degree",
-        "parent_NumType",
-        "parent_Deprel",
-    ]
+# labs = [
+#         "title",
+#         "author",
+#         "book",
+#         "section",
+#         "path",
+#         "form",
+#         "lemma",
+#         "tag",
+#         "Aspect",
+#         "Mood",
+#         "Number",
+#         "Person",
+#         "Tense",
+#         "VerbForm",
+#         "Voice",
+#         "Case",
+#         "PronType",
+#         "Gender",
+#         "Polarity",
+#         "Degree",
+#         "NumType",
+#         "Deprel",
+#         "parent_form",
+#         "parent_lemma",
+#         "parent_tag",
+#         "parent_Aspect",
+#         "parent_Mood",
+#         "parent_Number",
+#         "parent_Person",
+#         "parent_Tense",
+#         "parent_VerbForm",
+#         "parent_Voice",
+#         "parent_Case",
+#         "parent_PronType",
+#         "parent_Gender",
+#         "parent_Polarity",
+#         "parent_Degree",
+#         "parent_NumType",
+#         "parent_Deprel",
+#     ]
 
 
 def save_output(text: str, method: str = "w") -> None:
@@ -592,19 +595,18 @@ def _rows_with_all_variables(group_by, num):
     return pd.concat(list_of_dfs)
 
 
-def _get_random_lines(results_file, num_per: int, texts):
+def _get_random_lines(data_frame:pandas.core.frame.DataFrame, num_per: int, texts: List[str] | None) -> pandas.core.frame.DataFrame:
     """
     A helper function for select_random which selects lines at random from the results_file. This function insures the number of words extracted is the same across all texts and each text has even representation of the variable set.
+    :return:
     :param results_file:
     :param num_per:
     :param texts:
     """
-    data_frame = pd.read_csv(results_file, encoding_errors='ignore')
 
-    # Get all column names after lemma
-    cols = data_frame.columns
-    cols = cols.drop(['parent_form', 'parent_lemma'])
-    cols = cols[7:-1]
+    # Drop these columns, because they are overlwhelmingly NA values
+    to_remove = ["Polarity", "Degree", "NumType", "parent_Polarity", "parent_Degree", "parent_NumType"]
+    data_frame.drop(labels=to_remove, axis=1, inplace=True)
 
     # Reduce data_frame to only rows whose title is in the `texts` list
     if texts is not None:
@@ -630,32 +632,40 @@ def select_random(tries=1, results_file = results_file) -> str:
     :return:
     :rtype: str
     """
-    lines = _get_random_lines(results_file, tries, texts = None)
+    original_df = data_frame = pd.read_csv(results_file, encoding_errors='ignore')
+    original_df['row_number'] = np.arange(len(original_df))
+    lines: pandas.core.frame.DataFrame = _get_random_lines(original_df, tries, texts = None)
+    labs: pandas.core.indexes.base.Index = lines.columns
 
-    for i in range(0, len(lines.index)):
+    for i in tqdm(range(0, len(lines.index))):
         line = lines.iloc[i]
 
-        index = i #TODO TEMPORARY MEASURE, REFACTOR INDEX TO i
+        #index of row in the original data frame
+        index = line['row_number']
 
         # Get the words around it
         context = ""
         for n in range(index - 8, index + 7):
-            context += f"{lines.iloc[n]["form"]} "
+            context += f"{original_df.iloc[n]["form"]} "
 
         line_text = ",".join([str(x) for x in line])
         # Start each with the path and the index in the results file
         return_line: str = f"{line.iloc[2]},{index},{context},"
-        index_field = 0
-        for field in line:
+        index_field = 5 #TODO MAKE THIS INDEX GET RETRIEVED AUTOMATICALLY
 
-            print(line_text + "\n\n")
+        # only start from the form to save time
+        for field in line.loc["form":]:
+
+            print("\n" + line_text + "\n\n")
             print("Context: " + context)
             print(f"{labs[index_field]}: {field}")
             inp = input(
-                "Please type 'y' if the tag is appropriate, and 'n' if not."
+                "Please type 'y' if the tag is appropriate, 'n' if not, and 'a' if NA."
             )
             if inp in ["y", "Y"]:
                 return_line += "1,"
+            elif inp in ["a", "A"]:
+                return_line += "NA,"
             else:
                 return_line += "0,"
 
@@ -664,7 +674,7 @@ def select_random(tries=1, results_file = results_file) -> str:
             )
 
         with open(
-            "~/PycharmProjects/corpus-caesarianum-authorship/postagged/postag-tests.csv", "a", encoding="utf-8", errors="ignore"
+            "/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postag-tests.csv", "a+", encoding="utf-8", errors="ignore"
         ) as results:
             results.write(
                 return_line[:-1] + "\n"
@@ -1021,5 +1031,5 @@ if __name__ == "__main__":
     #     skip_finished=True,
     # )
 
-    select_random(40, results_file)
+    select_random(5, results_file)
 
