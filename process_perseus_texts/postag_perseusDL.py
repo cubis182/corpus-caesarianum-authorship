@@ -18,9 +18,11 @@ License: MIT License
 Contact: matthew_dehass@yahoo.com
 
 """
-from _csv import Writer
+from __future__ import annotations
+
 from stanza.models.common.doc import Word
 
+from tqdm import tqdm
 import os
 #from copy import deepcopy
 import pdfplumber
@@ -37,6 +39,8 @@ import sys
 
 from dotenv import load_dotenv
 from typing import List
+
+import pandas as pd
 
 Y_DENSITY = 4
 EMPTY = 4
@@ -67,6 +71,49 @@ CAESAR = {
     "chapter":5,
     "tokens":6
 }
+
+#labels for final csv results
+labs = [
+        "title",
+        "author",
+        "book",
+        "section",
+        "path",
+        "form",
+        "lemma",
+        "tag",
+        "Aspect",
+        "Mood",
+        "Number",
+        "Person",
+        "Tense",
+        "VerbForm",
+        "Voice",
+        "Case",
+        "PronType",
+        "Gender",
+        "Polarity",
+        "Degree",
+        "NumType",
+        "Deprel",
+        "parent_form",
+        "parent_lemma",
+        "parent_tag",
+        "parent_Aspect",
+        "parent_Mood",
+        "parent_Number",
+        "parent_Person",
+        "parent_Tense",
+        "parent_VerbForm",
+        "parent_Voice",
+        "parent_Case",
+        "parent_PronType",
+        "parent_Gender",
+        "parent_Polarity",
+        "parent_Degree",
+        "parent_NumType",
+        "parent_Deprel",
+    ]
 
 
 def save_output(text: str, method: str = "w") -> None:
@@ -356,7 +403,7 @@ def __run_xpath(expr: str, is_tei: bool, tree, tei: dict):
 
 
 # Store the path to the file with the results here so its globally accessible
-results_file: str = "./feature_csv_files/postagged-texts.csv"
+results_file: str = "../postagged/postagged-texts.csv"
 
 
 def open_results() -> etree._ElementTree:
@@ -514,99 +561,114 @@ def feats(s: str):
         d[tok_f[0]] = tok_f[1]
     return d
 
+"""
+When selecting random lines in the next function, we need to guarantee:
+- Equal numbers from each work
+- Equal numbers of each feature.
+- That means 39 * 30 is the minimum. That way, even very rare features have to appear at least once. What if we focus on only a subset of texts? Just Caesar?
 
-def select_random(tries=1) -> str:
+We'll need an argument for:
+- passing titles of works which match partially (for efficiency)
+
+"""
+
+def column_only_nas(series):
+    return (pd.isna(series)).all()
+
+def _rows_with_all_variables(group_by, num):
+    """
+    Used with a grouped data frame in _get_random_lines()
+
+    :param data_frame:
+    """
+
+    list_of_dfs = []
+    for name, group in tqdm(group_by):
+        sample = group.sample(n = num)
+        while sample.apply(func = column_only_nas, axis = 0).any():
+            sample = group.sample(n = num)
+        list_of_dfs.append(sample)
+
+    return pd.concat(list_of_dfs)
+
+
+def _get_random_lines(results_file, num_per: int, texts):
+    """
+    A helper function for select_random which selects lines at random from the results_file. This function insures the number of words extracted is the same across all texts and each text has even representation of the variable set.
+    :param results_file:
+    :param num_per:
+    :param texts:
+    """
+    data_frame = pd.read_csv(results_file, encoding_errors='ignore')
+
+    # Get all column names after lemma
+    cols = data_frame.columns
+    cols = cols.drop(['parent_form', 'parent_lemma'])
+    cols = cols[7:-1]
+
+    # Reduce data_frame to only rows whose title is in the `texts` list
+    if texts is not None:
+        data_frame = data_frame[data_frame['path'].str.match("|".join(texts))]
+
+    # Loop over every column name
+    # retrieve `data_frame.groupby(colname).sample(n = num_per)`
+    return_data_frame = _rows_with_all_variables(data_frame.groupby("title"), num_per)
+
+    return return_data_frame
+
+##Verification
+#for name, group in gb:
+#    print(group.apply(func = column_only_nas).any())
+
+#TODO Add argument with texts
+def select_random(tries=1, results_file = results_file) -> str:
     """
     Selects a random line from the results_file. This is for the purpose of QA
     Asks the user to QA it.
 
-    :param tries: Description NEEDSDOC
+    :param tries: Number from each text to retrieve
     :return:
     :rtype: str
     """
-    labs = [
-        "title",
-        "author",
-        "cite1",
-        "cite2",
-        "path",
-        "form",
-        "lemma",
-        "tag",
-        "Aspect",
-        "Mood",
-        "Number",
-        "Person",
-        "Tense",
-        "VerbForm",
-        "Voice",
-        "Case",
-        "PronType",
-        "Gender",
-        "Polarity",
-        "Degree",
-        "NumType",
-        "Deprel",
-        "parent_form",
-        "parent_lemma",
-        "parent_tag",
-        "parent_Aspect",
-        "parent_Mood",
-        "parent_Number",
-        "parent_Person",
-        "parent_Tense",
-        "parent_VerbForm",
-        "parent_Voice",
-        "parent_Case",
-        "parent_PronType",
-        "parent_Gender",
-        "parent_Polarity",
-        "parent_Degree",
-        "parent_NumType",
-        "parent_Deprel",
-    ]
-    with open(results_file, "r", encoding="utf-8", errors="ignore") as f:
-        reader = csv.reader(f)
-        lines = [x for x in reader]
+    lines = _get_random_lines(results_file, tries, texts = None)
 
-        for i in range(0, tries):
-            line = choice(lines)
+    for i in range(0, len(lines.index)):
+        line = lines.iloc[i]
 
-            f.seek(0)
-            index = lines.index(line)
+        index = i #TODO TEMPORARY MEASURE, REFACTOR INDEX TO i
 
-            # Get the words around it
-            context = ""
-            for n in range(index - 8, index + 7):
-                context += f"{lines[n][3]} "
+        # Get the words around it
+        context = ""
+        for n in range(index - 8, index + 7):
+            context += f"{lines.iloc[n]["form"]} "
 
-            line_text = ",".join(line)
-            # Start each with the path and the index in the results file
-            return_line: str = f"{line[2]},{index},{context},"
-            index_field = 0
-            for field in line:
+        line_text = ",".join([str(x) for x in line])
+        # Start each with the path and the index in the results file
+        return_line: str = f"{line.iloc[2]},{index},{context},"
+        index_field = 0
+        for field in line:
 
-                print(line_text + "\n\n")
-                print("Context: " + context)
-                print(f"{labs[index_field]}: {field}")
-                inp = input(
-                    "Please type 'y' if the tag is appropriate, and 'n' if not."
-                )
-                if inp in ["y", "Y"]:
-                    return_line += "1,"
-                else:
-                    return_line += "0,"
+            print(line_text + "\n\n")
+            print("Context: " + context)
+            print(f"{labs[index_field]}: {field}")
+            inp = input(
+                "Please type 'y' if the tag is appropriate, and 'n' if not."
+            )
+            if inp in ["y", "Y"]:
+                return_line += "1,"
+            else:
+                return_line += "0,"
 
-                index_field += (
-                    1  # Add to the index of the field so we can get the field label
-                )
+            index_field += (
+                1  # Add to the index of the field so we can get the field label
+            )
 
-            with open(
-                "./postag-tests.csv", "a", encoding="utf-8", errors="ignore"
-            ) as results:
-                results.write(
-                    return_line[:-1] + "\n"
-                )  # Remove the last character, because it's a comma
+        with open(
+            "~/PycharmProjects/corpus-caesarianum-authorship/postagged/postag-tests.csv", "a", encoding="utf-8", errors="ignore"
+        ) as results:
+            results.write(
+                return_line[:-1] + "\n"
+            )  # Remove the last character, because it's a comma
 
 
 def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', path_destination: str | Path=results_file, skip_finished: bool=True) -> None:
@@ -784,6 +846,9 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
 
                 parent_features = extract_features(parent, f_set)
 
+                #add header row
+                writer.writerow(labs)
+
                 # Start putting together the line to write
                 metadata = [
                     title,
@@ -950,9 +1015,11 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    csv_postag(
-        path_origin="cicero_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-cicero.csv",
-        skip_finished=True,
-    )
+    # csv_postag(
+    #     path_origin="cicero_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-cicero.csv",
+    #     skip_finished=True,
+    # )
+
+    select_random(40, results_file)
 

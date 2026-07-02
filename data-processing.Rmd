@@ -144,9 +144,12 @@ dims <- c(
   "parent_Deprel"
 )
 
+data <- fread("./postagged/postagged-texts.csv", na.strings = "", stringsAsFactors = TRUE)
+
 data <- bind_rows(
-  fread("./postagged/postagged-texts.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE),
-  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = dims, stringsAsFactors = TRUE)
+  data,
+  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)
+  )
 )
 
 if (!params$use_parent) data %<>% select(!starts_with("parent"))
