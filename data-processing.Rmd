@@ -9,7 +9,7 @@ editor_options:
     wrap: 72
 params:
   use_att: FALSE
-  use_parent: FALSE
+  use_parent: TRUE
   new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
@@ -102,47 +102,47 @@ there are some confusions I should clear up here.
 
 ```{r Get postagged_only.csv. Big data!}
 
-dims <- c(
-  "title", 
-  "author", 
-  "book",
-  "section",
-  "path",
-  "form",
-  "lemma",
-  "tag",
-  "Aspect",
-  "Mood",
-  "Number",
-  "Person",
-  "Tense",
-  "VerbForm",
-  "Voice",
-  "Case",
-  "PronType",
-  "Gender",
-  "Polarity",
-  "Degree",
-  "NumType",
-  "Deprel",
-  "parent_form",
-  "parent_lemma",
-  "parent_tag",
-  "parent_Aspect",
-  "parent_Mood",
-  "parent_Number",
-  "parent_Person",
-  "parent_Tense",
-  "parent_VerbForm",
-  "parent_Voice",
-  "parent_Case",
-  "parent_PronType",
-  "parent_Gender",
-  "parent_Polarity",
-  "parent_Degree",
-  "parent_NumType",
-  "parent_Deprel"
-)
+# dims <- c(
+#   "title", 
+#   "author", 
+#   "book",
+#   "section",
+#   "path",
+#   "form",
+#   "lemma",
+#   "tag",
+#   "Aspect",
+#   "Mood",
+#   "Number",
+#   "Person",
+#   "Tense",
+#   "VerbForm",
+#   "Voice",
+#   "Case",
+#   "PronType",
+#   "Gender",
+#   "Polarity",
+#   "Degree",
+#   "NumType",
+#   "Deprel",
+#   "parent_form",
+#   "parent_lemma",
+#   "parent_tag",
+#   "parent_Aspect",
+#   "parent_Mood",
+#   "parent_Number",
+#   "parent_Person",
+#   "parent_Tense",
+#   "parent_VerbForm",
+#   "parent_Voice",
+#   "parent_Case",
+#   "parent_PronType",
+#   "parent_Gender",
+#   "parent_Polarity",
+#   "parent_Degree",
+#   "parent_NumType",
+#   "parent_Deprel"
+# )
 
 data <- fread("./postagged/postagged-texts.csv", na.strings = "", stringsAsFactors = TRUE)
 
@@ -150,9 +150,8 @@ data <- bind_rows(
   data,
   fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)
   )
-)
 
-if (!params$use_parent) data %<>% select(!starts_with("parent"))
+# if (!params$use_parent) data %<>% select(!starts_with("parent"))
 
 #This isn't a ratio or count variable
 data %<>%
@@ -473,6 +472,8 @@ variable_combinations <- function(combinations_n, source_data) {
 I've realized that counting up feature-value pairs at the end of this
 file is proceeding too slowly, so I need to sample from the full
 dataset.
+
+Note that the YAML header params `new_combos` and `use_parent` affect the operation of the following code.
 
 ```{r}
 

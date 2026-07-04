@@ -75,48 +75,48 @@ CAESAR = {
     "tokens":6
 }
 
-#labels for final csv results
-# labs = [
-#         "title",
-#         "author",
-#         "book",
-#         "section",
-#         "path",
-#         "form",
-#         "lemma",
-#         "tag",
-#         "Aspect",
-#         "Mood",
-#         "Number",
-#         "Person",
-#         "Tense",
-#         "VerbForm",
-#         "Voice",
-#         "Case",
-#         "PronType",
-#         "Gender",
-#         "Polarity",
-#         "Degree",
-#         "NumType",
-#         "Deprel",
-#         "parent_form",
-#         "parent_lemma",
-#         "parent_tag",
-#         "parent_Aspect",
-#         "parent_Mood",
-#         "parent_Number",
-#         "parent_Person",
-#         "parent_Tense",
-#         "parent_VerbForm",
-#         "parent_Voice",
-#         "parent_Case",
-#         "parent_PronType",
-#         "parent_Gender",
-#         "parent_Polarity",
-#         "parent_Degree",
-#         "parent_NumType",
-#         "parent_Deprel",
-#     ]
+# labels for final csv results
+labs = [
+        "title",
+        "author",
+        "book",
+        "section",
+        "path",
+        "form",
+        "lemma",
+        "tag",
+        "Aspect",
+        "Mood",
+        "Number",
+        "Person",
+        "Tense",
+        "VerbForm",
+        "Voice",
+        "Case",
+        "PronType",
+        "Gender",
+        "Polarity",
+        "Degree",
+        "NumType",
+        "Deprel",
+        "parent_form",
+        "parent_lemma",
+        "parent_tag",
+        "parent_Aspect",
+        "parent_Mood",
+        "parent_Number",
+        "parent_Person",
+        "parent_Tense",
+        "parent_VerbForm",
+        "parent_Voice",
+        "parent_Case",
+        "parent_PronType",
+        "parent_Gender",
+        "parent_Polarity",
+        "parent_Degree",
+        "parent_NumType",
+        "parent_Deprel",
+    ]
 
 
 def save_output(text: str, method: str = "w") -> None:
@@ -769,7 +769,7 @@ def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', p
                 string_process_export(body_text=body, author=authorString, title=titleString, custom_pipeline=custom_pipeline, line=p, writer=writer)
 
 
-def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line, writer: Writer) -> None:
+def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line, writer: csv.Writer) -> None:
     """
     This function takes a section from the Corpus Caesarianum and parses it using stanza, writing the results to postagged-texts.csv
 
@@ -795,6 +795,9 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
         s_final_body
     )  # Call the neural pipeline on this list of documents
     print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
+
+    #add header row
+    writer.writerow(labs)
 
     for s in out_docs.sentences:
         for word in s.words:
@@ -855,9 +858,6 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
                 features = extract_features(word, f_set)
 
                 parent_features = extract_features(parent, f_set)
-
-                #add header row
-                writer.writerow(labs)
 
                 # Start putting together the line to write
                 metadata = [
@@ -1025,11 +1025,17 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    # csv_postag(
-    #     path_origin="cicero_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-cicero.csv",
-    #     skip_finished=True,
-    # )
+    csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-cicero.csv",
+        skip_finished=False,
+    )
 
-    select_random(5, results_file)
+    csv_postag(
+        path_origin="full_data_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-texts.csv",
+        skip_finished=False,
+    )
+
+    #select_random(5, results_file)
 
