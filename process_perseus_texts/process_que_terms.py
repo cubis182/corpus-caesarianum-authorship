@@ -1,29 +1,30 @@
 #Note: requires Python 3.7, cltk 1.x
 import pandas as pd
 from cltk.corpus.utils.importer import CorpusImporter
-from cltk.tokenize.word import WordTokenizer
-from ctlk.tokenize.latin.params import latin_exceptions
+from cltk.tokenize.latin.word import WordTokenizer
+from cltk.tokenize.latin.params import latin_exceptions
 
 # MD 7/3/2026: We need to add more exceptions to tokenization with '-ne'
 #   The tokens are idenitified by looking at each instance of -ne
 #   See identify-mistokenized-ne.ipynb for more detail on the process
+
 addtl_caesar = [
-    "Aviene",
-    "Calydone",
-    "Cicerone",
-    "Domitione",
-    "Gobannitione",
-    "Libone",
-    "Mithridaten",
-    "Pharnacen",
-    "Pharone",
-    "Puleione",
-    "Serapione",
-    "Thapsone",
-    "Varrone",
-    "Verticone",
-    "Vibone",
-    "Vorene",
+    "aviene",
+    "calydone",
+    "cicerone",
+    "domitione",
+    "gobannitione",
+    "libone",
+    "mithridaten",
+    "pharnacen",
+    "pharone",
+    "puleione",
+    "serapione",
+    "thapsone",
+    "varrone",
+    "verticone",
+    "vibone",
+    "vorene",
     "adfirmatione",
     "aestimatione",
     "altitudine",
@@ -57,14 +58,15 @@ addtl_caesar = [
     "eruptione",
     "regione",
     "sene",
+    "munitione"
 ]
 
 addtl_exceptions_cicero = [
-    "Scipione",
+    "scipione",
     "exercitatione",
     "consuetudine",
     "disputatione",
-    "Caepione",
+    "caepione",
     "lubidine",
     "nuntiatione",
     "flamene",
@@ -97,14 +99,14 @@ addtl_exceptions_cicero = [
     "dubitatione",
     "sectione",
     "apricatione",
-    "Lentone",
+    "lentone",
     "necessitudine",
     "excursione",
     "recusatione",
     "cognitione",
     "dissensione",
     "tamen",
-    "Carbone",
+    "carbone",
     "auctione",
     "sentionone",
     "sentione",
@@ -113,12 +115,12 @@ addtl_exceptions_cicero = [
     "meditatione",
     "direptione",
     "colluvione",
-    "Solone",
+    "solone",
     "recordatione",
     "postulatione",
-    "Centone",
-    "Narbone",
-    "Leptine",
+    "centone",
+    "narbone",
+    "leptine",
     "latrone", 
     "nundinatione",
     "oratione",
@@ -129,12 +131,12 @@ addtl_exceptions_cicero = [
     "correctione",
     "delectatione",
     "divine",
-    "Tuberone",
-    "Contione",
+    "tuberone",
+    "contione",
     "exstructione",
     "opinione",
     "contentione",
-    "Pisone",
+    "pisone",
     "applicatione",
     "circumscriptione",
     "gratulatione",
@@ -142,8 +144,8 @@ addtl_exceptions_cicero = [
     "retardatione",
     "legatione",
     "cogitatione",
-    "Turpione",
-    "Curione",
+    "turpione",
+    "curione",
     "pactione",
     "coversione",
     "turpitudine",
@@ -152,8 +154,27 @@ addtl_exceptions_cicero = [
     "praedicatione",
     "perturbatione",
     "mansuetudine",
+    "petitione",
+    "venditione",
+    "charybdine",
+    "scatone",
+    "imitatione",
+    "navigatione",
+    "vicissitudine",
+    "flamene",
+    "consensione",
+    "calene",
+    "approbatione",
+    "admiratione",
+    "conversione",
+    "myrmillone",
+    "glabrione",
+    "nominatione",
 ]
 
+failed_token_split = [
+    "—"
+]
 
 # DL the latin model if not already in possession
 corpus_importer = CorpusImporter("latin")
@@ -163,13 +184,14 @@ corpus_importer.import_corpus("latin_models_cltk")
 df = pd.read_csv("full_data_text_perseus.csv", sep="|", index_col=0)
 
 # Init tokenizer
-tokenizer = WordTokenizer("latin")
+tokenizer = WordTokenizer()
 
 # Tokenize
 def tokenize(text):
     if pd.isna(text) or not str(text).strip():
         return ""
-    return " ".join(tokenizer.tokenize(str(text), enclitic_exceptions=latin_exceptions + addtl_caesar + addtl_exceptions_cicero))
+    text = text.replace("—", " ")
+    return " ".join(tokenizer.tokenize(str(text), enclitics_exceptions=latin_exceptions + addtl_caesar + addtl_exceptions_cicero))
 
 df["tokens"] = df["text"].apply(tokenize)
 
