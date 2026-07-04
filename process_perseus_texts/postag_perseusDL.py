@@ -756,7 +756,10 @@ def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', p
             #Skip the first line
             next(tokenized_csv)
 
-            for p in tokenized_csv:
+            #add header row
+            writer.writerow(labs)
+
+            for p in tqdm(tokenized_csv):
                 title = p[CAESAR['commentary']]
 
 
@@ -796,12 +799,9 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
     )  # Call the neural pipeline on this list of documents
     print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
-    #add header row
-    writer.writerow(labs)
-
     for s in out_docs.sentences:
         for word in s.words:
-            print(f"Word Completion: {s.words.index(word)}/{len(s.words)}")
+        
             # Skip most punctuation that doesn't break sentences
             if word.upos != "PUNCT" or word.text in [".", "!", "?"]:
                 # Old CLTK version: s_form = word.string
@@ -1025,17 +1025,17 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    # csv_postag(
-    #     path_origin="cicero_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-cicero.csv",
-    #     skip_finished=False,
-    # )
+    csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-cicero.csv",
+        skip_finished=False,
+    )
 
-    # csv_postag(
-    #     path_origin="full_data_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-texts.csv",
-    #     skip_finished=False,
-    # )
+    csv_postag(
+        path_origin="full_data_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-texts.csv",
+        skip_finished=False,
+    )
 
-    select_random(5, results_file)
+    # select_random(5, results_file)
 
