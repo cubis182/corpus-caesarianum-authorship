@@ -674,7 +674,7 @@ def select_random(tries=1, results_file = results_file) -> str:
             )
 
         with open(
-            "/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postag-tests.csv", "a+", encoding="utf-8", errors="ignore"
+            "C:/Users/matth/Documents/GitHub/corpus-caesarianum-authorship/postagged/postag-tests.csv", "a+", encoding="utf-8", errors="ignore"
         ) as results:
             results.write(
                 return_line[:-1] + "\n"
@@ -1025,17 +1025,17 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    csv_postag(
-        path_origin="cicero_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-cicero.csv",
-        skip_finished=False,
-    )
+    # csv_postag(
+    #     path_origin="cicero_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-cicero.csv",
+    #     skip_finished=False,
+    # )
 
-    csv_postag(
-        path_origin="full_data_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-texts.csv",
-        skip_finished=False,
-    )
+    # csv_postag(
+    #     path_origin="full_data_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-texts.csv",
+    #     skip_finished=False,
+    # )
 
-    #select_random(5, results_file)
+    select_random(5, results_file)
 

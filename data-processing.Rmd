@@ -10,7 +10,7 @@ editor_options:
 params:
   use_att: FALSE
   use_parent: TRUE
-  new_combos: TRUE
+  new_combos: FALSE
 bibliography: rmd-notebook.bib
 ---
 
@@ -45,7 +45,7 @@ data in the ./postagged folder.
 
 library(conflicted)
 library(factoextra)
-library(dplyr)
+#library(dplyr)
 library(ggrepel)
 library(tidyverse)
 library(cluster)
@@ -628,7 +628,8 @@ transpose_all_vars <- function(all_vars) {
   all_vars <- all_vars |> mutate(title = unlist(title))
   
   all_vars <- pivot_wider(
-    all_vars, 
+    all_vars,
+    values_fn = sum,
     names_from = pasted, 
     values_from = n,
     values_fill = 0)
@@ -908,6 +909,22 @@ if ("stringr" %notin% .packages()) {
   library(stringr)
 }
 
+get_count_by_title_features <- function(title, feature_char, source_data) {
+  # Remove space from the title
+  title_selected <- gsub(pattern = " ", replacement = "", title)
+  
+  # Split column name into a character vector
+  vars_unsplit <- unlist(strsplit(feature_char, "[|]"))
+  
+  # Filter source_data to the title, using partial matches with str_starts() from stringr package
+  filtered_data <- source_data |> filter(str_starts(gsub(" ", "", title), title_selected))
+  
+  # Pass character vector and source_data to get_number_rows_with_feature_types()
+  count_from_source_data <- get_number_rows_with_feature_types(vars_unsplit, source_data = filtered_data)
+  #Normalize the value per 1000 words
+  (count_from_source_data / nrow(filtered_data)) * 1000
+}
+
 verify_random_cell <- function(all_vars, source_data) {
   # For logging purposes
   fn_name <- get_logger_meta_variables(log_level = INFO)$fn
@@ -924,22 +941,11 @@ verify_random_cell <- function(all_vars, source_data) {
   log_info("{fn_name}: Selecting all_vars[title == {title}, '{colname}']")
   log_info("{fn_name}: Value of cell is {cell}")
   
-  # Remove space from the title
-  title_selected <- gsub(pattern = " ", replacement = "", title)
-  
-  # Split column name into a character vector
-  vars_unsplit <- unlist(strsplit(colname, "[|]"))
-  
-  # Filter source_data to the title, using partial matches with str_starts() from stringr package
-  filtered_data <- source_data |> filter(str_starts(gsub(" ", "", title), title_selected))
-  
-  # Pass character vector and source_data to get_number_rows_with_feature_types()
-  count_from_source_data <- get_number_rows_with_feature_types(vars_unsplit, source_data = filtered_data)
-  #Normalize the value per 1000 words
-  count_from_source_data <- (count_from_source_data / nrow(filtered_data)) * 1000
+  count_from_source_data <- get_count_by_title_features(title = title, feature_char = colname, source_data = source_data)
   
   log_info("{fn_name}: The count retrieved from the source data is {count_from_source_data}")
   log_info("{fn_name}: count == cell: {signif(count_from_source_data, digits = 2) == signif(cell, digits = 2)}")
+  (signif(count_from_source_data, digits = 2) == signif(cell, digits = 2))[[1]]
 }
 ```
 
