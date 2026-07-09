@@ -21,12 +21,11 @@ Contact: matthew_dehass@yahoo.com
 from __future__ import annotations
 
 import pandas.core.frame
-from pandas import DataFrame
+from typing import Union
 from stanza.models.common.doc import Word
 
 from tqdm import tqdm
 import os
-#from copy import deepcopy
 import pdfplumber
 import re
 import regex
@@ -44,6 +43,8 @@ from typing import List
 
 import pandas as pd
 import numpy as np
+
+import csv
 
 Y_DENSITY = 4
 EMPTY = 4
@@ -257,7 +258,7 @@ inval_tags = [
 # However, the exputf-8ons are consistent, so we'll just get rid of those. I would prefer the expanded forms, but this is cleaner for now.
 
 
-def is_valid_tag(element: etree._Element) -> int:
+def is_valid_tag(element: etree.Element) -> int:
     """
     Checks whether a tag from a TEI:XML document is valid. A valid tag is one whose text we want for the purpose of processing the text. A tag like <note> has irrelevant text, so it's invalid. See the inval_tags variable above for a full list
     """
@@ -290,7 +291,7 @@ def get_text(element) -> str:
     string = ""
     sTail: str = element.tail
     sText: str = element.text
-    parent: etree._Element = element.getparent()
+    parent: etree.Element = element.getparent()
     #pText: str = parent.text
     pTail: str = parent.tail
 
@@ -330,13 +331,13 @@ def get_paths() -> List[Path]:
     Returns a list of paths to all Perseus DL Latin texts"""
 
     # path to PerseusDL
-    dir: Path = Path("./../canonical-latinLit/data/")
+    directory: Path = Path("./../canonical-latinLit/data/")
 
     # paths to all the files in the corpus, identified by -lat and the .xml extension.
-    return list(dir.glob("**/**-lat*.xml"))
+    return list(directory.glob("**/**-lat*.xml"))
 
 
-def get_title_auth_body(tree: etree._ElementTree | etree._Element) -> dict:
+def get_title_auth_body(tree: Union[etree.ElementTree, etree.Element]) -> dict:
     """ """
 
     # We need to make sure it's a real TEI file with the xml namespace.
@@ -409,7 +410,7 @@ def __run_xpath(expr: str, is_tei: bool, tree, tei: dict):
 results_file: str = "../postagged/postagged-texts.csv"
 
 
-def open_results() -> etree._ElementTree:
+def open_results() -> etree.ElementTree:
     """
     TODO TEST!
     Returns the root element of the atticus-study-results.xml file"""
@@ -491,10 +492,6 @@ def __get_paths(path):  # -> list[str]:
         raise TypeError
 
 
-import csv
-import shutil
-
-
 def __get_body(path: str) -> str:
     """
     Helper function for automatic_validation (plan to also incorporate this into
@@ -507,7 +504,7 @@ def __get_body(path: str) -> str:
     tree: etree.ElementTree = etree.parse(path, parser)  # Use path 22 for debugging
 
     # Get the root of the tree. This variable will eventually hold the tei:body element
-    body: etree._Element = tree.getroot()
+    body: etree.Element = tree.getroot()
 
     authority_dict = get_title_auth_body(body)
 
@@ -594,45 +591,18 @@ def _rows_with_all_variables(group_by, num):
 
     return pd.concat(list_of_dfs)
 
-
-def _get_random_lines(data_frame:pandas.core.frame.DataFrame, num_per: int, texts: List[str] | None) -> pandas.core.frame.DataFrame:
-    """
-    A helper function for select_random which selects lines at random from the results_file. This function insures the number of words extracted is the same across all texts and each text has even representation of the variable set.
-    :return:
-    :param results_file:
-    :param num_per:
-    :param texts:
-    """
-
-    # Drop these columns, because they are overlwhelmingly NA values
-    to_remove = ["Polarity", "Degree", "NumType", "parent_Polarity", "parent_Degree", "parent_NumType"]
-    data_frame.drop(labels=to_remove, axis=1, inplace=True)
-
-    # Reduce data_frame to only rows whose title is in the `texts` list
-    if texts is not None:
-        data_frame = data_frame[data_frame['path'].str.match("|".join(texts))]
-
-    # Loop over every column name
-    # retrieve `data_frame.groupby(colname).sample(n = num_per)`
-    return_data_frame = _rows_with_all_variables(data_frame.groupby("title"), num_per)
-
-    return return_data_frame
-
-##Verification
-#for name, group in gb:
-#    print(group.apply(func = column_only_nas).any())
-
-#TODO Add argument with texts
-def select_random(tries=1, results_file = results_file) -> str:
+def select_random(tries=1, results_file = results_file) -> None:
     """
     Selects a random line from the results_file. This is for the purpose of QA
     Asks the user to QA it.
 
+    :param results_file:
     :param tries: Number from each text to retrieve
     :return:
     :rtype: str
     """
-    original_df = data_frame = pd.read_csv(results_file, encoding_errors='ignore')
+    original_df = pd.read_csv(results_file, encoding_errors='ignore')
+    #data_frame = original_df
     original_df['row_number'] = np.arange(len(original_df))
     lines: pandas.core.frame.DataFrame = _get_random_lines(original_df, tries, texts = None)
     labs: pandas.core.indexes.base.Index = lines.columns
@@ -645,8 +615,8 @@ def select_random(tries=1, results_file = results_file) -> str:
 
         # Get the words around it
         context = ""
-        for n in range(index - 8, index + 7):
-            context += f"{original_df.iloc[n]["form"]} "
+        for n in range(index - 16, index + 15):
+            context += f"{original_df.iloc[n]['form']} "
 
         line_text = ",".join([str(x) for x in line])
         # Start each with the path and the index in the results file
@@ -674,14 +644,14 @@ def select_random(tries=1, results_file = results_file) -> str:
             )
 
         with open(
-            "C:/Users/matth/Documents/GitHub/corpus-caesarianum-authorship/postagged/postag-tests.csv", "a+", encoding="utf-8", errors="ignore"
+            "../postagged/postag-tests.csv", "a+", encoding="utf-8", errors="ignore"
         ) as results:
             results.write(
                 return_line[:-1] + "\n"
             )  # Remove the last character, because it's a comma
 
 
-def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', path_destination: str | Path=results_file, skip_finished: bool=True) -> None:
+def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.csv', path_destination: Union[str, Path]=results_file, skip_finished: bool=True) -> None:
     """
     Docstring for csv_postag
 
@@ -689,6 +659,8 @@ def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', p
 
     This function relies on the CSV being serialized with commas, not another separation character.
 
+    :param path_destination:
+    :param path_origin:
     :rtype: None
     :param path: An optional path of the file to write manually
     :type path: str
@@ -715,8 +687,6 @@ def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', p
 
     # Get Sig's tokenized data. The data matches the defaults (separator is ',', quote is '"')
     with open(path_origin, 'r', encoding='utf-8', errors='replace', newline='') as tokenized:
-        tokenized_csv: Reader = csv.reader(tokenized, escapechar="#")
-
         # # If we want to keep a line, we place it in the temp file.
         # with open(
         #     results_file, "r", encoding="utf-8", errors="replace", newline=""
@@ -772,7 +742,7 @@ def csv_postag(path_origin: str | Path='full_data_text_perseus_tokenized.csv', p
                 string_process_export(body_text=body, author=authorString, title=titleString, custom_pipeline=custom_pipeline, line=p, writer=writer)
 
 
-def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line, writer: csv.Writer) -> None:
+def string_process_export(body_text: str, author: str, title: str, custom_pipeline: stanza.Pipeline, line: List[str], writer: csv.Writer) -> None:
     """
     This function takes a section from the Corpus Caesarianum and parses it using stanza, writing the results to postagged-texts.csv
 
@@ -901,7 +871,7 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
 
                 writer.writerow(to_write)
 
-def get_parent(word: Word) -> Word | None:
+def get_parent(word: Word) -> Union[Word, None]:
     """
     Get the parent of a target word. Returns None if there is no root.
     """
@@ -918,7 +888,7 @@ def get_parent(word: Word) -> Word | None:
 
 
 
-def extract_features(word, f_set: list) -> dict:
+def extract_features(word :Union[Word, Any], f_set: list) -> dict:
     """
     This function takes a Stanza word and a list of features and returns their values.
 
@@ -982,14 +952,6 @@ def modify_titles():
 
 ##################################################################
 
-
-def get_sections(body: etree._Element) -> dict:
-    """
-    This function returns a dictionary of section numbers and text given a body of a TEI XML file
-    """
-    pass
-
-
 if __name__ == "__main__":
     """
     Note: This module uses Stanza. It comes with Torch, but the default installation didn't allow my computer to use CUDA for processing. I installed Torch again manually with CUDA 11.8 and it worked. See the homepage of Torch for more info
@@ -1025,17 +987,19 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    csv_postag(
-        path_origin="cicero_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-cicero.csv",
-        skip_finished=False,
-    )
+    # csv_postag(
+    #     path_origin="cicero_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-cicero.csv",
+    #     skip_finished=False,
+    # )
+    #
+    # csv_postag(
+    #     path_origin="full_data_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-texts.csv",
+    #     skip_finished=False,
+    # )
 
-    csv_postag(
-        path_origin="full_data_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-texts.csv",
-        skip_finished=False,
-    )
-
-    # select_random(5, results_file)
+    select_random(5, results_file)
+    select_random(5, "../postagged/postagged-cicero.csv")
+    select_random(5, "../postagged/postagged-cicero.csv")
 

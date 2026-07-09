@@ -8,9 +8,10 @@ editor_options:
   markdown:
     wrap: 72
 params:
-  use_att: FALSE
+  use_att: TRUE
   use_parent: TRUE
   new_combos: FALSE
+  remove_noisy_variables: TRUE
 bibliography: rmd-notebook.bib
 ---
 
@@ -144,11 +145,11 @@ there are some confusions I should clear up here.
 #   "parent_Deprel"
 # )
 
-data <- fread("./postagged/postagged-texts.csv", na.strings = "", stringsAsFactors = TRUE)
+data <- fread("./postagged/postagged-texts.csv", na.strings = "", header = TRUE, stringsAsFactors = TRUE)
 
 data <- bind_rows(
   data,
-  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)
+  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,]
   )
 
 # if (!params$use_parent) data %<>% select(!starts_with("parent"))
@@ -169,6 +170,11 @@ summary(data)
 #since I'm using a data table, subset without the comma, unlike base R
 data$book[data$path == "alexandrine" & data$section > 20] <- 2
 ```
+
+We also want to reduce the effect of noisy data on the final results.
+For the moment, this is only a testing ground based on manual review.
+I'm still gathering accuracy data, and will take a data-based approach
+in the next round.
 
 The data needs to be split up by section first, then put back into
 books. The way I recommend doing this is appending both the book and
@@ -226,24 +232,26 @@ if (params$use_parent) {
   data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
   data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")  
 }
+```
 
+### Removing Variables
 
-#Cicero
-# cicero_data <- replace_value("Mood", "Imp", "Imperative")
-# cicero_data <- replace_value("Mood", "Ind", "Indicative")
-# cicero_data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
-# cicero_data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")
+In the meantime, I've noticed that adjectives represent a serious
+concern. The Stanza parser doesn't seem to support the idea of a
+substantive adjective very well, and this creates unnecessary inaccuracy
+in the dependency tree. Let's see what an analysis without adjectives
+looks like for a moment.
 
-#Remove unneeded variables
-data %<>% tidytable::select(-NumType, if (params$use_parent) -parent_NumType else NULL, -Degree, if (params$use_parent) -parent_Degree else NULL) |>
-  filter(tag != 'PUNCT')
+```{r, eval=FALSE}
+low_accuracy_feats <- c("ADJ", "parent_ADJ", "punct")
+not_low_accuracy <- function(data) apply(X=data, MARGIN=1, FUN=function(x) !any(low_accuracy_feats %in% x))
 
-# cicero_data %<>% tidytable::select(-NumType, -parent_NumType, -Degree, -parent_Degree) |>
-#   filter(tag != 'PUNCT')
-
-#An argument could be made for removing Polarity, but I'll wait to see how common it is and how much variance there is between the texts
+data <- data[not_low_accuracy(data),]
 
 ```
+
+I would also like to change all `xcomp` tags to `comp`, as the source
+data doesn't do enough to distinguish the difference.
 
 ## Utilities
 
@@ -289,12 +297,13 @@ and every row is a unique work.
 
 #NOTE 2: This currently only runs if we're using parent variables too
 if (params$use_att && params$use_parent) {
-  titles <- unique(data$title)
-  num_words <- table(data$title)
+  fdata <- data |> mutate(title = get_title_segment(title))
+  titles <- unique(fdata$title)
+  num_words <- table(fdata$title)
   final.frame <- data.frame(title = titles)
   
   for (i in 1:length(titles)) {
-      frame <- data[data$title == titles[i],]
+      frame <- fdata[fdata$title == titles[i],]
       frame <- tidytable::select(frame, title, tag:parent_Deprel & !parent_form & !parent_lemma) #Leave off everything unnecessary except for the title
       for (n in 2:length(frame)) {
         t <- table(frame[, ..n])
@@ -473,7 +482,12 @@ I've realized that counting up feature-value pairs at the end of this
 file is proceeding too slowly, so I need to sample from the full
 dataset.
 
-Note that the YAML header params `new_combos` and `use_parent` affect the operation of the following code.
+Note that the YAML header params `new_combos` and `use_parent` affect
+the operation of the following code.
+
+The data is reduced to only 1,000 tokens per book (so, 1,000 from BG
+book 1, 1,000 from BG book 2, etc.; BAfr is one book, so only 1,000
+tokens come from it).
 
 ```{r}
 
@@ -551,7 +565,8 @@ get_var_combos <- function(var_combn, source_data) {
 
 This function takes a set of variable combinations (one_combinations,
 two_combinations, etc.) and applies the get_var_combos function to all
-of them, creating a data frame out of it.
+of them, creating a data frame out of it. Any in the lower quartile are
+culled.
 
 ```{r}
 

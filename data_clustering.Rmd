@@ -3,7 +3,7 @@ title: "data_clustering"
 output: html_document
 date: "2026-04-25"
 params:
-  use_parent: FALSE
+  use_parent: TRUE
 ---
 
 ```{r setup, include=FALSE}
@@ -16,7 +16,6 @@ knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship
 
 
 library(factoextra)
-library(dplyr)
 library(ggrepel)
 library(tidyverse)
 library(cluster)
@@ -25,6 +24,7 @@ library(magrittr)
 library(combinat)
 library(dendextend)
 library(MASS)
+library(dplyr)
 library(multcomp)
 library(ggtext)
 library(printr)
@@ -236,9 +236,13 @@ set.seed(126126)
 kmeans_basic_cluster <- kmeans(df_clust, centers = k, nstart = 50)
 kmeans_basic_table <- data.frame(kmeans_basic_cluster$size, kmeans_basic_cluster$centers)
 kmeans_basic_df <- data.frame(Clusters = kmeans_basic_cluster$cluster, df_clust)
+
+labs_kmeans <- lookup_table[final.frame$title]
 ```
 
 Let's do our first visualization. Four clusters seems like a reasonable amount, looking at the fviz_nbclust results with the wss method.
+
+I would note that the inclusion or exclusion of Cicero has something of an effect on the pca. This is to be expected, and is in some ways a desirable characteristic, as we included it to make sure there was another point of comparison to show how coherent Caesar really looks when compared to an outside text. However, what do the results look like without Cicero? I need to record the data both ways.
 
 ```{r}
 # TODO ADD SUMMARIES OF THE ABOVE DATA HERE
@@ -246,6 +250,10 @@ Let's do our first visualization. Four clusters seems like a reasonable amount, 
 # Principal component analysis
 
 pca <- prcomp(df_clust)
+
+vars <- dimnames(pca$rotation)[[1]]
+
+# View(as_tibble(pca$rotation) |> mutate(names = vars) |> relocate(names, .before = 1) |> slice_max(order_by = PC1, n = 30))
 
 summary(pca)
 
@@ -264,7 +272,7 @@ cluster_main <- fviz_cluster(kmeans_basic_cluster,
   ggtheme = ggtheme
 ) +
   geom_text_repel(
-    aes(label = rownames(df_clust)),
+    aes(label = labs_kmeans),
     vjust = "inward",
     hjust = "inward",
     max.overlaps = 14,
@@ -311,6 +319,7 @@ TO DO
 set.seed(126126)
 
 gorman_clust$title <- gorman.vars$title
+gorman_clust <- gorman_clust[,c(title, unlist(top_colnames))]
 
 #Uncomment this when working with section numbers
 #gorman_clust <- gorman_clust |> filter(str_detect(title, "(spanish |gallic _ 1)"))
@@ -337,7 +346,18 @@ Let's do our first visualization. Four clusters seems like a reasonable amount, 
 
 pca <- prcomp(gorman_clust)
 
+# I'm adding the following code after this cell was created.
+# I want to test what the clustering looks like if we cull to only the top variables in pca
+
+vars <- dimnames(pca$rotation)[[1]]
+
+top_vars <- as_tibble(pca$rotation) |> mutate(names = vars) |> relocate(names, .before = 1) |> slice_max(order_by = PC1, n = 30)
+
+top_colnames <- top_vars$names[1:5]
+  
 summary(pca)
+
+
 
 # Visualizations
 
@@ -524,6 +544,7 @@ First, let's add a new variable to the sectioned corpus which contains only the 
 ```{r}
 
 #Add a 'path' variable which is just the commentary name
+# TODO: Remove this cell, and use the title field instead? Or include this in the following cells
 
 sectioned.gorman.vars %<>% 
   rowwise() %>%
@@ -586,15 +607,6 @@ within.book.similarity <- function(section_vectors, rows, type_of_similarity = "
   return(similarities)
   
 }
-
-```
-
-```{r, eval=FALSE, warning=FALSE}
-
-prop <- 0.25
-african_scores <- within.book.similarity("gallic _ 2 ", sectioned.gorman.vars, 25)  
-
-hist(african_scores)
 
 ```
 
