@@ -591,6 +591,29 @@ def _rows_with_all_variables(group_by, num):
 
     return pd.concat(list_of_dfs)
 
+def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, texts: List[str] | None) -> pandas.core.frame.DataFrame:
+    """
+    A helper function for select_random which selects lines at random from the results_file. This function insures the number of words extracted is the same across all texts and each text has even representation of the variable set.
+    :return:
+    :param results_file:
+    :param num_per:
+    :param texts:
+    """
+
+    # Drop these columns, because they are overlwhelmingly NA values
+    to_remove = ["Polarity", "Degree", "NumType", "parent_Polarity", "parent_Degree", "parent_NumType"]
+    data_frame.drop(labels=to_remove, axis=1, inplace=True)
+
+    # Reduce data_frame to only rows whose title is in the `texts` list
+    if texts is not None:
+        data_frame = data_frame[data_frame['path'].str.match("|".join(texts))]
+
+    # Loop over every column name
+    # retrieve `data_frame.groupby(colname).sample(n = num_per)`
+    return_data_frame = _rows_with_all_variables(data_frame.groupby("title"), num_per)
+
+    return return_data_frame
+
 def select_random(tries=1, results_file = results_file) -> None:
     """
     Selects a random line from the results_file. This is for the purpose of QA
@@ -603,7 +626,7 @@ def select_random(tries=1, results_file = results_file) -> None:
     """
     original_df = pd.read_csv(results_file, encoding_errors='ignore')
     #data_frame = original_df
-    original_df['row_number'] = np.arange(len(original_df))
+    original_df['row_number'] = np.arange(len(original_df.index))
     lines: pandas.core.frame.DataFrame = _get_random_lines(original_df, tries, texts = None)
     labs: pandas.core.indexes.base.Index = lines.columns
 
@@ -620,7 +643,7 @@ def select_random(tries=1, results_file = results_file) -> None:
 
         line_text = ",".join([str(x) for x in line])
         # Start each with the path and the index in the results file
-        return_line: str = f"{line.iloc[2]},{index},{context},"
+        return_line: str = f"{line.iloc[2]},{index},{context},{line.loc['form']},{Path(results_file).absolute()}"
         index_field = 5 #TODO MAKE THIS INDEX GET RETRIEVED AUTOMATICALLY
 
         # only start from the form to save time
