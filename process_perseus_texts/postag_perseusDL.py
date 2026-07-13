@@ -793,6 +793,7 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
     print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
     for s in out_docs.sentences:
+        pass
         for word in s.words:
         
             # Skip most punctuation that doesn't break sentences
