@@ -643,7 +643,7 @@ def select_random(tries=1, results_file = results_file) -> None:
 
         line_text = ",".join([str(x) for x in line])
         # Start each with the path and the index in the results file
-        return_line: str = f"{line.iloc[2]},{index},{context},{line.loc['form']},{Path(results_file).absolute()}"
+        return_line: str = f"{line.iloc[2]},{index},{context},{line.loc['form']},{Path(results_file).resolve()},"
         index_field = 5 #TODO MAKE THIS INDEX GET RETRIEVED AUTOMATICALLY
 
         # only start from the form to save time
@@ -1023,7 +1023,5 @@ if __name__ == "__main__":
     #     skip_finished=False,
     # )
 
-    select_random(5, results_file)
+    #select_random(5, results_file)
     select_random(5, "../postagged/postagged-cicero.csv")
-    select_random(5, "../postagged/postagged-cicero.csv")
-
