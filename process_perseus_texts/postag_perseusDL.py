@@ -22,11 +22,10 @@ from __future__ import annotations
 
 import pandas.core.frame
 from typing import Union
-from stanza.models.common.doc import Word
+#from stanza.models.common.doc import Word
 
 from tqdm import tqdm
 import os
-import pdfplumber
 import re
 import regex
 import datetime
@@ -1001,7 +1000,7 @@ if __name__ == "__main__":
     # For the purpose of QA, I've also added the function "select_random" which selects a random postagged word, presents it to be checked, and saves whether each field was correct or incorrect.
     # I WOULD NOT recommend using this, just because I was pretty lazy designing it. Anything other than "y" or "Y" is interpreted as the parsing being incorrect, requiring you to modify the CSV manually every time you make a mistake.
 
-    prefix = "./../canonical-latinLit/data/"
+    prefix = "../../canonical-latinLit/data/"
 
     # caesar = [
     #     f"{prefix}phi0448/phi001/phi0448.phi001.perseus-lat2.xml",
