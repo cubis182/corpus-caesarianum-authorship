@@ -98,60 +98,6 @@ t.sectioned.gorman.vars <- t.sectioned.gorman.vars |> as.data.frame()
 
 ```
 
-# Pre-visualization
-
-I want to do a little bit of previsualization first. This section is mainly some ramblings and experimentation; feel free to skip down to Analysis and its sub-headings if you aren't Matthew.
-
-I want to see if there's any discernible correlation for any of the variables involved. I'll add another column to the data which ranks them, so we can plot it on a graph. First, we'll go by book number (so, the column will be 1-14)
-
-```{r}
-
-sectioned.gorman.vars <- sectioned.gorman.vars |> rowwise() |> mutate(book = paste0(unlist(strsplit(title, "_"))[1:2], collapse = "_"))
-
-sectioned.gorman.vars <- sectioned.gorman.vars |> mutate(book = as.factor(book))
-
-sectioned.gorman.vars <- sectioned.gorman.vars |> mutate(book = as.numeric(book))
-
-#ggplot(sectioned.gorman.vars, aes(x = ))
-```
-
-Let's see what data type is in each column:
-
-```{r, results='hide'}
-as.data.frame(summary(simplex_vars_only))
-```
-
-Right, I forgot about the title column; let's find the mean of every column except the title column.
-
-```{r}
-means <- simplex_vars_only |>
-  tidytable::select(-title) |>
-  apply(MARGIN=2, FUN=mean)
-
-#get rid of scientific notation
-options(scipen=999)
-
-as.data.frame(sort(means))
-
-
-```
-
-Notice that a feature being common on a word isn't the same as it being common on a parent. Not every part of speech is equally likely to be a parent of another word. As a result, a parent being an auxiliary in a passive verb is very uncommon, for example, coming close to the top of the above list.
-
-Let's look at means across variables in the Gorman-style variables:
-
-```{r eval=FALSE}
-means <- gorman.vars |>
-  tidytable::select(-title) |>
-  apply(MARGIN=2, FUN=mean)
-
-sort(means, decreasing = TRUE)
-```
-
-Moisl suggests NOT computing z-scores because the method of measurement is the same across variables.
-
-### Resume Data Prep
-
 Now that we have a viable DF, let's cut it up a little bit. We don't want the first column, because that's all text. Not every clustering algorithm needs the DF to be pre-scaled (that is, subtracting the mean from every value and dividing it by the standard deviation to make the comparable). However, some do expect the data to be scaled, so lets create two variables. **df_clust** isn't scaled, and **df_scaled** is.
 
 ```{r df_clust & df_scaled}
@@ -163,27 +109,6 @@ rownames(df_clust) <- simplex_vars_only$title
 # df_clust <- slice_sample(df_clust, n=45)
 
 df_scaled <- as.data.frame(scale(df_clust))
-```
-
-## Summary Statistics
-
-Coefficient of variation:
-
-```{r}
-library(goeveg)
-apply(simplex_vars_only |> dplyr::select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
-```
-
-CoV for Gorman-style variables:
-
-```{r}
-apply(gorman.vars |> dplyr::select(-title), MARGIN=2, cv) |> sort(decreasing = TRUE)
-
-#In a Poisson distribution, the variance and mean are identical. Let's do the same thing we did above with coefficient of variation to see if any variables appear to be random. This is in accordance with Moisl p. 71
-
-apply(gorman.vars |> dplyr::select(-title), MARGIN=2, function(x) var(x) / mean(x)) |> sort(decreasing = TRUE) #|> plot()
-
-#It seems that most of the variables aren't to be totally discarded, based on the plot
 ```
 
 # Analysis
@@ -218,6 +143,10 @@ distance_labels <- theme(axis.text = element_text(size = 5, vjust = 1), margins 
 dend_size <- 0.2
 dend_theme <- theme(axis.text = element_text(size = dend_size, vjust = 1), margins = margin(t = margin_size, r = margin_size, b = margin_size, l = margin_size))
 ```
+
+## Procedure for Evaluating Clustering Methods
+
+*copy over from Obsidian notebook*
 
 ## K-means clustering
 
@@ -528,6 +457,10 @@ ggdendrogram(hclust(dist(gorman_clust |> filter(str_detect(title, "(spanish|gall
 
 ggsave(filename = "Images/dendrogram_gorman.png", dpi = "print")
 ```
+
+## Fuzzy Clustering
+
+## CLIQUE Clustering
 
 ## Questions to Investigate
 
