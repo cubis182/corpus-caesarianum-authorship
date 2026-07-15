@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pandas.core.frame
 from typing import Union
-#from stanza.models.common.doc import Word
+from stanza.models.common.doc import Word
 
 from tqdm import tqdm
 import os
@@ -609,7 +609,7 @@ def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, tex
 
     # Loop over every column name
     # retrieve `data_frame.groupby(colname).sample(n = num_per)`
-    return_data_frame = _rows_with_all_variables(data_frame.groupby("title"), num_per)
+    return_data_frame = _rows_with_all_variables(data_frame.groupby(["title", "book"]), num_per)
 
     return return_data_frame
 
