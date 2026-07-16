@@ -1,0 +1,187 @@
+---
+title: "Postagged Data Accuracy"
+output: 
+  flexdashboard::flex_dashboard:
+    theme:
+      bg: "#101010"
+      fg: "#FDF7F7" 
+      primary: "#ED79F9"
+      base_font:
+        google: Prompt
+      code_font:
+        google: JetBrains Mono
+    orientation: columns
+    vertical_layout: scroll
+runtime: shiny
+params:
+  log_threshold: DEBUG
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+# Install thematic and un-comment for themed static plots (i.e., ggplot2)
+# thematic::thematic_rmd()
+```
+
+
+```{r, load-packages, include=FALSE}
+library(shiny)
+library(gt)
+library(tidyverse)
+library(magrittr)
+library(rlang)
+library(DT)
+library(bslib)
+library(glue)
+library(logger)
+conflicted::conflicts_prefer(dplyr::filter, dplyr::lag)
+
+# Set the logger threshold from the yaml header
+logger::log_threshold(params$log_threshold)
+
+corpus_caesarianum_pathprefix <- "../corpus-caesarianum-authorship/"
+```
+
+```{r, lookup-table, include=FALSE}
+
+# The strings in this look table need to match the names of the two variables defined at the top of the load-data chunk
+path_lookup <- c(
+  `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-texts.csv`="caesar",
+  `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-cicero.csv`="cicero")
+```
+
+```{r load-data, include=FALSE}
+library(DT) # For rendering my tables
+
+caesar <- read_csv(
+  glue("{corpus_caesarianum_pathprefix}postagged/postagged-texts.csv")
+  )
+
+cicero <- read_csv(
+  glue("{corpus_caesarianum_pathprefix}/postagged/postagged-cicero.csv"),
+  skip = 1,
+  col_names = colnames(caesar)
+  )
+
+# We keep the two above tibbles separate so the row numbers still match for Cicero's works
+# TODO: Update this code to be susceptible to errors if a column is missing
+remove_unused_cols <- function(data) data |> select(-parent_NumType, -parent_Polarity, -parent_Degree, -NumType, -Polarity, -Degree)
+
+caesar <- remove_unused_cols(caesar)
+cicero %<>% remove_unused_cols()
+
+col_names_error <- c("book", "row-number", "context", "original_form", "path")
+# Add column names from data
+col_names_error <- c(col_names_error, colnames(caesar)[
+  seq(which(colnames(caesar) == 'form'), which(colnames(caesar) == 'parent_Deprel'))])
+col_names_error <- c(col_names_error, "id-correct")
+
+spec <- list(
+  book = col_character(),
+  `row-number` = col_double(),
+  context = col_character(),
+  original_form = col_character(),
+  path = col_character(),
+  .default = col_logical()
+)
+
+error_data <- read_csv(
+  glue("{corpus_caesarianum_pathprefix}postagged/postag-tests.csv"),
+  col_types = spec,
+  col_names = col_names_error
+  )
+
+# Get rows from original data frames corresponding to the QA'd words in error_data
+corresp_error_data <- list_rbind(map2(.x = error_data$`row-number`, .y = path_lookup[error_data$path], .f = function(x, y) env_get(env_parent(), y)[x + 1,]))
+
+# Store options for Data Tables
+options <- list(
+              scrollX = 300,
+              pageHeight = 5
+            )
+
+navset_tab(
+  nav_panel(title = "Error Data", 
+            renderDT(error_data, options = options)),
+  nav_panel(title = "Corresponding Original Data",
+            renderDT(corresp_error_data, options = options))
+)
+
+renderDT(error_data, options = list(
+  scrollX = 300,
+  pageLength = 5
+))
+```
+
+
+Column {data-width=650 .tabset}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r, percentage-accuracy-per-column}
+
+col_names <- colnames(error_data)[-1:-5]
+
+column_accuracies <- function(error_data) {
+  columns_are_logical <- map_lgl(col_names, ~ is_logical(error_data[[.x]]))
+  
+  if (!all(columns_are_logical)) rlang::abort(message = glue::glue("Error! Not all columns in col_names are logical"))
+  
+  purrr::map(col_names, .f = ~ sum(na.omit(error_data[[.x]])) / length(na.omit(error_data[[.x]])))
+}
+
+to_plot <- data.frame(features = as.factor(col_names), accuracy = unlist(column_accuracies(error_data)))
+
+my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
+
+checkbox_opts <- to_plot$features
+names(checkbox_opts) <- checkbox_opts
+
+
+
+splitLayout(
+  inputPanel(
+    verticalLayout(
+      actionButton("select_all", "Select All"),
+      actionButton("deselect_all", "Deselect All"),
+      checkboxGroupInput(
+      "variables",
+      "Select variables to view:",
+      checkbox_opts,
+      selected = checkbox_opts
+      )
+    ),
+    style = "height: 45vh; overflow-y: auto;", 
+  ),
+  renderPlot({
+    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + geom_col() + my_theme
+  })
+)
+
+observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = checkbox_opts))
+  observeEvent(input$deselect_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = c()))
+
+```
+
+### Chart B
+
+```{r}
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart C
+
+```{r}
+
+```
+
+### Chart D
+
+```{r}
+
+```
+
