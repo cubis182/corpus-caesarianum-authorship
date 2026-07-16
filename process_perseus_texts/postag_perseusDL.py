@@ -141,6 +141,9 @@ def remove_invalid_characters(text: str) -> str:
     # more spaces/line breaks. After identifying these, all matches.
     text = re.sub("- *\n[\n ]*", "", text)
 
+    # Replace semi-colons with periods to help stanza identify predicates of sentences. This also matches PROIEL's approach
+    text = re.sub(";", "\.")
+
     # Remove gaps between words bigger than a space
     text = re.sub("[\n ]+", " ", text)
 
@@ -164,11 +167,11 @@ def remove_invalid_characters(text: str) -> str:
     # The regex doesn't count occurences of common epistolary abbreviations and abbreviated Praenomina.
     # NOTE need to use the regex module instead of re (installed by -m pip install regex).
     # NOTE    The reason for using regex is because the lookbehind assertion is not a fixed width
-    split = regex.split(
-        "(?<!Prid|prid|Kal|kal|Non|Id|a|d|Ian|Febr|Mart|Apr|Mai|Iun|Quint|Sext|Sept|Oct|Nov|Dec|Nrib|Luc|Agr|Ap|A|K|D|F|C|Cn|L|Mam|M'|M|N|Opet|Post|Pro|P|Q|Sert|Ser|Sex|S|St|Ti|T|Vol|Vop)\\.",
-        text,
-    )
-    text = ".\n".join(split)
+    # split = regex.split(
+    #     "(?<!Prid|prid|Kal|kal|Non|Id|a|d|Ian|Febr|Mart|Apr|Mai|Iun|Quint|Sext|Sept|Oct|Nov|Dec|Nrib|Luc|Agr|Ap|A|K|D|F|C|Cn|L|Mam|M'|M|N|Opet|Post|Pro|P|Q|Sert|Ser|Sex|S|St|Ti|T|Vol|Vop)\\.",
+    #     text,
+    # )
+    # text = ".\n".join(split)
 
     text = re.sub("[-–—'\"”“]", "", text)
 
@@ -590,7 +593,7 @@ def _rows_with_all_variables(group_by, num):
 
     return pd.concat(list_of_dfs)
 
-def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, texts: List[str] | None) -> pandas.core.frame.DataFrame:
+def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, texts: List[str] | None, rownums_to_exclude: List[int]=[]) -> pandas.core.frame.DataFrame:
     """
     A helper function for select_random which selects lines at random from the results_file. This function insures the number of words extracted is the same across all texts and each text has even representation of the variable set.
     :return:
@@ -598,6 +601,9 @@ def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, tex
     :param num_per:
     :param texts:
     """
+
+    # Drop rows that are in the rownums_to_exclude; this is usually to make sure we don't reselect ones already in the .csv
+    data_frame = data_frame[~ (data_frame.iloc[:,1].isin(rownums_to_exclude))]
 
     # Drop these columns, because they are overlwhelmingly NA values
     to_remove = ["Polarity", "Degree", "NumType", "parent_Polarity", "parent_Degree", "parent_NumType"]
@@ -619,15 +625,24 @@ def select_random(tries=1, results_file = results_file, accuracy_data_file: str 
     Selects a random line from the results_file. This is for the purpose of QA
     Asks the user to QA it.
 
+    :param accuracy_data_file:
     :param results_file:
     :param tries: Number from each text to retrieve
     :return:
     :rtype: str
     """
+    try:
+        with open(accuracy_data_file, "r", errors="ignore") as file:
+            existing_nums = (pd.read_csv(file)).iloc[1,:] # Type: ignore
+    except FileNotFoundError:
+        existing_nums = []
+
+
     original_df = pd.read_csv(results_file, encoding_errors='ignore')
     #data_frame = original_df
     original_df['row_number'] = np.arange(len(original_df.index))
-    lines: pandas.core.frame.DataFrame = _get_random_lines(original_df, tries, texts = None)
+
+    lines: pandas.core.frame.DataFrame = _get_random_lines(original_df, tries, texts=None, rownums_to_exclude=existing_nums)
     labs: pandas.core.indexes.base.Index = lines.columns
 
     for i in tqdm(range(0, len(lines.index))):
@@ -647,24 +662,33 @@ def select_random(tries=1, results_file = results_file, accuracy_data_file: str 
         index_field = 5 #TODO MAKE THIS INDEX GET RETRIEVED AUTOMATICALLY
 
         # only start from the form to save time
-        for field in line.loc["form":]:
+        li: int = 0
+        values: List[Union[str, None]] = [''] * len(line.loc['form':])
+        while li < len(line.loc['form':]):
+            field = line.loc['form':].iloc[li]
 
             print("\n" + line_text + "\n\n")
             print("Context: " + context)
-            print(f"{labs[index_field]}: {field}")
+            print(f"{labs[index_field + li]}: {field}")
             inp = input(
-                "Please type 'y' if the tag is appropriate, 'n' if not, and 'a' if NA."
+                "Please type 'y' if the tag is appropriate, 'n' if not, and 'a' if NA. Hitting 'b' takes you back one step."
             )
             if inp in ["y", "Y"]:
-                return_line += "1,"
+                values[li] = '1'
             elif inp in ["a", "A"]:
-                return_line += "NA,"
+                values[li] = 'NA'
+            elif inp in ["b", "B"]:
+                if li == 0:
+                    li = 0
+                    continue
+                li -= 1
+                continue
             else:
-                return_line += "0,"
+                values[li] = '0'
 
-            index_field += (
-                1  # Add to the index of the field so we can get the field label
-            )
+            li += 1
+
+        return_line = return_line + ",".join(values)
 
         with open(
             accuracy_data_file, "a+", encoding="utf-8", errors="ignore"
