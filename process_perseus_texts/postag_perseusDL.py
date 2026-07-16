@@ -602,6 +602,7 @@ def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, tex
     # Drop these columns, because they are overlwhelmingly NA values
     to_remove = ["Polarity", "Degree", "NumType", "parent_Polarity", "parent_Degree", "parent_NumType"]
     data_frame.drop(labels=to_remove, axis=1, inplace=True)
+    data_frame = data_frame[~ (data_frame["tag"] == "PUNCT")]
 
     # Reduce data_frame to only rows whose title is in the `texts` list
     if texts is not None:
@@ -1010,23 +1011,23 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    csv_postag(
-        path_origin="cicero_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-cicero.csv",
-        skip_finished=False,
-    )
+    # csv_postag(
+    #     path_origin="cicero_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-cicero.csv",
+    #     skip_finished=False,
+    # )
+    #
+    # csv_postag(
+    #     path_origin="full_data_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-texts.csv",
+    #     skip_finished=False,
+    # )
+    #
+    # csv_postag(
+    #     path_origin="sallust_text_perseus_tokenized.csv",
+    #     path_destination="../postagged/postagged-sallust.csv",
+    #     skip_finished=False,
+    # )
 
-    csv_postag(
-        path_origin="full_data_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-texts.csv",
-        skip_finished=False,
-    )
-
-    csv_postag(
-        path_origin="sallust_text_perseus_tokenized.csv",
-        path_destination="../postagged/postagged-sallust.csv",
-        skip_finished=False,
-    )
-
-    #select_random(5, results_file)
-    #select_random(5, "../postagged/postagged-cicero.csv")
+    select_random(5, results_file)
+    select_random(5, "../postagged/postagged-cicero.csv")
