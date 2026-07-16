@@ -4,13 +4,8 @@ bibliography: rmd-notebook.bib
 output: 
   flexdashboard::flex_dashboard:
     theme:
-      bg: "#101010"
-      fg: "#FDF7F7" 
-      primary: "#ED79F9"
-      base_font:
-        google: Prompt
-      code_font:
-        google: JetBrains Mono
+      version: 4
+      bootswatch: lux
     orientation: columns
     vertical_layout: scroll
 runtime: shiny
@@ -25,6 +20,13 @@ library(flexdashboard)
 ```
 
 ```{r, load-packages, include=FALSE}
+# Install rvest and xml2 if you haven't already
+# install.packages("rvest")
+# install.packages("xml2")
+
+# Load the packages
+library(rvest)
+library(xml2)
 library(shiny)
 library(gt)
 library(tidyverse)
@@ -49,6 +51,13 @@ corpus_caesarianum_pathprefix <- "../corpus-caesarianum-authorship/"
 path_lookup <- c(
   `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-texts.csv`="caesar",
   `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-cicero.csv`="cicero")
+
+# Lookup table for getting commentary name by author
+corpus_lookup <- list(
+  `Corpus Caesarianum` = c("gallic", "civil", "african", "alexandrine", "spanish"),
+  Cicero = c("amicitia", "senectute", "philippics", "brutus", "deiotaro"),
+  Sallust = c("catilinae_coniuratio", "iugurthine")
+)
 
 caesar <- read_csv(
   glue("{corpus_caesarianum_pathprefix}postagged/postagged-texts.csv")
@@ -110,7 +119,169 @@ renderDT(error_data, options = list(
 ))
 ```
 
-# Page 1: Individual Feature Accuracy
+# Introduction
+
+## Column
+
+Accuracy for the Stanza model we have used to parse the corpus is freely available online; links and data are available in the table below. Having clear data for the accuracy of our model is crucial. Without confidence in the base data, all of our conclusions rest on a shaky and likely inaccurate foundation. This data shows that the automatically parsed texts have a much higher accuracy with regards to morphology than syntax in the Latin treebanks. Given the role of syntax in our study, we have used this accuracy information and developed our own in order to increase these values.
+
+Stanza evaluates their model by seeing reserving gold standard data from the original, hand-annotated treebanks and seeing whether it gets the same results. To start, here's a brief explanation of each column in the following table:
+
+- **Treebank:** The Universal Dependencies treebank the data is gathered from. The two most relevant are PROIEL and Perseus, which contain extracts from the *Gallic War*, Cicero's *in Catilinam* 1, and Cicero's *Letters to Atticus*.
+
+- **Tokens, Sentences, Words:** The percentage of tokens, sentence, and words that are split up the same way as they are in the original dataset.
+
+- **UPOS, XPOS**: The percentage of POS tags of each type that are the same in the original dataset (XPOS tags are an older format and not used in our data).
+
+- **UFeats:** The percentage of words that have identical features (such as Tense, Voice, Case, Gender, etc.) in the original dataset.
+
+- **AllTags:** The percentage of words that have identical UFeats and \*POS
+
+- **Lemmas:** The percentage of words with the same lemma in the original data (i.e., it identifies the same dictionary entry form in both)
+
+- **UAS:** The unlabeled attachment score, which is the number of words that have the same syntactic parent in the original data.
+
+- **LAS:** The labeled attachment score, which is the number of words that have both the same dependency relation (such as subject or object) and syntactic parent in the original data.
+
+- **CLAS/MLAS/BLEX:** A fuller description can be given on their [website](https://universaldependencies.org/conll18/evaluation.html). Each of these is a more stringent version of the LAS which requires additional features to match (for example, BLEX also requires the lemmas to match).
+
+```{r, include=FALSE}
+
+# Here is the explanation from the script itself:
+#   - Tokens: how well do the gold tokens match system tokens
+#   - Sentences: how well do the gold sentences match system sentences
+#   - Words: how well can the gold words be aligned to system words
+#   - UPOS: using aligned words, how well does UPOS match
+#   - XPOS: using aligned words, how well does XPOS match
+#   - UFeats: using aligned words, how well does universal FEATS match
+#   - AllTags: using aligned words, how well does UPOS+XPOS+FEATS match
+#   - Lemmas: using aligned words, how well does LEMMA match
+#   - UAS: using aligned words, how well does HEAD match
+#   - LAS: using aligned words, how well does HEAD+DEPREL(ignoring subtypes) match
+#   - CLAS: using aligned words with content DEPREL, how well does
+#       HEAD+DEPREL(ignoring subtypes) match
+#   - MLAS: using aligned words with content DEPREL, how well does
+#       HEAD+DEPREL(ignoring subtypes)+UPOS+UFEATS+FunctionalChildren(DEPREL+UPOS+UFEATS) match
+#   - BLEX: using aligned words with content DEPREL, how well does
+#       HEAD+DEPREL(ignoring subtypes)+LEMMAS match
+
+stanza_accuracy_data <- "https://stanfordnlp.github.io/stanza/performance.html"
+
+page <- read_html(stanza_accuracy_data)
+
+tables <- page |> html_elements("table") 
+
+tib_stanza_accuracy <- html_table(tables[[1]])
+
+```
+
+```{r, stanza-accuracy-data, collapse=TRUE}
+
+tib_stanza_accuracy |>
+  filter(Language == "Latin") |>
+  select(-Language, -lcode, -Default) |>
+  gt() |>
+  tab_header(
+    title = "Percentage accuracy per Latin treebank in Stanza's training data", 
+    subtitle = md("Scores are defined in the <u>[CoNLL 2018 Shared Task evaluation script](https://universaldependencies.org/conll18/evaluation.html)</u>")) |>
+  tab_footnote(footnote = md(glue("Data is available on <u>[{stanza_accuracy_data}]({stanza_accuracy_data})</u>")))
+
+```
+
+```{r, get-our-corpus-texts}
+
+# Allow user to specify the author; options will be *Corpus Caesarianum*, *Sallust*, and *Cicero*
+
+opts <- unlist(names(corpus_lookup))
+
+selectInput(
+  "accuracy_table",
+  "Select a corpus segment:",
+  c("Choose one" = "", opts)
+)
+
+render_gt({
+  # Get the data; if the default input in the selectizeInput widget is selected, we return the data as-is. Otherwise, the tables get filtered to only the correct titles
+  render_error <- if (input$accuracy_table == "") error_data else error_data[corresp_error_data$title %in% corpus_lookup[[input$accuracy_table]],]
+  render_corresp <- if (input$accuracy_table == "") corresp_error_data else corresp_error_data[corresp_error_data$title %in% corpus_lookup[[input$accuracy_table]],]
+  
+  get_vector_accuracy <- function(v) sum(na.omit(v)) / length(na.omit(v))
+  # Scores we need to include in our table:
+  
+  # UPOS: easy enough to get automatically
+  
+  UPOS_acc <-  get_vector_accuracy(render_error$tag) * 100
+  
+  # XPOS: NA
+  
+  # UFeats: easy enough to get automatically
+  
+  #    Get a function which allows us to purrr::reduce() column-wise until we get a vector the same length as the data frame, but with a TRUE where each row had only TRUEs or NAs and a FALSE otherwise
+  reduce_error_data <- function(a, b) {
+    # Replace NA with TRUE
+    a[is.na(a)] <- TRUE
+    b[is.na(b)] <- TRUE
+    
+    a & b
+  }
+  
+  UFeats_acc <- sum(
+    render_error |>
+      select(Aspect:Gender) |>
+      reduce(reduce_error_data)
+  ) / nrow(render_error) * 100
+  
+  # AllTags: easy enough to get automatically
+  AllTags_acc <- sum(
+    render_error |>
+      select(tag:Gender) |>
+      reduce(reduce_error_data)
+  ) / nrow(render_error) * 100
+  
+  # Lemmas: can be done automatically
+  Lemmas_acc <-  get_vector_accuracy(render_error$lemma) * 100
+  
+  # Unlabeled attachment score (UAS): Percentage of words with correct head
+  UAS_acc <- get_vector_accuracy(render_error$parent_form) * 100
+  
+  # Labeled attachment score (LAS): Percentage of words with correct deprel and head after truncation (which is how we account for it too). That is, acl:relcl becomes just acl.
+  both_are_accurate <- reduce_error_data(render_error$Deprel, render_error$parent_form)
+  LAS_acc <- sum(both_are_accurate) / length(both_are_accurate) * 100
+  
+  # MLAS adds a few other criteria:
+  #   - The UPOS tag is correct
+  #   - The following tags are all correct: PronType, NumType, Poss, Reflex, Foreign, Abbr, Gender, Animacy, Number, Case, Definite, Degree, VerbForm, Mood, Tense, Aspect, Voice, Evident, Polarity, Person, Polite
+  #   - The words have the same functional children and they both match
+  #       - A functional child has one of the following deprels: aux, cop, mark, det, clf, case, cc
+  #       - That is, the children have the same: Deprel, UPOS tags, and the features mentioned above
+  #   - The accuracy is a percentage out of the total number of "content relations," not just all words. This means that the words in consideration have the following deprels: nsubj, obj, iobj, csubj, ccomp, xcomp, obl, vocative, expl, dislocated, advcl, advmod, discourse, nmod, appos, nummod, acl, amod, conj, fixed, flat, compound, list, parataxis, orphan, goeswith, reparandum, root, dep.
+  
+  
+  # BLEX is like MLAS but the lemmas have to match too
+  
+  
+  # Add to Data Table
+  tibble(
+    Sample = as.integer(nrow(render_error)),
+    UPOS = UPOS_acc,
+    UFEATS = UFeats_acc,
+    AllTags = AllTags_acc,
+    Lemmas = Lemmas_acc,
+    UAS = UAS_acc,
+    LAS = LAS_acc
+  ) |>
+    gt() |>
+    fmt_number()
+})
+
+```
+
+```{r, by-work-breakdown}
+
+
+```
+
+# Individual Feature Accuracy
 
 ## Column
 
@@ -155,12 +326,6 @@ observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", c
   observeEvent(input$deselect_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = c()))
 
 ```
-
-### Introduction
-
-Given the large amount of automatically annotated data, we cannot review the whole corpus for accuracy. Instead, we have chosen a few hundred words at random and manually reviewed them. With a random sample in hand, we're able to get an approximation of how accurate the data is in the corpus at large. This data allows us to make confident assertions about the accuracy of the data we've used to cluster the texts in the *Corpus Caesarianum*. The morphological data, which includes information like person, number, tense for verbs or case, number, gender for nouns, is on average \_\_\_\_\_% accurate (as seen on page \_\_\_\_\_\_\_), and most errors are located in syntactic structure. Given the role of the syntactic structure in the present analysis, we have increased the accuracy to \_\_\_\_\_% by \_\_\_\_\_\_\_\_\_\_\_. The following dashboard pages present the old accuracy data and new accuracy data after making these automatic adjustments. This transparency allows you, the reader, to see exactly how we've verified the quality of the data before submitting it to the analysis described in our paper.
-
-A summary of the accuracy for each tag individually is given below. The features are those used in the Universal Dependencies CONLLU format [@nivre2020]. The Deprel tag, which is short for *dependency relation* and describes the role in the sentence such as predicate or direct object, is considered accurate if it correctly describes the true relationship in the sentence. The relationship is sometimes correct, though, but with the wrong head. So, a noun can be the subject of a verb and correctly marked *nsubj* in the data, but it is incorrectly considered dependent on another noun instead. GIVE EXAMPLE HERE. If the head word is the correct one, then *parent_form* is marked as correct, whether or not the dependency relation is correct. The graph shows the challenges Stanza has with parsing syntax trees. The morphology on the parent word is highly accurate, but the *Deprel* and *parent_form* can have an accuracy as low as \_\_\_\_\_%.
 
 ## Column
 
