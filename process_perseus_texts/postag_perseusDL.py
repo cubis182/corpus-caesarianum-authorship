@@ -142,7 +142,7 @@ def remove_invalid_characters(text: str) -> str:
     text = re.sub("- *\n[\n ]*", "", text)
 
     # Replace semi-colons with periods to help stanza identify predicates of sentences. This also matches PROIEL's approach
-    text = re.sub(";", "\.")
+    text = text.replace(";", ".")
 
     # Remove gaps between words bigger than a space
     text = re.sub("[\n ]+", " ", text)
@@ -761,7 +761,7 @@ def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.c
         #         os.remove("./temp.csv")
 
         # Get the csv.writer
-        with open(path_destination, "w", encoding="utf-8", errors="replace", newline="") as f:
+        with open(path_destination, "w+", encoding="utf-8", errors="replace", newline="") as f:
             writer: Writer = csv.writer(f, escapechar="#")
 
             #s_docs = []
@@ -780,11 +780,11 @@ def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.c
                 title = p[CAESAR['commentary']]
 
 
-                print(f"Path: {title}")
+                # print(f"Path: {title}")
 
                 body: str = p[CAESAR['tokens']]
                 titleString: str = title
-                authorString: str = 'Julius Caesar'
+                authorString: str = ''
 
                 string_process_export(body_text=body, author=authorString, title=titleString, custom_pipeline=custom_pipeline, line=p, writer=writer)
 
@@ -814,7 +814,7 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
     out_docs = custom_pipeline(
         s_final_body
     )  # Call the neural pipeline on this list of documents
-    print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
+    # print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
     for s in out_docs.sentences:
         pass
@@ -1035,23 +1035,23 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    # csv_postag(
-    #     path_origin="cicero_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-cicero.csv",
-    #     skip_finished=False,
-    # )
-    #
-    # csv_postag(
-    #     path_origin="full_data_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-texts.csv",
-    #     skip_finished=False,
-    # )
-    #
-    # csv_postag(
-    #     path_origin="sallust_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-sallust.csv",
-    #     skip_finished=False,
-    # )
+    csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-cicero.csv",
+        skip_finished=False,
+    )
 
-    select_random(5, results_file)
-    select_random(5, "../postagged/postagged-cicero.csv")
+    csv_postag(
+        path_origin="full_data_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-texts.csv",
+        skip_finished=False,
+    )
+
+    csv_postag(
+        path_origin="sallust_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-sallust.csv",
+        skip_finished=False,
+    )
+
+    # select_random(5, results_file)
+    # select_random(5, "../postagged/postagged-cicero.csv")
