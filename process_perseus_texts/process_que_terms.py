@@ -1,4 +1,4 @@
-#Note: requires Python 3.7, cltk 1.x
+#Note: requires Python 3.7, cltk 1.x, and nltk 3.5
 import pandas as pd
 from cltk.corpus.utils.importer import CorpusImporter
 from cltk.tokenize.latin.word import WordTokenizer
@@ -271,17 +271,26 @@ def tokenize(text):
     if pd.isna(text) or not str(text).strip():
         return ""
     text = text.replace("—", " ")
+
+    # Not all labels are marked with XML, so we need to remove them manually
+
+    text = text.replace("LAELIUS", "")
+    text = text.replace("CATO", "")
+    text = text.replace("SCIPIO", "")
+
     return " ".join(tokenizer.tokenize(str(text), enclitics_exceptions=latin_exceptions + addtl_caesar + addtl_exceptions_cicero))
 
 df["tokens"] = df["text"].apply(tokenize)
 
 #MD 6/2/2026: Added to separate Cicero from Caesar
-caesar = df[df['commentary'].isin(['gallic', 'civil', 'spanish', 'alexandrine', 'african'])]
-cicero = df[df['commentary'].isin(['amicitia', 'senectute', 'philippics'])]
+caesar = df[df['work'].isin(['gallic', 'civil', 'spanish', 'alexandrine', 'african'])]
+cicero = df[df['work'].isin(['amicitia', 'senectute', 'philippics', 'brutus', 'deiotaro'])]
+sallust = df[df['work'].isin(['catilinae_sallusti', 'iugurthine',])]
 
 # Save 
 caesar.to_csv("full_data_text_perseus_tokenized.csv")
 cicero.to_csv("cicero_text_perseus_tokenized.csv")
+sallust.to_csv("sallust_text_perseus_tokenized.csv")
 
 print(f"Done. {len(df)} rows tokenized.")
 print(df[["text", "tokens"]].head(2).to_string())
