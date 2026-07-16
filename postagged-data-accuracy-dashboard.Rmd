@@ -1,5 +1,6 @@
 ---
 title: "Postagged Data Accuracy"
+bibliography: rmd-notebook.bib
 output: 
   flexdashboard::flex_dashboard:
     theme:
@@ -23,7 +24,6 @@ library(flexdashboard)
 # thematic::thematic_rmd()
 ```
 
-
 ```{r, load-packages, include=FALSE}
 library(shiny)
 library(gt)
@@ -38,20 +38,17 @@ conflicted::conflicts_prefer(dplyr::filter, dplyr::lag)
 
 # Set the logger threshold from the yaml header
 logger::log_threshold(params$log_threshold)
-
-corpus_caesarianum_pathprefix <- "../corpus-caesarianum-authorship/"
 ```
 
-```{r, lookup-table, include=FALSE}
+```{r global, include=FALSE}
+library(DT) # For rendering my tables
+
+corpus_caesarianum_pathprefix <- "../corpus-caesarianum-authorship/"
 
 # The strings in this look table need to match the names of the two variables defined at the top of the load-data chunk
 path_lookup <- c(
   `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-texts.csv`="caesar",
   `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-cicero.csv`="cicero")
-```
-
-```{r load-data, include=FALSE}
-library(DT) # For rendering my tables
 
 caesar <- read_csv(
   glue("{corpus_caesarianum_pathprefix}postagged/postagged-texts.csv")
@@ -113,11 +110,11 @@ renderDT(error_data, options = list(
 ))
 ```
 
+# Page 1: Individual Feature Accuracy
 
-Column {data-width=650 .tabset}
------------------------------------------------------------------------
+## Column
 
-### Chart A
+### Accuracy bar plot controls {.tabset data-width="650"}
 
 ```{r, percentage-accuracy-per-column}
 
@@ -133,12 +130,10 @@ column_accuracies <- function(error_data) {
 
 to_plot <- data.frame(features = as.factor(col_names), accuracy = unlist(column_accuracies(error_data)))
 
-my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5))
-
 checkbox_opts <- to_plot$features
 names(checkbox_opts) <- checkbox_opts
 
-
+par(mar=c(1,1,1,1))
 
 splitLayout(
   inputPanel(
@@ -153,10 +148,7 @@ splitLayout(
       )
     ),
     style = "height: 45vh; overflow-y: auto;", 
-  ),
-  renderPlot({
-    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + geom_col() + my_theme
-  })
+  )
 )
 
 observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = checkbox_opts))
@@ -164,24 +156,25 @@ observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", c
 
 ```
 
-### Chart B
+### Introduction
 
-```{r}
+Given the large amount of automatically annotated data, we cannot review the whole corpus for accuracy. Instead, we have chosen a few hundred words at random and manually reviewed them. With a random sample in hand, we're able to get an approximation of how accurate the data is in the corpus at large. This data allows us to make confident assertions about the accuracy of the data we've used to cluster the texts in the *Corpus Caesarianum*. The morphological data, which includes information like person, number, tense for verbs or case, number, gender for nouns, is on average \_\_\_\_\_% accurate (as seen on page \_\_\_\_\_\_\_), and most errors are located in syntactic structure. Given the role of the syntactic structure in the present analysis, we have increased the accuracy to \_\_\_\_\_% by \_\_\_\_\_\_\_\_\_\_\_. The following dashboard pages present the old accuracy data and new accuracy data after making these automatic adjustments. This transparency allows you, the reader, to see exactly how we've verified the quality of the data before submitting it to the analysis described in our paper.
 
-```
+A summary of the accuracy for each tag individually is given below. The features are those used in the Universal Dependencies CONLLU format [@nivre2020]. The Deprel tag, which is short for *dependency relation* and describes the role in the sentence such as predicate or direct object, is considered accurate if it correctly describes the true relationship in the sentence. The relationship is sometimes correct, though, but with the wrong head. So, a noun can be the subject of a verb and correctly marked *nsubj* in the data, but it is incorrectly considered dependent on another noun instead. GIVE EXAMPLE HERE. If the head word is the correct one, then *parent_form* is marked as correct, whether or not the dependency relation is correct. The graph shows the challenges Stanza has with parsing syntax trees. The morphology on the parent word is highly accurate, but the *Deprel* and *parent_form* can have an accuracy as low as \_\_\_\_\_%.
 
-Column {data-width=350}
------------------------------------------------------------------------
+## Column
 
-### Chart C
+### Accuracy bar plot
 
-```{r}
+```{r, barplot}
+my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 16), axis.text.y = element_text(size = 12), axis.title = element_text(size = 16))
 
-```
-
-### Chart D
-
-```{r}
+renderPlot({
+    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + labs(title = "Percentage accuracy of each feature in the postagged/postag-tests.csv file") + geom_col() + my_theme
+  })
 
 ```
 
+### 
+
+# Page 2
