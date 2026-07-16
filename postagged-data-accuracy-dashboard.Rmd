@@ -188,6 +188,10 @@ tib_stanza_accuracy |>
 
 ```
 
+We do not have gold standard data to compare against for the overwhelming majority of corpus, so we have approached testing the accuracy a different way. We present a few of the scores in the table below. These are the result of random sampling from the corpus. Words are randomly selected, and each field is marked as correct or incorrect; the random sampling helps ensure that we get a representative collection of words from the corpus and are able to generalize this accuracy information to the whole corpus. The sampling process gets even numbers of words from each text in the corpus (not accounting for books), to ensure that shorter texts like *Bellum Hispaniense* get thoroughly evaluated. We also ensure that each sample from each work represents all the tags in the data. Then, each individual tag is evaluated for accuracy based on comparison with similar structures in the PROIEL treebank or, primarily, the annotation guidelines on universaldependencies.org. If a parent word is not the correct syntactic parent, then I mark the `parent_form` field as incorrect, in case the reader is interested in looking at the data.[^1] Otherwise, the parent fields are marked as correct or incorrect independently of the syntactic child, so those fields will not add any information about the accuracy of the syntactic annotation.
+
+[^1]: `r glue("{corpus_caesarianum_pathprefix}postagged/postag-tests.csv") |> normalizePath()`.
+
 ```{r, get-our-corpus-texts}
 
 # Allow user to specify the author; options will be *Corpus Caesarianum*, *Sallust*, and *Cicero*
@@ -281,9 +285,33 @@ render_gt({
 
 ```
 
-# Individual Feature Accuracy
+# Examples in context
 
-## Column
+## Row
+
+```{r, accuracy-display-table}
+accuracy <- (nrow(error_data |> filter(Deprel == TRUE, !is.na(Deprel), parent_form == TRUE, !is.na(parent_form))) / nrow(error_data)) * 100
+
+render_gt({
+  error_data |>
+  filter(Deprel == TRUE, !is.na(Deprel), parent_form == TRUE, !is.na(parent_form)) |>
+  select(context, original_form) |>
+  slice_sample(prop = 0.5) |>
+  gt() |>
+  tab_header(
+    title = "Forms and their contexts with correctly parsed dependency relations and parent-child links",
+    subtitle = glue::glue(signif(accuracy, 4), "% of values are correct (= LAS)")
+    ) 
+  
+})
+
+  
+```
+
+
+# Individual Feature Accuracy {data-orientation=rows}
+
+## Row
 
 ### Accuracy bar plot controls {.tabset data-width="650"}
 
@@ -327,7 +355,7 @@ observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", c
 
 ```
 
-## Column
+## Row
 
 ### Accuracy bar plot
 
@@ -341,5 +369,3 @@ renderPlot({
 ```
 
 ### 
-
-# Page 2
