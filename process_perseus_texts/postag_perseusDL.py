@@ -1010,17 +1010,23 @@ if __name__ == "__main__":
     #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     # ]
 
-    # csv_postag(
-    #     path_origin="cicero_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-cicero.csv",
-    #     skip_finished=False,
-    # )
-    #
-    # csv_postag(
-    #     path_origin="full_data_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-texts.csv",
-    #     skip_finished=False,
-    # )
+    csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-cicero.csv",
+        skip_finished=False,
+    )
+
+    csv_postag(
+        path_origin="full_data_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-texts.csv",
+        skip_finished=False,
+    )
+
+    csv_postag(
+        path_origin="sallust_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-sallust.csv",
+        skip_finished=False,
+    )
 
     #select_random(5, results_file)
-    select_random(5, "../postagged/postagged-cicero.csv")
+    #select_random(5, "../postagged/postagged-cicero.csv")
