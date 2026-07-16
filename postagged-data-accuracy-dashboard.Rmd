@@ -308,6 +308,94 @@ render_gt({
   
 ```
 
+# LAS by Deprel {data-orientation=rows}
+
+## Row
+
+```{r}
+# Add a summary version up here which gives the same chart as below but with all words, not just a specific feature set.
+
+```
+
+## Row
+
+```{r, deprel-accuracy-tests}
+
+# TODO: CHANGE WORDING TO USE 'LAS' INSTEAD OF 'ACCURACY'
+
+# Input: All features except Deprel in a list
+
+# Output: Graph showing accuracy of each Deprel when filtered to only rows which have a value (any value) in the feature selected in Input
+features <- colnames(corresp_error_data)
+
+# Two dropdown lists: the first for the feature, and the second populates with values of that feature
+inputPanel(
+  selectizeInput(
+    "feature",
+    "Select a feature to filter by:",
+    features,
+    selected = features[1]
+  ),
+  selectizeInput(
+    "value",
+    "Select a value for this feature:",
+    c("NA"),
+    c("NA")
+  )
+)
+
+observe({
+  # Get the feature from the first dropdown
+  x <- input$feature
+  
+  choices_value <- c('NA', unique(na.omit(corresp_error_data[x])))
+  
+  updateSelectizeInput(
+    inputId = "value",
+    choices = choices_value,
+    selected = choices_value[1]
+  )
+  
+  
+})
+
+renderPlot({
+  # Select all valid values for a feature if we pick the default NA value, otherwise retrieve rows where it has a specific feature
+  if (input$value == 'NA') {
+    row_selection_vector <- !is.na(corresp_error_data[input$feature])
+  }  else {
+    row_selection_vector <- corresp_error_data[input$feature] == input$value
+    row_selection_vector[is.na(row_selection_vector)] <- FALSE
+  } 
+  
+  output_df <- error_data[row_selection_vector,]
+  output_corresp <- corresp_error_data[row_selection_vector,]
+  output_df$deprel_name <- output_corresp$Deprel
+  
+  las <- map_dbl(unique(output_df$deprel_name), ~ sum(output_df$Deprel[output_df$deprel_name == .x & output_df$parent_form]) / length(output_df$Deprel[output_df$deprel_name == .x & output_df$parent_form]))
+  
+  to_graph_df <- tibble(
+    deprels = unique(output_df$deprel_name),
+    las = las
+  )
+  
+  print("The accuracy values are:\n")
+  print(to_graph_df)
+  
+  # Independent variable is deprel, dependent variable is deprel accuracy 
+  ggplot(na.omit(to_graph_df), aes(deprels, las)) +
+    labs(
+      title = glue("The LAS per dependency relation when it has the {input$feature} feature"),
+      subtitle = glue("This feature/value pair occurs {nrow(output_df)} times")) + 
+    geom_col() + 
+    my_theme
+})
+```
+
+```{r}
+# ADD TABLE WHICH SHOWS THE CONTEXT AND WORD FOR EACH INACCURATE CASE IN THE GRAPH ABOVE
+```
+
 
 # Individual Feature Accuracy {data-orientation=rows}
 

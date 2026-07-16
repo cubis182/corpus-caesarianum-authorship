@@ -614,7 +614,7 @@ def _get_random_lines(data_frame: pandas.core.frame.DataFrame, num_per: int, tex
 
     return return_data_frame
 
-def select_random(tries=1, results_file = results_file) -> None:
+def select_random(tries=1, results_file = results_file, accuracy_data_file: str = "../postagged/postag-tests.csv") -> None:
     """
     Selects a random line from the results_file. This is for the purpose of QA
     Asks the user to QA it.
@@ -667,7 +667,7 @@ def select_random(tries=1, results_file = results_file) -> None:
             )
 
         with open(
-            "../postagged/postag-tests.csv", "a+", encoding="utf-8", errors="ignore"
+            accuracy_data_file, "a+", encoding="utf-8", errors="ignore"
         ) as results:
             results.write(
                 return_line[:-1] + "\n"
