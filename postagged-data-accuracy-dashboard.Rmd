@@ -198,6 +198,7 @@ We do not have gold standard data to compare against for the overwhelming majori
 
 opts <- unlist(names(corpus_lookup))
 
+# TODO: MAKE THE FOLLOWING CHECKBOXES INSTEAD OF A SELECT BOX, SO YOU CAN PICK MULTIPLE AT ONCE
 selectInput(
   "accuracy_table",
   "Select a corpus segment:",
