@@ -634,7 +634,7 @@ def select_random(tries=1, results_file = results_file, accuracy_data_file: str 
     try:
         with open(accuracy_data_file, "r", errors="ignore") as file:
             existing_nums = (pd.read_csv(file)).iloc[1,:] # Type: ignore
-    except FileNotFoundError:
+    except:
         existing_nums = []
 
 
