@@ -173,6 +173,9 @@ def remove_invalid_characters(text: str) -> str:
     # )
     # text = ".\n".join(split)
 
+    # Remove periods after an abbreviated praenomen
+    text = regex.sub("(?<=[A-Z])\\.", "", text)
+
     text = re.sub("[-–—'\"”“]", "", text)
 
     return text
