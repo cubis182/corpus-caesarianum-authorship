@@ -726,7 +726,7 @@ def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.c
     # Add this so we can use the GPU
     # NOTE !!! USING THE GPU REQUIRED ME TO INSTALL TORCH THROUGH PIP WITH CUDA 11.8 (SEE INSTALL INSTRUCTIONS ON THEIR WEBSITE FOR MORE)
     custom_pipeline = stanza.Pipeline(
-        "la", processors="tokenize,mwt,pos,lemma,depparse", use_gpu=True
+        "la", processors="tokenize,mwt,pos,lemma,depparse,ner", use_gpu=True
     )
     # OLD CLTK: nlp = NLP(backend="stanza", custom_pipeline=custom_pipeline)
 
