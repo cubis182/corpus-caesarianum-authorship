@@ -45,12 +45,13 @@ logger::log_threshold(params$log_threshold)
 ```{r global, include=FALSE}
 library(DT) # For rendering my tables
 
-corpus_caesarianum_pathprefix <- "../corpus-caesarianum-authorship/"
+corpus_caesarianum_pathprefix <- "./" # "../corpus-caesarianum-authorship/"
 
 # The strings in this look table need to match the names of the two variables defined at the top of the load-data chunk
 path_lookup <- c(
   `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-texts.csv`="caesar",
-  `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-cicero.csv`="cicero")
+  `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-cicero.csv`="cicero",
+  `/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/postagged/postagged-sallust.csv`="sallust")
 
 # Lookup table for getting commentary name by author
 corpus_lookup <- list(
@@ -68,6 +69,12 @@ cicero <- read_csv(
   skip = 1,
   col_names = colnames(caesar)
   )
+
+sallust <- read_csv(
+  glue("{corpus_caesarianum_pathprefix}/postagged/postagged-sallust.csv"),
+  skip = 1,
+  col_names = colnames(caesar)
+)
 
 # We keep the two above tibbles separate so the row numbers still match for Cicero's works
 # TODO: Update this code to be susceptible to errors if a column is missing
@@ -309,7 +316,7 @@ render_gt({
   
 ```
 
-# LAS by Deprel {data-orientation=rows}
+# LAS by Deprel {data-orientation="rows"}
 
 ## Row
 
@@ -397,8 +404,7 @@ renderPlot({
 # ADD TABLE WHICH SHOWS THE CONTEXT AND WORD FOR EACH INACCURATE CASE IN THE GRAPH ABOVE
 ```
 
-
-# Individual Feature Accuracy {data-orientation=rows}
+# Individual Feature Accuracy {data-orientation="rows"}
 
 ## Row
 
@@ -406,22 +412,37 @@ renderPlot({
 
 ```{r, percentage-accuracy-per-column}
 
-col_names <- colnames(error_data)[-1:-5]
+col_names <- colnames(error_data)[7:19]
+names(col_names) <- col_names
+col_names <- c(form = "^form$", col_names, head = "parent_form")
+
+
+# Create my own version of %in% with partial matching
+`%pin%` <- function(x, table) {
+  grep(x, table)
+}
+
+# Note: not to be used outside of the function below
+select_options <- function(label, error_data) {
+  columns <- error_data[,label %pin% colnames(error_data)]
+  columns |>
+    reduce( ~ c(unlist(.x), unlist(.y)))
+}
 
 column_accuracies <- function(error_data) {
-  columns_are_logical <- map_lgl(col_names, ~ is_logical(error_data[[.x]]))
+  all_cols <- map(col_names, ~ select_options(.x, error_data))
+  columns_are_logical <- unlist(map(all_cols, ~ is_logical(.x)))
   
   if (!all(columns_are_logical)) rlang::abort(message = glue::glue("Error! Not all columns in col_names are logical"))
   
-  purrr::map(col_names, .f = ~ sum(na.omit(error_data[[.x]])) / length(na.omit(error_data[[.x]])))
+  purrr::map(col_names, .f = ~ sum(na.omit(select_options(.x, error_data))) / length(na.omit(select_options(.x, error_data))))
 }
 
-to_plot <- data.frame(features = as.factor(col_names), accuracy = unlist(column_accuracies(error_data)))
-
-checkbox_opts <- to_plot$features
-names(checkbox_opts) <- checkbox_opts
+to_plot <- data.frame(features = as.factor(names(col_names)), accuracy = unlist(column_accuracies(error_data)))
 
 par(mar=c(1,1,1,1))
+
+checkbox_opts <- names(col_names)
 
 splitLayout(
   inputPanel(
@@ -450,6 +471,7 @@ observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", c
 
 ```{r, barplot}
 my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 16), axis.text.y = element_text(size = 12), axis.title = element_text(size = 16))
+
 
 renderPlot({
     ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + labs(title = "Percentage accuracy of each feature in the postagged/postag-tests.csv file") + geom_col() + my_theme
