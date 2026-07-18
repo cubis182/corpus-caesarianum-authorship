@@ -148,7 +148,8 @@ data <- fread("./postagged/postagged-texts.csv", na.strings = "", header = TRUE,
 
 data <- bind_rows(
   data,
-  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,]
+  fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,],
+  
   )
 
 # if (!params$use_parent) data %<>% select(!starts_with("parent"))
