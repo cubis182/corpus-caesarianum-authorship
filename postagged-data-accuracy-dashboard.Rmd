@@ -288,12 +288,91 @@ render_gt({
 
 ```
 
-```{r, by-work-breakdown}
+The low LAS accuracy must be improved for a syntactic approach to the Caesar data to be tenable. The remainder of the tabs in this dashboard run through the data to identify the problematic cases, and present the method for correcting them.
 
+# Individual Feature Accuracy {data-orientation="rows"}
+
+## Row
+
+The first step is to discover the situations where the accuracy is low so we can correct them algorithmically or remove them from consideration entirely. That way, we can have data that has a consitency close to the manually annotated source and is unlikely to fit a model to noise. The following graph confirms that the lowest accuracy features are indeed the dependency relation and the head (which shows the percentage of cases where the parent in the syntax tree is the correct one). 
+
+## Row
+
+### Accuracy bar plot controls {.tabset data-width="650"}
+
+```{r, percentage-accuracy-per-column}
+
+col_names <- colnames(error_data)[7:19]
+names(col_names) <- col_names
+col_names <- c(form = "^form$", col_names, head = "parent_form")
+
+
+# Create my own version of %in% with partial matching
+`%pin%` <- function(x, table) {
+  grep(x, table)
+}
+
+# Note: not to be used outside of the function below
+select_options <- function(label, error_data) {
+  columns <- error_data[,label %pin% colnames(error_data)]
+  columns |>
+    reduce( ~ c(unlist(.x), unlist(.y)))
+}
+
+column_accuracies <- function(error_data) {
+  all_cols <- map(col_names, ~ select_options(.x, error_data))
+  columns_are_logical <- unlist(map(all_cols, ~ is_logical(.x)))
+  
+  if (!all(columns_are_logical)) rlang::abort(message = glue::glue("Error! Not all columns in col_names are logical"))
+  
+  purrr::map(col_names, .f = ~ sum(na.omit(select_options(.x, error_data))) / length(na.omit(select_options(.x, error_data))))
+}
+
+to_plot <- data.frame(features = as.factor(names(col_names)), accuracy = unlist(column_accuracies(error_data)))
+
+par(mar=c(1,1,1,1))
+
+checkbox_opts <- names(col_names)
+
+splitLayout(
+  inputPanel(
+    verticalLayout(
+      actionButton("select_all", "Select All"),
+      actionButton("deselect_all", "Deselect All"),
+      checkboxGroupInput(
+      "variables",
+      "Select variables to view:",
+      checkbox_opts,
+      selected = checkbox_opts
+      )
+    ),
+    style = "height: 45vh; overflow-y: auto;", 
+  )
+)
+
+observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = checkbox_opts))
+  observeEvent(input$deselect_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = c()))
 
 ```
 
+### Accuracy bar plot
+
+```{r, barplot}
+my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 16), axis.text.y = element_text(size = 12), axis.title = element_text(size = 16))
+
+
+renderPlot({
+    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + labs(title = "Percentage accuracy of each feature in the postagged/postag-tests.csv file") + geom_col() + my_theme
+  })
+
+```
+
+
+
 # Examples in context
+
+Fixing the syntactic head with an algorithm is too far beyond the scope of this project. The number of potential heads is vast, and the high level of discontinuity in Latin phrases (well known to any intermediate reader of Horace) means any approach taken here would replace the old errors with new ones. As a result, we should focus on the dependency relation instead. In situations where the head is accurate but the dependency relation isn't, a combination of part of speech and other aspects of the context should help us correct the situation. A noun marked as the head of a complement clause, as shown in the table below, is impossible if it isn't in a phrase with a copula. We can use this information to reduce the number of issues in the corpus.
+
 
 ## Row
 
@@ -302,19 +381,29 @@ accuracy <- (nrow(error_data |> filter(Deprel == TRUE, !is.na(Deprel), parent_fo
 
 render_gt({
   error_data |>
-  filter(Deprel == TRUE, !is.na(Deprel), parent_form == TRUE, !is.na(parent_form)) |>
-  select(context, original_form) |>
-  slice_sample(prop = 0.5) |>
-  gt() |>
-  tab_header(
-    title = "Forms and their contexts with correctly parsed dependency relations and parent-child links",
-    subtitle = glue::glue(signif(accuracy, 4), "% of values are correct (= LAS)")
-    ) 
+    mutate(`Dependency Relation` = corresp_error_data$Deprel, head = corresp_error_data$parent_form) |>
+    mutate(head = str_sub(head, 8)) |>
+    filter(Deprel == FALSE, !is.na(Deprel), parent_form == TRUE, !is.na(parent_form)) |>
+    select(context, original_form, `Dependency Relation`, head) |>
+    gt() |>
+    tab_header(
+      title = "Forms with incorrectly parsed dependency relations and correct parent-child links"
+      ) 
   
 })
 
   
 ```
+
+# LAS per feature value
+
+Visualizing the LAS given a specific feature value (such as *Masculine* or *Nominative*) might also help us focus our efforts. The following is a table showing the least accurate features.
+
+```{r, las-per-feature-value}
+
+
+```
+
 
 # LAS by Deprel {data-orientation="rows"}
 
@@ -403,80 +492,3 @@ renderPlot({
 ```{r}
 # ADD TABLE WHICH SHOWS THE CONTEXT AND WORD FOR EACH INACCURATE CASE IN THE GRAPH ABOVE
 ```
-
-# Individual Feature Accuracy {data-orientation="rows"}
-
-## Row
-
-### Accuracy bar plot controls {.tabset data-width="650"}
-
-```{r, percentage-accuracy-per-column}
-
-col_names <- colnames(error_data)[7:19]
-names(col_names) <- col_names
-col_names <- c(form = "^form$", col_names, head = "parent_form")
-
-
-# Create my own version of %in% with partial matching
-`%pin%` <- function(x, table) {
-  grep(x, table)
-}
-
-# Note: not to be used outside of the function below
-select_options <- function(label, error_data) {
-  columns <- error_data[,label %pin% colnames(error_data)]
-  columns |>
-    reduce( ~ c(unlist(.x), unlist(.y)))
-}
-
-column_accuracies <- function(error_data) {
-  all_cols <- map(col_names, ~ select_options(.x, error_data))
-  columns_are_logical <- unlist(map(all_cols, ~ is_logical(.x)))
-  
-  if (!all(columns_are_logical)) rlang::abort(message = glue::glue("Error! Not all columns in col_names are logical"))
-  
-  purrr::map(col_names, .f = ~ sum(na.omit(select_options(.x, error_data))) / length(na.omit(select_options(.x, error_data))))
-}
-
-to_plot <- data.frame(features = as.factor(names(col_names)), accuracy = unlist(column_accuracies(error_data)))
-
-par(mar=c(1,1,1,1))
-
-checkbox_opts <- names(col_names)
-
-splitLayout(
-  inputPanel(
-    verticalLayout(
-      actionButton("select_all", "Select All"),
-      actionButton("deselect_all", "Deselect All"),
-      checkboxGroupInput(
-      "variables",
-      "Select variables to view:",
-      checkbox_opts,
-      selected = checkbox_opts
-      )
-    ),
-    style = "height: 45vh; overflow-y: auto;", 
-  )
-)
-
-observeEvent(input$select_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = checkbox_opts))
-  observeEvent(input$deselect_all, updateCheckboxGroupInput(inputId = "variables", choices = checkbox_opts, selected = c()))
-
-```
-
-## Row
-
-### Accuracy bar plot
-
-```{r, barplot}
-my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 16), axis.text.y = element_text(size = 12), axis.title = element_text(size = 16))
-
-
-renderPlot({
-    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + labs(title = "Percentage accuracy of each feature in the postagged/postag-tests.csv file") + geom_col() + my_theme
-  })
-
-```
-
-### 
