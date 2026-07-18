@@ -1056,6 +1056,6 @@ if __name__ == "__main__":
     #     skip_finished=False,
     # )
 
-    select_random(5, results_file)
-    select_random(5, "../postagged/postagged-cicero.csv")
-    select_random(5, "../postagged/postagged-sallust.csv")
+    # select_random(5, results_file)
+    # select_random(5, "../postagged/postagged-cicero.csv")
+    select_random(10, "../postagged/postagged-sallust.csv")
