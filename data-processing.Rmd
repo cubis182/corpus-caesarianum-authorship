@@ -10,8 +10,7 @@ editor_options:
 params:
   use_att: TRUE
   use_parent: TRUE
-  new_combos: FALSE
-  remove_noisy_variables: TRUE
+  new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
 
@@ -236,7 +235,8 @@ if (params$use_parent) {
 
 ### Removing Variables
 
-The following section is based heavily in the analysis developed in the [dashboard](./postagged-data-accuracy-dashboard.Rmd).
+The following section is based heavily in the analysis developed in the
+[dashboard](./postagged-data-accuracy-dashboard.Rmd).
 
 I've noticed that adjectives represent a serious concern. The Stanza
 parser doesn't seem to support the idea of a substantive adjective very
@@ -343,7 +343,7 @@ if (params$use_att) write_csv(final.frame, file = "./feature_csv_files/feature_v
 
 Process is adapted from @gorman_author_2020
 
-Step one of this process is to extract common feature pairs. 
+Step one of this process is to extract common feature pairs.
 
 The number of feature values is `length(final.frame[1,]`.
 
@@ -361,11 +361,18 @@ two_select_combinations <- combn(colnames(data |> tidytable::select(tag:parent_D
 length(two_select_combinations)
 ```
 
-Okay, that's 992 different combinations. We need to go through all the combinations of variables, get the absolute frequency of each one. That is not the frequency of each value (i.e., number of times the tag `Masculine` occurs), but the number of times the feature itself occurs (i.e., the number of words that have a value for the field `Gender`). With the frequency information, we can keep only the high frequency features as Gorman 2020 does. We use the same cutoff: the feature or combination of features must appear in at least 20% of the corpus.
+Okay, that's 992 different combinations. We need to go through all the
+combinations of variables, get the absolute frequency of each one. That
+is not the frequency of each value (i.e., number of times the tag
+`Masculine` occurs), but the number of times the feature itself occurs
+(i.e., the number of words that have a value for the field `Gender`).
+With the frequency information, we can keep only the high frequency
+features as Gorman 2020 does. We use the same cutoff: the feature or
+combination of features must appear in at least 20% of the corpus.
 
 I've realized that counting up feature-value pairs at the end of this
-file is proceeding too slowly, so I need to sample from the full
-dataset for this process.
+file is proceeding too slowly, so I need to sample from the full dataset
+for this process.
 
 Note that the YAML header params `new_combos` and `use_parent` affect
 the operation of the following code.
@@ -373,8 +380,9 @@ the operation of the following code.
 The data is reduced to only 1,000 tokens per book (so, 1,000 from BG
 book 1, 1,000 from BG book 2, etc.; BAfr is one book, so only 1,000
 tokens come from it).
-    
-The process is developed in two hidden code blocks just below, which is visible in the original RMarkdown file.
+
+The process is developed in two hidden code blocks just below, which is
+visible in the original RMarkdown file.
 
 ```{r, include=FALSE}
 
@@ -464,8 +472,6 @@ variable_combinations <- function(combinations_n, source_data) {
 
 ```
 
-
-
 ```{r, include=FALSE}
 
 if (!exists("combinations")){
@@ -505,7 +511,6 @@ if (!exists("combinations")){
 
 ```
 
-
 ```{r, include=FALSE}
 
 #Requires a row from a tibble that only includes valid column names and no numerics / other data types
@@ -537,7 +542,6 @@ get_var_combos <- function(var_combn, source_data) {
 }
 ```
 
-
 ```{r}
 
 # This function takes a set of variable combinations (one_combinations,
@@ -564,8 +568,6 @@ count_var_combos <- function(var_combn, source_data) {
 
 #count_var_combos(two_combinations, data)
 ```
-
-
 
 ```{r, include=FALSE}
 
@@ -604,8 +606,6 @@ get_number_rows_with_feature_types <- function(vector_of_feature_values, source_
 }
 
 ```
-
-
 
 ```{r, include=FALSE}
 
@@ -673,8 +673,6 @@ select_top_variables <- function(all_vars, n) {
 # 
 # remove(title_temp)
 ```
-
-
 
 ```{r, include=FALSE}
 # Now, lets create a function that gets one long tibble with every single
@@ -788,17 +786,16 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
 
-This cell uses the get_vars() function (which is in a hidden code block) to take all the feature combinations retrieved above. For each combination, it retrieves the frequency per 1,000 words of each value for those features. So, the feature combination "Gender|Number" would return the normalized frequency of the following pairs of values:
+This cell uses the get_vars() function (which is in a hidden code block)
+to take all the feature combinations retrieved above. For each
+combination, it retrieves the frequency per 1,000 words of each value
+for those features. So, the feature combination "Gender\|Number" would
+return the normalized frequency of the following pairs of values:
 
-Values |
-----------
-Masc,Sing |
-Fem,Sing |
-Neut,Sing |
-Masc,Plur |
-Fem,Plur |
-Neut,Plur |
+## Values \|
 
+Masc,Sing \| Fem,Sing \| Neut,Sing \| Masc,Plur \| Fem,Plur \| Neut,Plur
+\|
 
 ```{r, entry-point}
 #You can start the program here and hit "Run all chunks above" to 
@@ -823,7 +820,14 @@ all_vars_by_section <- get_vars("chapter", data, presupplied_variables=NULL)
   
 ```
 
-Each of these feature combinations is a column, each row a document or document section, and the cells are the normalized frequencies within those documents. However, the format the previous function returns is a three-column data frame. One column is the variable combination, the second is the document/document section title, and the third is the frequency. We want to transpose this to match the arrangement just described, which is more fitting for tidyverse functions and cluster analysis. The following cells take care of this transposition.
+Each of these feature combinations is a column, each row a document or
+document section, and the cells are the normalized frequencies within
+those documents. However, the format the previous function returns is a
+three-column data frame. One column is the variable combination, the
+second is the document/document section title, and the third is the
+frequency. We want to transpose this to match the arrangement just
+described, which is more fitting for tidyverse functions and cluster
+analysis. The following cells take care of this transposition.
 
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
@@ -843,7 +847,14 @@ if (params$use_parent) filename <- "./feature_csv_files//feature_values_gorman_b
 write_csv(all_vars_by_section_culled |> unnest(everything()), file = filename, col_names = TRUE)
 ```
 
-The data above was for document sections, but we want to create comparable data with full documents (books) so that we can compare. We want to know, after all, if variation between documents is more than that we see within documents, since we do not have many sure methods of verifying our method's accuracy. The following function gets all the variables and returns the set of feature combinations in the same format we generated up above, so we can pass it to the get_vars() function again.
+The data above was for document sections, but we want to create
+comparable data with full documents (books) so that we can compare. We
+want to know, after all, if variation between documents is more than
+that we see within documents, since we do not have many sure methods of
+verifying our method's accuracy. The following function gets all the
+variables and returns the set of feature combinations in the same format
+we generated up above, so we can pass it to the get_vars() function
+again.
 
 ```{r}
 # Each of these feature combinations is a column, each row a document or document section, and the cells are the normalized frequencies within those documents. 
@@ -874,7 +885,6 @@ combinations_from_existing <- function(all_vars) {
 
 ```
 
-
 ```{r}
 # Use the function from the above cell, get the variables, and then feed
 # them back into the get_vars function to get the same variables, but with
@@ -884,8 +894,6 @@ combinations <- combinations_from_existing(all_vars_by_section_culled)
 all_vars_by_book <- get_vars("book", data, combinations)
 
 ```
-
-
 
 ```{r}
 
