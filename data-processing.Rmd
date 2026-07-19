@@ -149,7 +149,7 @@ data <- fread("./postagged/postagged-texts.csv", na.strings = "", header = TRUE,
 data <- bind_rows(
   data,
   fread("./postagged/postagged-cicero.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,],
-  
+  fread("./postagged/postagged-sallust.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,]
   )
 
 # if (!params$use_parent) data %<>% select(!starts_with("parent"))
@@ -473,7 +473,7 @@ variable_combinations <- function(combinations_n, source_data) {
 
 ```
 
-```{r, include=FALSE}
+```{r, get-combinations-of-features, include=FALSE}
 
 if (!exists("combinations")){
   combos_filename <- "combinations.csv"
