@@ -68,12 +68,7 @@ conflicted::conflicts_prefer(dplyr::select)
 #For debugging purposes, here is a vector to save the size of the lower quartile that is discarded when variables are counted. This number is the minimum number of times per 1000 words a variable can occur in that section without getting discarded
 lower_quartiles <- vector(mode = "double")
 
-# 
-# library(duckplyr)
-# conflict_prefer("filter", "dplyr")
-# Sys.setenv(DUCKPLYR_FALLBACK_INFO = TRUE)
-# 
-# conflicts_prefer(dplyr::filter)
+source("functions.R")
 ```
 
 Note that I was learning dplyr and tidyverse as I created this file, so
@@ -152,86 +147,16 @@ data <- bind_rows(
   fread("./postagged/postagged-sallust.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,]
   )
 
-# if (!params$use_parent) data %<>% select(!starts_with("parent"))
 
-#This isn't a ratio or count variable
-data %<>%
-  mutate(Person = as.factor(Person))
-# cicero_data %<>%
-#   mutate(Person = as.factor(Person))
 
 summary(data)
 ```
 
-```{r, collapse=TRUE}
-#The Bellum Alexandrinum may represent two clear stages of composition, and we might want to respond to Gaertner's argument that the completion of Alex. and the BC. were one project. I'll do this by making sections 1-21 "book" 1 and the rest "book" 2
-
-#Don't forget the sections are zero-indexed, so 0-20 is the supposedly Caesarian section, not 1-21.
-#since I'm using a data table, subset without the comma, unlike base R
-data$book[data$path == "alexandrine" & data$section > 20] <- 2
-```
-
-We also want to reduce the effect of noisy data on the final results.
-For the moment, this is only a testing ground based on manual review.
-I'm still gathering accuracy data, and will take a data-based approach
-in the next round.
-
-The data needs to be split up by section first, then put back into
-books. The way I recommend doing this is appending both the book and
-section number to the title to get this result: "*title*\_*x_x(x)*".
-Then, we use the same code blocks below as in the Letters to Atticus,
-feeding this new title instead of the base one.
-
-Let's modify the titles:
-
-```{r, collapse=TRUE}
-
-data <- data |>
-  rowwise() |>
-  mutate(title = gsub(" ", "", paste(title, "_", book, "_", section)))
-
-# cicero_data <- cicero_data |>
-#   rowwise() |>
-#   mutate(title = paste(title, "_", book, "_", section))
-```
-
-The following two code blocks come from the [cltk-2025-atticus
-repository](https://github.com/cubis182/cltk-2025-atticus "GitHub Repo"),
-and they transpose the data so that each column is a feature value
-instead of a feature type and the values in the columns are the number
-of times each feature appears.
-
 ```{r processing-1, collapse=TRUE}
+# Change some of the data types and rename certain values; details available in functions.R
+data %<>% prepare_data()
+summary(data)
 
-# # Rename "Imp" to "Imperative" in mood category
-# levels(data$Mood) <- c(levels(data$Mood), "Imperative")
-# sequence <- which(data$Mood == "Imp")
-# data$Mood[sequence] <- "Imperative"
-# remove(sequence)
-# 
-# data$Mood[data$Mood == "Imp"] <- "Imperative"
-# data$Mood <- droplevels(data$Mood) # Remove the old "Imp
-
-#Turn it into a function
-replace_value <- function(column, to_replace, replace_string) {
-  # Rename "Imp" to "Imperative" in mood category
-  levels(data[[column]]) <- c(levels(data[[column]]), replace_string)
-  sequence <- which(data[[column]] == to_replace)
-  data[[column]][sequence] <- replace_string
-  remove(sequence)
-  
-  data[[column]][data[[column]] == to_replace] <- replace_string
-  data[[column]] <- droplevels(data[[column]]) # Remove the old "Imp
-  return(data)
-}
-
-#Caesar
-data <- replace_value("Mood", "Imp", "Imperative")
-data <- replace_value("Mood", "Ind", "Indicative")
-if (params$use_parent) {
-  data <- replace_value("parent_Mood", "parent_Ind", "parent_Indicative")
-  data <- replace_value("parent_Mood", "parent_Imp", "parent_Imperative")  
-}
 ```
 
 ### Removing Variables
@@ -239,8 +164,9 @@ if (params$use_parent) {
 The following section is based heavily in the analysis developed in the
 [dashboard](./postagged-data-accuracy-dashboard.Rmd).
 
-The first step is to combine features that are low accuracy or poorly distinguished. The Rmd dashboard provided in this GitHub repo shows some of the inaccuracy data.
-
+The first step is to combine features that are low accuracy or poorly
+distinguished. The Rmd dashboard provided in this GitHub repo shows some
+of the inaccuracy data.
 
 ## Utilities
 
@@ -780,10 +706,14 @@ combination, it retrieves the frequency per 1,000 words of each value
 for those features. So, the feature combination "Gender\|Number" would
 return the normalized frequency of the following pairs of values:
 
-## Values \|
-
-Masc,Sing \| Fem,Sing \| Neut,Sing \| Masc,Plur \| Fem,Plur \| Neut,Plur
-\|
+|   Values   |
+|:----------:|
+| Masc, Sing |
+| Fem, Sing  |
+| Neut, Sing |
+| Masc, Plur |
+| Fem, Plur  |
+| Neut, Plur |
 
 ```{r, entry-point}
 #You can start the program here and hit "Run all chunks above" to 
