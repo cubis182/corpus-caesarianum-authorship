@@ -118,6 +118,45 @@ labs = [
         "parent_Deprel",
     ]
 
+# Create a lookup table for converting CONLLU tags to limited (and as a result more accurate) tags
+# NOTE THAT THE CONVERSION PROCESS SHOULD TAKE PLACE AFTER THE SUFFIXES HAVE BEEN REMOVED FROM DEPRELS
+# Set of new tags:
+clause = "clause"
+noun = "NOUN"
+conj = "conj"
+ADV = "ADV"
+comp = "comp"
+
+# Dictionary for conversion:
+convert_values = {
+    "csubj":clause,
+    "advcl":clause,
+    "acl":clause,
+    "NOUN":noun,
+    "PROPN":noun,
+    "flat":conj,
+    "parataxis":conj,
+    "conj":conj,
+    "PART":ADV,
+    "xcomp":comp,
+    "ccomp":comp,
+}
+
+def rm_ud_suffix(deprel: str) -> str:
+    """
+    Remove everything after the colon in UD dependency relations.
+
+    :param deprel: A string tag from a CONLLU file or parsed Stanza Word (still must be a string)
+    """
+
+    stop_list = [
+        "acl:relcl",
+    ]
+
+    if deprel not in stop_list:
+        return deprel.split(":")[0]
+    else:
+        return deprel
 
 def save_output(text: str, method: str = "w") -> None:
     """
