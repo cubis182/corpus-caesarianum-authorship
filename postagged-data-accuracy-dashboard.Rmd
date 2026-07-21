@@ -41,6 +41,9 @@ conflicted::conflicts_prefer(dplyr::filter, dplyr::lag)
 
 # Set the logger threshold from the yaml header
 logger::log_threshold(params$log_threshold)
+
+# Get utility functions
+source("functions.R")
 ```
 
 ```{r global, include=FALSE}
@@ -107,6 +110,8 @@ error_data <- read_csv(
 
 # Get rows from original data frames corresponding to the QA'd words in error_data
 corresp_error_data <- list_rbind(map2(.x = error_data$`row-number`, .y = path_lookup[error_data$path], .f = function(x, y) env_get(env_parent(), y)[x + 1,]))
+
+corresp_error_data %<>% replace_ambiguous(use_parent = TRUE)
 
 # Store options for Data Tables
 options <- list(
@@ -295,7 +300,7 @@ The low LAS accuracy must be improved for a syntactic approach to the Caesar dat
 
 ## Row
 
-The first step is to discover the situations where the accuracy is low so we can correct them algorithmically or remove them from consideration entirely. That way, we can have data that has a consitency close to the manually annotated source and is unlikely to fit a model to noise. The following graph confirms that the lowest accuracy features are indeed the dependency relation and the head (which shows the percentage of cases where the parent in the syntax tree is the correct one). 
+The first step is to discover the situations where the accuracy is low so we can correct them algorithmically or remove them from consideration entirely. That way, we can have data that has a consitency close to the manually annotated source and is unlikely to fit a model to noise. The following graph confirms that the lowest accuracy features are indeed the dependency relation and the head (which shows the percentage of cases where the parent in the syntax tree is the correct one).
 
 ## Row
 
@@ -368,12 +373,9 @@ renderPlot({
 
 ```
 
-
-
 # Examples in context
 
 Fixing the syntactic head with an algorithm is too far beyond the scope of this project. The number of potential heads is vast, and the high level of discontinuity in Latin phrases (well known to any intermediate reader of Horace) means any approach taken here would replace the old errors with new ones. As a result, we should focus on the dependency relation instead. In situations where the head is accurate but the dependency relation isn't, a combination of part of speech and other aspects of the context should help us correct the situation. A noun marked as the head of a complement clause, as shown in the table below, is impossible if it isn't in a phrase with a copula. We can use this information to reduce the number of issues in the corpus.
-
 
 ## Row
 
@@ -398,10 +400,9 @@ render_gt({
 
 # LAS per feature value
 
-Visualizing the LAS given a specific feature value (such as *Masculine* or *Nominative*) might also help us focus our efforts. The following is a table showing the least accurate features.
+## Row
 
-The results show that the following features are low accuracy, and could be combined into one larger feature to eliminate noisy variation:
-1. advcl, advcl:abs, ccomp, acl, and xcomp are all clauses and also lower accuracy features. If we combined these into a single 'clause' tag, that might reduce the problems caused by confusing types of clauses with each other, especially given the fact Stanza struggles with indirect speech. 
+Visualizing the LAS given a specific feature value (such as *Masculine* or *Nominative*) might also help us focus our efforts. The following is a table showing the least accurate features.
 
 ```{r, las-per-feature-value}
 
@@ -410,7 +411,7 @@ The results show that the following features are low accuracy, and could be comb
 renderPlot({
   # Iterate through each feature column in corresp_error_data
   columns <- colnames(corresp_error_data |> select(tag:Deprel))
-  
+
   # In each column, go through each unique feature. 
   # For each unique feature, select all the rows in error_data where it appears (using corresp_error_data)
   # Then, use the reduce_error_data function defined in a code block above to get the accuracy (sum / length)
@@ -445,6 +446,28 @@ renderPlot({
 
 ```
 
+The results show that the following features are low accuracy, and could be combined into one larger feature to eliminate noisy variation:
+
+1.  `advcl, advcl:abs, ccomp, acl`, and `xcomp` are all clauses and also lower accuracy features. If we combined these into a single 'clause' tag, that might reduce the problems caused by confusing types of clauses with each other, especially given the fact Stanza struggles with indirect speech. `xcomp` and `ccomp` often get confused (with `xcomp` being used where a simple complementary infinitive is present and should be tagged `ccomp`). The `acl` clause type requires a bit of explanation, as it is a clause dependent on a noun. Since participles are considered clauses, you would expect them all to be tagged as `acl`, but nominative *conjunct participles* and *ablative absolutes* have scope over the whole clause, even though they modify a single noun, so they are considered `advcl`. However, every now and then the parser mistags it, and the distinction is not so important here, leaving us safe to collapse them into a single tag.
+2.  Without an alternative parser, 2nd person verbs should be removed from the equation. If latinCy or versions 1-2 of the CLTK parse deponent verbs better (verbs ending in -r or -i are often mistagged as 2nd person, so testing perfect tense and deponent verbs is crucial).
+3.  `obj` is fairly inaccurate, and dealing with this issue is a challenge. From the Examples in Context page, there are a variety of causes. One is *nihil* being used adverbially, another tags *Romam* as `obj` instead of `obl`, which it should be in its use as accusative of motion toward. Another example tags *quanti* in a subordinate clause as `obj` when it should be a genitive of value, and therefore `obl`, as it is in the Universal Dependencies conversion of the PROIEL treebank. One solution is combining `obj` and `obl` into an "argument" tag. This might lose a lot of finer distinctions, but prepositional phrases will still be accounted for through the `ADP` and `case` values. A potential issue, though, is that this is a somewhat arbitrary decision. `obl` arguments are optional by definition, and if we treat those as the same thing, why not treat `nsubj` as part of this new tag? Or `advcl`?
+4.  `nmod` (nominal modifier) refers to nouns which modify other nouns. **To visualize the frequency of each dependency relation compared to each other, I have put the absolute frequencies in a bar plot below.** `nmod` is an inaccurate relation, which is a problem given its high frequency (13,511 times). The tag is not usually 100% inaccurate: "rex enim Deiotarus" makes *Deiotarus* an `nmod` modifying *rex*. While *Deiotarus* technically constrains the meaning of *rex* and modifies it, `nmod` is not the best option, as other tags like `flat` are much more appropriate and designed for names/titles. Another use case of `nmod` is a prepositional phrase modifying a noun, which is inconsistently applied here. In the sentence *quis autem meum consulatum praeter te et P. Clodium qui vituperaret inventus est?*, the prepositional phrase *praeter te et P. Clodium* is (incorrectly) analyzed as modifying the noun *consulatum*, when it would better modify the whole predicate or, even if it were to remain an `nmod`, the interrogative pronoun *quis*. Neither of these problems are easy to automatically identify, as they usually are "correct" interpretations (a noun modifying a noun), but only manual, human review is enough to separate correct and incorrect instances. I ought to remove this from consideration and see how it affects the results.
+
+```{r, relative-deprel-frequencies}
+
+renderPlot({
+  data <- as.data.table(bind_rows(caesar, cicero, sallust)) # data table should be faster in this application
+  
+  tab <- table(data$Deprel)
+  tib_deprel <- tibble(
+    nm = names(tab),
+    freq = tab
+  )
+  
+  ggplot(tib_deprel, aes(nm, freq)) + geom_col() + theme(axis.text = element_text(size = 12, angle = 90, hjust = 1))
+})
+
+```
 
 # LAS by Deprel {data-orientation="rows"}
 
@@ -561,4 +584,3 @@ length(tags) / length(unique(data$form)) * 100
 
 
 ```
-

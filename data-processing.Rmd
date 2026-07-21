@@ -147,7 +147,8 @@ data <- bind_rows(
   fread("./postagged/postagged-sallust.csv", na.strings = "", col.names = colnames(data), stringsAsFactors = TRUE)[-1,]
   )
 
-
+data %<>%
+    mutate(Person = as.factor(Person))
 
 summary(data)
 ```
