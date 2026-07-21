@@ -33,6 +33,7 @@ library(tidyverse)
 library(magrittr)
 library(rlang)
 library(DT)
+library(data.table)
 library(bslib)
 library(glue)
 library(logger)
@@ -399,8 +400,48 @@ render_gt({
 
 Visualizing the LAS given a specific feature value (such as *Masculine* or *Nominative*) might also help us focus our efforts. The following is a table showing the least accurate features.
 
+The results show that the following features are low accuracy, and could be combined into one larger feature to eliminate noisy variation:
+1. advcl, advcl:abs, ccomp, acl, and xcomp are all clauses and also lower accuracy features. If we combined these into a single 'clause' tag, that might reduce the problems caused by confusing types of clauses with each other, especially given the fact Stanza struggles with indirect speech. 
+
 ```{r, las-per-feature-value}
 
+# The final data frame should have one column with feature labels, and another with the percentage of times it's accurate.
+
+renderPlot({
+  # Iterate through each feature column in corresp_error_data
+  columns <- colnames(corresp_error_data |> select(tag:Deprel))
+  
+  # In each column, go through each unique feature. 
+  # For each unique feature, select all the rows in error_data where it appears (using corresp_error_data)
+  # Then, use the reduce_error_data function defined in a code block above to get the accuracy (sum / length)
+  
+  accuracy <- list()
+  for (name in columns) {
+    
+    # This function accepts the feature value in x and the feature name (i.e. column name) in y
+    get_acc <- function(x, y) {
+      selector <- corresp_error_data[[y]] == x & !is.na(corresp_error_data[[y]])
+      data <- error_data[selector,y]
+      
+      # We shouldn't find any NAs, I need to fix it if there are
+      if (any(is.na(data))) {
+        rlang::abort(glue("No NAs expected; please remove them from original data.\n NAs found in {x},{y} at indices  {which(is.na(data))}"))
+      }
+      
+      tibble(
+        feature = as.character(y),
+        value = as.character(x),
+        accuracy = sum(data) / nrow(data)
+      )
+    }
+    
+    accuracy[[name]] <- list_rbind(map(na.omit(unique(corresp_error_data[[name]])), ~ get_acc(.x, name)))
+  }
+  accuracy <- list_rbind(accuracy)
+  
+  ggplot(accuracy, aes(x = value, y = accuracy)) + geom_bar(stat='identity') + theme(axis.text = element_text(angle = 90, size = 10, hjust = 1))
+  
+})
 
 ```
 
@@ -492,3 +533,32 @@ renderPlot({
 ```{r}
 # ADD TABLE WHICH SHOWS THE CONTEXT AND WORD FOR EACH INACCURATE CASE IN THE GRAPH ABOVE
 ```
+
+```{r, hidden, include=FALSE, eval=FALSE}
+
+## Get a list of all situations where the POS tag varies when the word form is identical
+
+# install.packages('progress')
+library(progress)
+
+data <- as.data.table(bind_rows(caesar, cicero, sallust)) # data table should be faster in this application
+
+tags <- list()
+pb <- progress_bar$new(total = length(unique(data$form)))
+for (name in unique(data$form)) {
+   pb$tick()
+   pos <- as.character(unique(data$tag[data$form == name]))
+   if (length(pos) > 1) tags[[name]] <- pos
+}
+
+# What percentage of unique words vary their POS?
+
+# Only including word forms that appear more than once:
+length(tags) / length(unique(data$form[duplicated(data$form)])) * 100
+
+# Including all unique word forms:
+length(tags) / length(unique(data$form)) * 100
+
+
+```
+

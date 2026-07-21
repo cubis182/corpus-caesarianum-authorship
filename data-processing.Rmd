@@ -239,21 +239,8 @@ if (params$use_parent) {
 The following section is based heavily in the analysis developed in the
 [dashboard](./postagged-data-accuracy-dashboard.Rmd).
 
-I've noticed that adjectives represent a serious concern. The Stanza
-parser doesn't seem to support the idea of a substantive adjective very
-well, and this creates unnecessary inaccuracy in the dependency tree.
-Let's see what an analysis without adjectives looks like for a moment.
+The first step is to combine features that are low accuracy or poorly distinguished. The Rmd dashboard provided in this GitHub repo shows some of the inaccuracy data.
 
-```{r, eval=FALSE}
-low_accuracy_feats <- c("ADJ", "parent_ADJ", "punct")
-not_low_accuracy <- function(data) apply(X=data, MARGIN=1, FUN=function(x) !any(low_accuracy_feats %in% x))
-
-data <- data[not_low_accuracy(data),]
-
-```
-
-I would also like to change all `xcomp` tags to `comp`, as the source
-data doesn't do enough to distinguish the difference.
 
 ## Utilities
 
