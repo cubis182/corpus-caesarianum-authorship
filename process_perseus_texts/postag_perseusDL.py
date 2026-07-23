@@ -45,6 +45,12 @@ import numpy as np
 
 import csv
 
+# Import Latincy processors
+sys.path.append("/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/process_perseus_texts")
+from latincy_processor_variants import latincyPOS, latincyLemmatizer
+
+import postag_perseusDL
+
 Y_DENSITY = 4
 EMPTY = 4
 DEBUG_DIR = "C:/Users/T470s/Documents/GitHub/cltk-2025-atticus"
