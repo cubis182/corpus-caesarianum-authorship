@@ -95,9 +95,6 @@ labs = [
         "Case",
         "PronType",
         "Gender",
-        "Polarity",
-        "Degree",
-        "NumType",
         "Deprel",
         "parent_form",
         "parent_lemma",
@@ -112,11 +109,22 @@ labs = [
         "parent_Case",
         "parent_PronType",
         "parent_Gender",
-        "parent_Polarity",
-        "parent_Degree",
-        "parent_NumType",
         "parent_Deprel",
     ]
+
+# The list of features to select from the UFeat member variable
+f_set = [
+                    "Aspect",
+                    "Mood",
+                    "Number",
+                    "Person",
+                    "Tense",
+                    "VerbForm",
+                    "Voice",
+                    "Case",
+                    "PronType",
+                    "Gender",
+                ]
 
 # Create a lookup table for converting CONLLU tags to limited (and as a result more accurate) tags
 # NOTE THAT THE CONVERSION PROCESS SHOULD TAKE PLACE AFTER THE SUFFIXES HAVE BEEN REMOVED FROM DEPRELS
@@ -142,9 +150,28 @@ convert_values = {
     "ccomp":comp,
 }
 
+def replace_feat(word: str) -> str:
+    """
+    Accepts string which is a upos, feature, or deprel from a UD Word; uses the `convert_values` dict to change to a new value
+
+    Returns the string unchanged if it isn't in the `convert_values` dict
+    :param word:
+    """
+
+    word = rm_ud_suffix(word)
+
+    try:
+        return_value = convert_values[word]
+    except KeyError:
+        return_value = word
+    return return_value
+
+
 def rm_ud_suffix(deprel: str) -> str:
     """
     Remove everything after the colon in UD dependency relations.
+
+    Currently used in replace_feat(), so it isn't necessary to run two functions.
 
     :param deprel: A string tag from a CONLLU file or parsed Stanza Word (still must be a string)
     """
@@ -590,10 +617,11 @@ def __in_file(string, s: set) -> bool:
 
 import stanza
 
-
-def feats(s: str):
+def feats(s: str) -> dict:
     """
-    Helper in csv_postag for getting the stanza features
+    Helper in csv_postag for getting the stanza features.
+
+    Uses the replace_feat() function to replace with a new string in case it's necessary
 
      :param s: Description
      :type s: str
@@ -602,7 +630,7 @@ def feats(s: str):
     d = {}
     for f in l_feats:
         tok_f = f.split("=")
-        d[tok_f[0]] = tok_f[1]
+        d[tok_f[0]] = replace_feat(tok_f[1])
     return d
 
 """
@@ -871,10 +899,10 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
 
                 # Get the tag
                 # OLD CLTK: tag = word.upos.tag
-                tag = word.upos
+                tag = replace_feat(word.upos)
 
                 #dependency relation
-                deprel = word.deprel
+                deprel = replace_feat(word.deprel)
 
                 #parent word
                 parent = get_parent(word)
@@ -885,9 +913,9 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
 
                     s_parent_lemma = parent.lemma
 
-                    s_parent_tag = parent.upos
+                    s_parent_tag = replace_feat(parent.upos)
 
-                    parent_deprel = parent.deprel
+                    parent_deprel = replace_feat(parent.deprel)
                 except AttributeError:
                     s_parent_form = ""
 
@@ -898,22 +926,6 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
                     parent_deprel = ""
 
                 # Only get the features we're interested in
-
-                f_set = [
-                    "Aspect",
-                    "Mood",
-                    "Number",
-                    "Person",
-                    "Tense",
-                    "VerbForm",
-                    "Voice",
-                    "Case",
-                    "PronType",
-                    "Gender",
-                    "Polarity",
-                    "Degree",
-                    "NumType",
-                ]
 
                 features = extract_features(word, f_set)
 
