@@ -31,7 +31,6 @@ import regex
 import datetime
 
 from lxml import etree  # type: ignore
-from lxml.builder import E
 from pathlib import Path
 from random import choice
 import random
@@ -47,9 +46,7 @@ import csv
 
 # Import Latincy processors
 sys.path.append("/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/process_perseus_texts")
-from latincy_processor_variants import latincyPOS, latincyLemmatizer
-
-import postag_perseusDL
+from latincy_processor_variants import LatincyPOS, LatincyLemmatizer
 
 Y_DENSITY = 4
 EMPTY = 4
@@ -774,7 +771,10 @@ def select_random(tries=1, results_file = results_file, accuracy_data_file: str 
             )  # Remove the last character, because it's a comma
 
 
-def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.csv', path_destination: Union[str, Path]=results_file, skip_finished: bool=True) -> None:
+def csv_postag(
+        path_origin: Union[str, Path]='full_data_text_perseus_tokenized.csv',
+        path_destination: Union[str, Path]=results_file,
+        processor_variants: str="") -> None:
     """
     Docstring for csv_postag
 
@@ -782,13 +782,12 @@ def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.c
 
     This function relies on the CSV being serialized with commas, not another separation character.
 
-    :param path_destination:
+    An alternative model for lemmatization and postagging is
+    available by passing "latincy" to the processor_variant argument
+
     :param path_origin:
-    :rtype: None
-    :param path: An optional path of the file to write manually
-    :type path: str
-    :param skip_finished: NEEDSDOC
-    :type skip_finished: bool
+    :param path_destination:
+    :param processor_variants:
     """
 
     """
@@ -799,42 +798,21 @@ def csv_postag(path_origin: Union[str, Path]='full_data_text_perseus_tokenized.c
     2026-02-15 11:47:01 INFO: Loading: lemma
     2026-02-15 11:47:02 INFO: Loading: depparse
     """
+
+    if processor_variants == '':
+        processors = "tokenize,mwt,pos,lemma,depparse,ner"
+    elif processor_variants == "latincy":
+        processors = {"lemma":"latincy", "POS":"latincy"}
+
     # Add this so we can use the GPU
     # NOTE !!! USING THE GPU REQUIRED ME TO INSTALL TORCH THROUGH PIP WITH CUDA 11.8 (SEE INSTALL INSTRUCTIONS ON THEIR WEBSITE FOR MORE)
     custom_pipeline = stanza.Pipeline(
-        "la", processors="tokenize,mwt,pos,lemma,depparse,ner", use_gpu=True
+        "la", processors=processors, use_gpu=True
     )
     # OLD CLTK: nlp = NLP(backend="stanza", custom_pipeline=custom_pipeline)
 
-    sPathsRemoved = []
-
     # Get Sig's tokenized data. The data matches the defaults (separator is ',', quote is '"')
     with open(path_origin, 'r', encoding='utf-8', errors='replace', newline='') as tokenized:
-        # # If we want to keep a line, we place it in the temp file.
-        # with open(
-        #     results_file, "r", encoding="utf-8", errors="replace", newline=""
-        # ) as f_read:
-        #     s: set = set(f_read.read().splitlines())
-        #     with open(
-        #         "./temp.csv", "w", encoding="utf-8", errors="replace", newline=""
-        #     ) as f_write:
-        #         # If we're skipping already finished ones, lets skip  paths
-        #         # that we're not going to parse
-        #         if skip_finished:
-        #             for line in tokenized_csv:
-        #                 if __in_file(line[CAESAR['commentary']], s):
-        #                     sPathsRemoved.append(line[CAESAR['commentary']])
-        #                     paths.remove(line[CAESAR['commentary']])
-        #         else:
-        #             wr = csv.writer(f_write)
-        #             f_read.seek(0)  # just to be sure
-        #             read = csv.reader(f_read)
-        #             for l in read:
-        #                 if l[4] not in paths:
-        #                     wr.writerow(l)
-        #     if not skip_finished:
-        #         shutil.copyfile("temp.csv", results_file)
-        #         os.remove("./temp.csv")
 
         # Get the csv.writer
         with open(path_destination, "w+", encoding="utf-8", errors="replace", newline="") as f:
@@ -1071,16 +1049,8 @@ if __name__ == "__main__":
     ############################33
     # How to use:
 
-    # If you're postagging, use the csv_postag() function. If you just want to postag the whole library and replace whatever is left, use it like this:
-    #       csv_postag(path="", skip_finished=False)
-    # You can also pass a list of custom paths, which can be relative or absolute paths. The paths can be strings or pathlib.Path objects
-
-    # The get_paths() function retrieves a list of all the paths, but it does assume that the python script's parent folder is in the same directory as the canoncial-latinLit repo
-    # So, you could do the following:
-    #       csv_postag(path=get_paths(), skip_finished=False)
-
-    # The param skip_finished is there for the purpose of speeding up the process.
-    # If you want to postag something that hasn't bee postagged yet, you can skip the process of checking whether it's already been done. This is the default behavior.
+    # If you're postagging, use the csv_postag() function. An alternative model for lemmatization and postagging is
+    # available by passing "latincy" to the processor_variant argument
 
     # For the purpose of QA, I've also added the function "select_random" which selects a random postagged word, presents it to be checked, and saves whether each field was correct or incorrect.
     # I WOULD NOT recommend using this, just because I was pretty lazy designing it. Anything other than "y" or "Y" is interpreted as the parsing being incorrect, requiring you to modify the CSV manually every time you make a mistake.
@@ -1098,19 +1068,16 @@ if __name__ == "__main__":
     # csv_postag(
     #     path_origin="cicero_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-cicero.csv",
-    #     skip_finished=False,
     # )
     #
     # csv_postag(
     #     path_origin="full_data_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-texts.csv",
-    #     skip_finished=False,
     # )
     #
     # csv_postag(
     #     path_origin="sallust_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-sallust.csv",
-    #     skip_finished=False,
     # )
 
     # select_random(5, results_file)
