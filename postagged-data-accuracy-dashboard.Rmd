@@ -384,10 +384,17 @@ accuracy <- (nrow(error_data |> filter(Deprel == TRUE, !is.na(Deprel), parent_fo
 
 render_gt({
   error_data |>
-    mutate(`Dependency Relation` = corresp_error_data$Deprel, head = corresp_error_data$parent_form) |>
+    mutate(
+      `Dependency Relation` = corresp_error_data$Deprel, 
+      head = corresp_error_data$parent_form,
+      title = corresp_error_data$title,
+      book = corresp_error_data$book,
+      section = corresp_error_data$section) |>
     mutate(head = str_sub(head, 8)) |>
+    mutate(section = corresp_error_data$section + 1) |> # Deal with 0-based index
+    unite("cite", title, book, section, sep = ".") |>
     filter(Deprel == FALSE, !is.na(Deprel), parent_form == TRUE, !is.na(parent_form)) |>
-    select(context, original_form, `Dependency Relation`, head) |>
+    select(cite, context, original_form, `Dependency Relation`, head) |>
     gt() |>
     tab_header(
       title = "Forms with incorrectly parsed dependency relations and correct parent-child links"
