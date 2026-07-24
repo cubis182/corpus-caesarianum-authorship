@@ -802,7 +802,7 @@ def csv_postag(
     if processor_variants == '':
         processors = "tokenize,mwt,pos,lemma,depparse,ner"
     elif processor_variants == "latincy":
-        processors = {"lemma":"latincy", "POS":"latincy"}
+        processors = {"lemma":"latincy"} # See latincy_test.ipynb for reasoning behind this
 
     # Add this so we can use the GPU
     # NOTE !!! USING THE GPU REQUIRED ME TO INSTALL TORCH THROUGH PIP WITH CUDA 11.8 (SEE INSTALL INSTRUCTIONS ON THEIR WEBSITE FOR MORE)
@@ -1068,16 +1068,19 @@ if __name__ == "__main__":
     # csv_postag(
     #     path_origin="cicero_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-cicero.csv",
+    #     processor_variants="latincy"
     # )
     #
     # csv_postag(
     #     path_origin="full_data_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-texts.csv",
+    #     processor_variants="latincy"
     # )
     #
     # csv_postag(
     #     path_origin="sallust_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-sallust.csv",
+    #     processor_variants="latincy"
     # )
 
     # select_random(5, results_file)

@@ -79,8 +79,6 @@ class LatincyPOS(ProcessorVariant):
             word.upos = spacy_doc[index].pos_
             word.feats = str(spacy_doc[index].morph.to_json())
 
-            print(word.feats)
-
             # CompositeVocab in stanza.models.common requires this format if it's empty
             if word.feats == '':
                 word.feats = '_'
