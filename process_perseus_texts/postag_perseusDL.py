@@ -1057,32 +1057,32 @@ if __name__ == "__main__":
 
     prefix = "../../canonical-latinLit/data/"
 
-    # caesar = [
-    #     f"{prefix}phi0448/phi001/phi0448.phi001.perseus-lat2.xml",
-    #     f"{prefix}phi0448/phi002/phi0448.phi002.perseus-lat3.xml",  # using later edition, lat3 instead of lat2
-    #     f"{prefix}phi0428/phi001/phi0428.phi001.perseus-lat1.xml",
-    #     f"{prefix}phi0426/phi001/phi0426.phi001.perseus-lat1.xml",
-    #     f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
-    # ]
+    caesar = [
+        f"{prefix}phi0448/phi001/phi0448.phi001.perseus-lat2.xml",
+        f"{prefix}phi0448/phi002/phi0448.phi002.perseus-lat3.xml",  # using later edition, lat3 instead of lat2
+        f"{prefix}phi0428/phi001/phi0428.phi001.perseus-lat1.xml",
+        f"{prefix}phi0426/phi001/phi0426.phi001.perseus-lat1.xml",
+        f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
+    ]
 
-    # csv_postag(
-    #     path_origin="cicero_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-cicero.csv",
-    #     processor_variants="latincy"
-    # )
-    #
-    # csv_postag(
-    #     path_origin="full_data_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-texts.csv",
-    #     processor_variants="latincy"
-    # )
-    #
-    # csv_postag(
-    #     path_origin="sallust_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-sallust.csv",
-    #     processor_variants="latincy"
-    # )
+    csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-cicero.csv",
+        processor_variants="latincy"
+    )
+
+    csv_postag(
+        path_origin="full_data_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-texts.csv",
+        processor_variants="latincy"
+    )
+
+    csv_postag(
+        path_origin="sallust_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-sallust.csv",
+        processor_variants="latincy"
+    )
 
     # select_random(5, results_file)
     # select_random(5, "../postagged/postagged-cicero.csv")
-    select_random(10, "../postagged/postagged-sallust.csv")
+    # select_random(10, "../postagged/postagged-sallust.csv")
