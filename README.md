@@ -5,6 +5,10 @@ Directory:
 
 **feature_csv_files**: Directory containing data after all processing has been complete and variables have been selected. All .csv files in this directory follow the same format. The columns of these files are feature values (i.e. singular, indicative, nominative, etc.), the rows are sections of a work. The asterisks are additional information about the style of variables (whether they are arranged like Gorman 2020 or bare frequencies of individual features). If unnamed, the data includes the Corpus Caesarianum. Each field is the number of times that feature occurs in the text.
 
+**Images**: Images to be used in the article.
+
+**postagged/**: Directory of files where each row is a separate word in the Corpus Caesarianum, tagged with the (Universal Dependencies)[https://universaldependencies.org/#language-] scheme. Processed in data-processing.Rmd
+
 **process_perseus_texts/\*_data_text_perseus_tokenized.csv**: Files containing the tokenized (i.e. word split) version of the corpus caesarianum. The columns come in the following format:
   (line): line number
   commentary: title of commentary (gallic | civil | alexandrine | african | spanish)
@@ -14,4 +18,6 @@ Directory:
   chapter: chapter number
   tokens: tokenized form of the text
 
-**postagged/**: Directory of files where each row is a separate word in the Corpus Caesarianum, tagged with the (Universal Dependencies)[https://universaldependencies.org/#language-] scheme. Processed in data-processing.Rmd
+**rdata-backups**: .RData files with R environments for ease of loading variable sets. Primarily for internal use; data should be re-run for new users.
+
+**requirements**: A list of required packages and software for using the code in this repository. CURRENTLY NEEDS UPDATING
