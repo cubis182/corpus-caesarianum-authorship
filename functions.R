@@ -154,7 +154,7 @@ variable_combinations <- function(combinations_n, source_data) {
   # length(select_combinations)
 
   # Get a table showing the number of times all the features in a combination are attested
-  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data, pb = )progress_bar$new(total = length(select_combinations))
+  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data, pb = progress_bar$new(total = length(select_combinations) * combinations_n))
 
   tib_select_combinations <- as_tibble(select_combinations)
 
@@ -416,7 +416,7 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
     all_vars <- source_data |>
       group_by(title) %>%
       # lazy_dt() |>
-      group_map(~ run_combos(.x, .y, pb = progress_bar$new(total = length(.y)))) |>
+      group_map(~ run_combos(.x, .y, pb = progress_bar$new(total = length(unique(source_data$title))))) |>
       bind_rows() |>
       mutate(title = unlist(title))
   } else {

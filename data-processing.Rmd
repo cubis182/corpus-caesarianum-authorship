@@ -68,6 +68,8 @@ conflicted::conflicts_prefer(dplyr::select)
 #For debugging purposes, here is a vector to save the size of the lower quartile that is discarded when variables are counted. This number is the minimum number of times per 1000 words a variable can occur in that section without getting discarded
 lower_quartiles <- vector(mode = "double")
 
+log_threshold(level = DEBUG)
+
 source("functions.R")
 ```
 
@@ -312,12 +314,14 @@ if (!exists("combinations")){
   
   #Let's get every combination of variables.
   
+  cols <- if (params$use_parent) colnames(data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(data |> tidytable::select(tag:Deprel))
+  
   combinations <- bind_rows(
-    variable_combinations(1, data),
+    tibble(a = cols), # Do it this way because we want to keep all of the single variables
     variable_combinations(2, data),
     variable_combinations(3, data),
-    variable_combinations(4, data),
-    variable_combinations(5, data)
+    variable_combinations(4, data)
+    #variable_combinations(5, data)
   )
   
   write_csv(combinations, file = combos_filename,)
