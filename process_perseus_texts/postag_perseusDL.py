@@ -660,7 +660,8 @@ def _rows_with_all_variables(group_by, num):
     list_of_dfs = []
     for name, group in tqdm(group_by):
         sample = group.sample(n = num)
-        while sample.apply(func = column_only_nas, axis = 0).any():
+        # Only make sure there are no NAs in the 'tag:Deprel' columns
+        while sample.loc[:,"tag":"Deprel"].apply(func = column_only_nas, axis = 0).any():
             sample = group.sample(n = num)
         list_of_dfs.append(sample)
 

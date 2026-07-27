@@ -279,19 +279,8 @@ The data is reduced to only 1,000 tokens per book (so, 1,000 from BG
 book 1, 1,000 from BG book 2, etc.; BAfr is one book, so only 1,000
 tokens come from it).
 
-The process is developed in two hidden code blocks just below, which is
+The process is developed in hidden code blocks just below, which are
 visible in the original RMarkdown file.
-
-```{r, include=FALSE}
-
-if (!("combinat" %in% (.packages()))) {
-  library(combinat)
-}
-
-
-
-
-```
 
 ```{r, get-combinations-of-features, include=FALSE}
 
@@ -334,39 +323,6 @@ if (!exists("combinations")){
 
 ```
 
-```{r, include=FALSE}
-
-
-```
-
-```{r}
-
-
-
-#count_var_combos(two_combinations, data)
-```
-
-```{r, include=FALSE}
-
-
-
-```
-
-```{r, include=FALSE}
-
-
-
-# title_temp <- all_vars$title
-# all_vars <- all_vars |> dplyr::select(-title) |> dplyr::select(where(~ sum(.x, na.rm = TRUE) > length(.x) * 30)) |> mutate(title = title_temp)
-# 
-# all_vars <- all_vars |> relocate(title, .before = everything())
-# 
-# remove(title_temp)
-```
-
-```{r, include=FALSE}
-
-```
 
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
@@ -446,11 +402,6 @@ we generated up above, so we can pass it to the get_vars() function
 again.
 
 ```{r}
-
-
-```
-
-```{r}
 # Use the function from the above cell, get the variables, and then feed
 # them back into the get_vars function to get the same variables, but with
 # the frequencies calculated book-by-book this time.
@@ -481,10 +432,7 @@ This function takes a random cell from the final data frame and checks
 its frequency in the main data frame.
 
 ```{r, eval=FALSE}
-if ("stringr" %notin% .packages()) {
-  library(stringr)
-}
-
+verify_random_cell
 
 ```
 
