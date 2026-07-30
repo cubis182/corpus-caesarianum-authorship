@@ -1085,6 +1085,6 @@ if __name__ == "__main__":
     # )
 
     accuracy_output = "../postagged/postag-tests-v2.csv"
-    select_random(5, results_file, accuracy_output)
+    #select_random(5, results_file, accuracy_output)
     select_random(5, "../postagged/postagged-cicero.csv", accuracy_output)
     select_random(10, "../postagged/postagged-sallust.csv", accuracy_output)
