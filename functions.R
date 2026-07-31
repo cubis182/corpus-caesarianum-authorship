@@ -32,6 +32,8 @@ library(progress)
 
 # data-processing.Rmd -----------------------------------------------------
 
+
+
 # Utilities
 
 # modes: "title", "book", "section"
@@ -504,4 +506,60 @@ verify_random_cell <- function(all_vars, source_data) {
   log_info("{fn_name}: The count retrieved from the source data is {count_from_source_data}")
   log_info("{fn_name}: count == cell: {signif(count_from_source_data, digits = 2) == signif(cell, digits = 2)}")
   (signif(count_from_source_data, digits = 2) == signif(cell, digits = 2))[[1]]
+}
+
+## Clustering
+
+# Wrapper around dist() and as.dist() which allows the user to supply a function as a custom distance measure. 
+# The custom method assumes the first two arguments are vectors to be compared.
+# ... contains other arguments to be passed to the custom method.
+# Retains default behavior of get_dist() if a string is supplied.
+custom_dist <- function(m, method, diag = FALSE, upper = FALSE, ...) {
+  # If a function is supplied, use it to create a distance matrix.
+  if (typeof(method) == "closure") {
+    as.dist({
+      observations <- nrow(m)
+      # Each column of the following combinations will let us select every combination of rows.
+      # Each column will also be the 2D coordinate in the distance matrix.
+      to_compare <- combn(observations, 2)
+      
+      # Result matrix
+      dist_matrix <- matrix(nrow = observations, ncol = obsrevations)
+      
+      anonymous <- function(x) {
+        # Get two rows as vectors
+        vec_a <- t(m[x[1],])
+        vec_b <- t(m[x[2],])
+        
+        # Raise an error if the number of arguments is incorrect.
+        tryCatch(
+          error = function(cnd) {
+            if (pmatch("unused argument", cnd$message)) {
+              rlang::abort(message = glue::glue("Expected method with at least two arguments, method has {length(formals(method))} arguments"))
+            } else stop(cnd)
+          },
+          distance <- method(vec_a, vec_b, ...) 
+        )
+        # Add the distance to the matrix
+        dist_matrix[x[1], x[2]] <- distance
+      }
+      
+      apply(X=to_compare, MARGIN=2, anonymous)
+      
+    
+      rownames(dist_matrix) <- rownames(m)
+      
+      # placeholder attributes
+      # list(Size = observations, Labels = dimnames(m)[[1L]], Diag = diag, 
+      #      Upper = upper, method = if (is.character(method)) method else "custom", call = match.call(), 
+      #      class = "dist")
+      dist_matrix
+    },
+    diag,
+    upper)
+    
+  } else if (pmatch(method, c("pearson", "spearman", "kendall", "euclidean", "maximum", "manhattan", "canberra", 
+                              "binary", "minkowski"))) {
+    factoextra::get_dist(m, method, diag, upper)
+  }
 }

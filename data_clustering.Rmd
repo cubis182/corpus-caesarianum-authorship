@@ -14,21 +14,20 @@ knitr::opts_knit$set(root.dir = '~/PycharmProjects/corpus-caesarianum-authorship
 
 ```{r Libraries}
 
-
-library(factoextra)
 library(ggrepel)
 library(tidyverse)
+library(factoextra)
+library(dendextend)
 library(cluster)
+library(ggdendro)
 library(ggplot2)
 library(magrittr)
 library(combinat)
-library(dendextend)
 library(MASS)
 library(dplyr)
 library(multcomp)
 library(ggtext)
 library(printr)
-library(ggdendro)
 library(stringr)
 library(logger)
 ```

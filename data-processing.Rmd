@@ -60,6 +60,10 @@ library(logrittr)
 library(data.table)
 library(collapse)
 library(logger)
+library(dendextend)
+library(ggdendro)
+library(fclust)
+library(lsa)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
@@ -437,6 +441,49 @@ verify_random_cell
 
 # Clustering
 
+```{r}
+
+simplex_vars_only <- read.csv("./feature_csv_files/feature_values.csv")
+
+file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman.csv" else "./feature_csv_files/feature_values_wordonly.csv"
+
+gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
+
+file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
+
+sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv");sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
+
+# add_book <- function(source_data) {
+#   source_data |>
+#     mutate(book = paste0((strsplit(title, "_"))[[1]][1:2], collapse = "_")) |>
+#     relocate(book, .before = 2)
+# }
+
+# sectioned.gorman.vars <- add_book(sectioned.gorman.vars)
+
+cicero_works <- "(philippics|senectute|amicitia)"
+
+sectioned.gorman.vars <- bind_rows(
+  filter(sectioned.gorman.vars, str_starts(title, cicero_works)),
+  filter(sectioned.gorman.vars, !str_starts(title, cicero_works))
+  )
+
+gorman.vars <- bind_rows(
+  filter(gorman.vars, str_starts(title, cicero_works)),
+  filter(gorman.vars, !str_starts(title, cicero_works))
+)
+
+#cic.gorman.vars <- read.csv("./feature_csv_files/feature_values_cicero.csv")K-d
+```
+
+```{r}
+#For converting to readable names in graph labels.
+lookup_table <- setNames(
+  c("BAlex. 1-21", "BAlex. 22-78", "BAfr.", "De Amicitia", "BC 1", "BC 2", "BC 3", "BG 1", "BG 2", "BG 3", "BG 4", "BG 5", "BG 6", "BG 7", "BG 8", "Philippics 1", "Philippics 2", "Philippics 3", "Philippics 4", "Philippics 5", "Philippics 6", "Philippics 7", "Philippics 8", "Philippics 9", "Philippics 10", "Philippics 11", "Philippics 12", "Philippics 13", "Philippics 14", "De Senectute", "BHisp."),
+  c("alexandrine_1", "alexandrine_2", "african_1", "amicitia_1", "civil_1", "civil_2", "civil_3", "gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "philippics_1", "philippics_2", "philippics_3", "philippics_4", "philippics_5", "philippics_6", "philippics_7", "philippics_8", "philippics_9", "philippics_10", "philippics_11", "philippics_12", "philippics_13", "philippics_14", "senectute_1", "spanish_1")
+)
+```
+
 Clustering requires us to verify a number of conditions to ensure its
 accuracy. Our targeted method is K-means (or successors like PAM), since
 the clusters appear to be roughly spherical and our goal is to partition
@@ -478,11 +525,43 @@ Our options for pair-wise similarity measures are the following:
 
 - min-max measure [@kestemont_authenticating_2016]
 
+- Spearman's $\rho$ [@zhelezniak_correlation_2019]
+
 - Cosine delta (Burrows 2002)
 
 - Eder's Delta (Eder et al. 2016)
 
-- SPATIUM-L1 [@kocher_unine_nodate] (Kocher 2016 at CLEF)
+- SPATIUM-L1 [@kocher_unine_nodate]
+
+  - A copy from the original article:
+
+    ![](images/clipboard-413147957.png)
+
+  - In one sentence, it is the sum of the absolute differences between
+    the relative frequencies of each term in the two documents.
+
+```{r, distance-measures}
+
+# NOTE: Apply all of these to each frequency measurement used in the previous code block.
+
+# Create a new dissimilarity matrix with each distance metric
+
+# Cosine:
+# lsa::cosine(m)
+
+# min-max
+
+# spearman's rho
+# get_dist(..., method = "spearman")
+
+# Cosine delta
+
+# Eder's Delta
+
+# SPATIUM-L1
+
+# We can use get_dist() with a variety of distance metrics
+```
 
 Determining the number of clusters can be done with the following
 methods, each of which can get slightly different results, as there is
@@ -507,6 +586,11 @@ range:
 
 - the Dirichlet process (DP) [@jain2010] 656
 
+```{r, cluster-number-determination}
+
+# The input to this block is a set of `dist` objects from the previous code block
+```
+
 Which clustering method should be used is another non-trivial problem.
 K-means has been expanded many different ways. Note [@jain2010] p. 659
 cites Fisher and vanNess on the following:
@@ -529,11 +613,11 @@ Here are a few options from Moisl:
 
 - K-means
 
-- Also PAM and CLARA\
+- Also PAM and CLARA
 
-- SOM (see Moisl notes below)\
+- SOM [@moisl2015] pp. 139-153, 210-211
 
-- Agglomerative clustering\
+- Agglomerative clustering
 
 - CLIQUE
 
@@ -541,5 +625,57 @@ Here are a few options from Moisl:
 
 - FANNY or Fuzzy clustering (see Kaufman and Rousseeuw 1990, chapter 4)
 
+```{r, cluster-algorithm-tests}
+
+# This can be done AFTER measuring cluster tendency.
+
+```
+
 Does the data have clustering tendency is a question discussed in
-[@moisl2015] and [@jain2010].
+[@moisl2015] and [@jain2010]. Visual approaches to clustering tendency
+are an issue when the data is more than three-dimensional, as it is
+here, although the graph generated through PCA gets us an idea. VAT
+(Visual Assessment of cluster Tendency) is a method where the
+dissimilarity matrix is reordered, so that similar items are placed next
+to each other and dissimilar items farther away. Clusters emerge more
+clearly this way; a gray and unstructured graph would show there are no
+clusters.[^1] A method for VAT is available in the R package `fclust`.
+
+[^1]: VAT is discussed in [@moisl2015] pp. 198-199 and [@bezdek2002].
+
+Statistical tests are also capable of measuring cluster tendency. The
+one presented here, the Hopkins statistic is also recommended by Moisl.
+Note that R package `clustertend` is capable of this (see the [Datanovia
+page](https://www.datanovia.com/en/lessons/assessing-clustering-tendency/)).
+The Hopkins statistic gives a value of 0.5 for random data, and closes
+in on 1.0 with non-random data.
+
+```{r, cluster-tendency}
+
+# Use the results of the distance-measures code block here
+```
+
+The validity of the clusters can be evaluated with a model or a
+classifier. The classifier approach might be a fitting one here; we are
+aiming to discover true, verifiable labels (authors), so a classifier
+should be able to successfully distinguish them. Jain 2010 gives the
+term *cluster stability* to an internal measure of partition quality
+(pp. 656-658).[^2] Bootstrapping of the original data is another option
+we will implement, so we have a second validation criterion.
+Bootstrapping means we take random subsamples of the original data set,
+cluster it again, and repeat. For each of these new samples, we get
+cluster similarity scores between the new clusters and the original,
+then average them together. The Jaccard coefficient is a widely used
+measurement in this field.[^3]
+
+[^2]: The classifier method is described in more detail in [@lange2004].
+    For other influential methods of measuring cluster stability, see
+    [@hennig2007 @shamir2007 @vonluxburg2005].
+
+[^3]: [@moisl2015], pp. 212-214, who in turn cites [@jain1987] on the
+    topic of bootstrapping.
+
+```{r, cluster-validity}
+
+# Use the results of cluster-algorithm-tests, with each test being on a different algorithm. Each algorithm in turn has copies for each metric and frequency type.
+```
