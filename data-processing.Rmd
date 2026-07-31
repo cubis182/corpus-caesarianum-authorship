@@ -171,8 +171,6 @@ The first step is to combine features that are low accuracy or poorly
 distinguished. The Rmd dashboard provided in this GitHub repo shows some
 of the inaccuracy data.
 
-
-
 ## Simple Variable Counts
 
 Now that we have the data, what we're *really* interested in is how many
@@ -323,7 +321,6 @@ if (!exists("combinations")){
 
 ```
 
-
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
 
@@ -437,3 +434,112 @@ verify_random_cell
 ```
 
 ### Ensuring get_var_combos works correctly with different values
+
+# Clustering
+
+Clustering requires us to verify a number of conditions to ensure its
+accuracy. Our targeted method is K-means (or successors like PAM), since
+the clusters appear to be roughly spherical and our goal is to partition
+the data. Given this focus, the following questions are pulled from
+[@jain2010] p. 656:
+
+> (a) What is a cluster?
+>
+> (b) What features should be used?
+>
+> (c) Should the data be normalized?
+>
+> (d) Does the data contain any outliers?
+>
+> (e) How do we define the pair-wise similarity?
+>
+> (f) How many clusters are present in the data?
+>
+> (g) Which clustering method should be used?
+>
+> (h) Does the data have any clustering tendency?
+>
+> (i) Are the discovered clusters and partition valid?
+
+Multiple answers to each question must be tested, and not only to
+determine the best method. We want to see that a variety of methods
+generate similar partitioning, since that will boost the claim that the
+texts belong to the categories they do. With variable selection
+considered, we have made it to point (e), and we want a quick way to
+consider many alternative of e-i. We will consider all alternatives
+here, although the final article will only discuss the most salient or
+list the rest in a footnote.
+
+Our options for pair-wise similarity measures are the following:
+
+- *Cosine distance (Deza and Deza 2009 Chs. 17, 19 and O Searcoid 2006)*
+
+  $cosine(\theta) = \frac{v . w}{|v| |w|}$
+
+- min-max measure [@kestemont_authenticating_2016]
+
+- Cosine delta (Burrows 2002)
+
+- Eder's Delta (Eder et al. 2016)
+
+- SPATIUM-L1 [@kocher_unine_nodate] (Kocher 2016 at CLEF)
+
+Determining the number of clusters can be done with the following
+methods, each of which can get slightly different results, as there is
+no one method. We must use our domain-specific knowledge to limit the
+range:
+
+- Gap statistic
+
+- Total within sum of squares
+
+- Average silhouette width
+
+- SOM [@moisl2015]
+
+- minimum message length (MML) [@jain2010] 656
+
+- Gaussian mixture model (GMM) [@jain2010] 656
+
+- minimum description length (MDL) [@jain2010] 656
+
+- Bayes information criterion (BIC) [@jain2010] 656
+
+- the Dirichlet process (DP) [@jain2010] 656
+
+Which clustering method should be used is another non-trivial problem.
+K-means has been expanded many different ways. Note [@jain2010] p. 659
+cites Fisher and vanNess on the following:
+
+1.  **Convex**: A clustering algorithm is convex-admissible if it
+    results in a clustering where the convex hulls of clusters do not
+    intersect.
+2.  **Cluster proportion**: A clustering algorithm is cluster-proportion
+    admissible if the cluster boundaries do not alter even if some of
+    the clusters are duplicated an arbitrary number of times.
+3.  **Cluster omission**: A clustering algorithm is omission-admissible
+    if by removing one of the clusters from the data and re-running the
+    algorithm, the clustering on the remaining K  1 clusters is
+    identical to the one obtained on them with K clusters.
+4.  **Monotone**: A clustering algorithm is monotone-admissible if the
+    clustering results do not change when a monotone transformation is
+    applied to the elements of the similarity matrix.
+
+Here are a few options from Moisl:
+
+- K-means
+
+- Also PAM and CLARA\
+
+- SOM (see Moisl notes below)\
+
+- Agglomerative clustering\
+
+- CLIQUE
+
+- Dbscan (see Moisl pp. 166ff.)
+
+- FANNY or Fuzzy clustering (see Kaufman and Rousseeuw 1990, chapter 4)
+
+Does the data have clustering tendency is a question discussed in
+[@moisl2015] and [@jain2010].
