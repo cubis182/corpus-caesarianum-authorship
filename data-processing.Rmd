@@ -441,6 +441,15 @@ verify_random_cell
 
 # Clustering
 
+This data was created with the data-processing.Rmd notebook, which
+arranged the texts for clustering. This means that each row is an
+observation (a text), and each column a variable. `simplex_vars_only`
+generates a vector of only length 865 (as each variable is just the
+count of each individual feature, such as accusative nouns, participles,
+3rd person verbs, and so on). The gorman.vars variables consider the top
+1,000 combinations of features, so a single feature might be "masculine,
+ablative, oblique argument with a 3rd person verb parent".
+
 ```{r}
 
 simplex_vars_only <- read.csv("./feature_csv_files/feature_values.csv")
@@ -453,16 +462,9 @@ file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_val
 
 sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv");sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
 
-# add_book <- function(source_data) {
-#   source_data |>
-#     mutate(book = paste0((strsplit(title, "_"))[[1]][1:2], collapse = "_")) |>
-#     relocate(book, .before = 2)
-# }
+cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
 
-# sectioned.gorman.vars <- add_book(sectioned.gorman.vars)
-
-cicero_works <- "(philippics|senectute|amicitia)"
-
+# move Cicero to the end, to keep authors separated
 sectioned.gorman.vars <- bind_rows(
   filter(sectioned.gorman.vars, str_starts(title, cicero_works)),
   filter(sectioned.gorman.vars, !str_starts(title, cicero_works))
@@ -472,8 +474,6 @@ gorman.vars <- bind_rows(
   filter(gorman.vars, str_starts(title, cicero_works)),
   filter(gorman.vars, !str_starts(title, cicero_works))
 )
-
-#cic.gorman.vars <- read.csv("./feature_csv_files/feature_values_cicero.csv")K-d
 ```
 
 ```{r}
@@ -482,6 +482,26 @@ lookup_table <- setNames(
   c("BAlex. 1-21", "BAlex. 22-78", "BAfr.", "De Amicitia", "BC 1", "BC 2", "BC 3", "BG 1", "BG 2", "BG 3", "BG 4", "BG 5", "BG 6", "BG 7", "BG 8", "Philippics 1", "Philippics 2", "Philippics 3", "Philippics 4", "Philippics 5", "Philippics 6", "Philippics 7", "Philippics 8", "Philippics 9", "Philippics 10", "Philippics 11", "Philippics 12", "Philippics 13", "Philippics 14", "De Senectute", "BHisp."),
   c("alexandrine_1", "alexandrine_2", "african_1", "amicitia_1", "civil_1", "civil_2", "civil_3", "gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "philippics_1", "philippics_2", "philippics_3", "philippics_4", "philippics_5", "philippics_6", "philippics_7", "philippics_8", "philippics_9", "philippics_10", "philippics_11", "philippics_12", "philippics_13", "philippics_14", "senectute_1", "spanish_1")
 )
+```
+
+```{r, create-test-structure}
+
+# Set up a data structure we can add the results to.
+
+object <- list(
+  simplex_vars_only,
+  gorman.vars,
+  sectioned.gorman.vars
+)
+
+# We need to add rownames, then convert each to a matrix. This will prepare us for some of the functions coming up, which assume an entirely numeric dataset and assume rownames for graphing and generating a dist object
+object %<>% map(~ column_to_rownames(.x, "title"))
+object %<>% map(~ as.matrix(.x))
+
+# Add each to a named list
+object %<>% map(~ list(.x))
+names(object) <- c("simplex", "gorman", "sectioned")
+summary(object)
 ```
 
 Clustering requires us to verify a number of conditions to ensure its
@@ -519,13 +539,18 @@ list the rest in a footnote.
 
 Our options for pair-wise similarity measures are the following:
 
+- Defaults in `get_dist()` ("euclidean", "maximum", "manhattan",
+  "canberra", "binary", "minkowski", "pearson", "spearman" or
+  "kendall".)
+
 - *Cosine distance (Deza and Deza 2009 Chs. 17, 19 and O Searcoid 2006)*
 
   $cosine(\theta) = \frac{v . w}{|v| |w|}$
 
 - min-max measure [@kestemont_authenticating_2016]
 
-- Spearman's $\rho$ [@zhelezniak_correlation_2019]
+- Spearman's $\rho$ (see first bullet point)
+  [@zhelezniak_correlation_2019]
 
 - Cosine delta (Burrows 2002)
 
@@ -544,12 +569,17 @@ Our options for pair-wise similarity measures are the following:
 
 # NOTE: Apply all of these to each frequency measurement used in the previous code block.
 
-# Create a new dissimilarity matrix with each distance metric
+# Create a new dissimilarity OR similarity matrix with each distance metric
 
-# Cosine:
+# Cosine SIMILARITY matrix:
 # lsa::cosine(m)
+# Adds a new "cosine" list to each one; I transpose because it compares each COLUMN
+tmp <- object %>% object_map(f = \(x) lsa::cosine(t(x)), label = "cosine")
+object <- tmp
+rm(tmp)
 
 # min-max
+
 
 # spearman's rho
 # get_dist(..., method = "spearman")
@@ -613,7 +643,8 @@ Here are a few options from Moisl:
 
 - K-means
 
-- Also PAM and CLARA
+- Also PAM and CLARA (CLARA is not necessary, given its design for n \>
+  100 documents, as mentioned in [@kaufman_and_rousseeuw1990] p. 41.
 
 - SOM [@moisl2015] pp. 139-153, 210-211
 

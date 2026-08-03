@@ -439,9 +439,13 @@ get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
   return(all_vars)
 }
 
-# Each of these feature combinations is a column, each row a document or document section, and the cells are the normalized frequencies within those documents.
+# Each of these feature combinations is a column, 
+#   each row a document or document section, and 
+#   the cells are the normalized frequencies within those documents.
 
-# Pass an output from get_vars(), get the variables back in table form so they can be passed into the get_vars() function with a new dataset. That way, a new dataset can be processed with the same variables as another.
+# Pass an output from get_vars(), get the variables back in table form 
+#   so they can be passed into the get_vars() function with a new dataset. 
+#   That way, a new dataset can be processed with the same variables as another.
 combinations_from_existing <- function(all_vars) {
   # Get the names() attribute
   vars_unsplit <- all_vars |>
@@ -454,7 +458,9 @@ combinations_from_existing <- function(all_vars) {
 
   split_vars <- unlist(split_vars, recursive = FALSE)
 
-  # For each item in the list (which is a character vector), we construct a data frame where each column is the character vector. NAs should appear in rows that aren't attested
+  # For each item in the list (which is a character vector), we construct 
+  #   a data frame where each column is the character vector. 
+  #   NAs should appear in rows that aren't attested
   combinations_new <- data.frame(labels = letters[1:5])
 
   for (item in split_vars) {
@@ -476,11 +482,17 @@ get_count_by_title_features <- function(title, feature_char, source_data) {
   # Split column name into a character vector
   vars_unsplit <- unlist(strsplit(feature_char, "[|]"))
 
-  # Filter source_data to the title, using partial matches with str_starts() from stringr package
-  filtered_data <- source_data |> filter(str_starts(gsub(" ", "", title), title_selected))
+  # Filter source_data to the title, 
+  #   using partial matches with str_starts() from stringr package
+  filtered_data <- source_data |> 
+    filter(str_starts(gsub(" ", "", title), title_selected))
 
-  # Pass character vector and source_data to get_number_rows_with_feature_types()
-  count_from_source_data <- get_number_rows_with_feature_types(vars_unsplit, source_data = filtered_data)
+  # Pass character vector and source_data to 
+  #   get_number_rows_with_feature_types()
+  count_from_source_data <- get_number_rows_with_feature_types(
+    vars_unsplit, 
+    source_data = filtered_data
+    )
   # Normalize the value per 1000 words
   (count_from_source_data / nrow(filtered_data)) * 1000
 }
@@ -491,7 +503,9 @@ verify_random_cell <- function(all_vars, source_data) {
 
   # Select a random cell from all_vars
   rand_row <- slice_sample(all_vars)
-  column_number <- sample(2:ncol(rand_row), size = 1) # column number of the targeted cell, excluding titles
+  column_number <- sample(2:ncol(rand_row), size = 1) # column number of the 
+                                                      # targeted cell, excluding 
+                                                      # titles
   cell <- rand_row[, column_number]
 
   # Get its title and column name
@@ -501,7 +515,11 @@ verify_random_cell <- function(all_vars, source_data) {
   log_info("{fn_name}: Selecting all_vars[title == {title}, '{colname}']")
   log_info("{fn_name}: Value of cell is {cell}")
 
-  count_from_source_data <- get_count_by_title_features(title = title, feature_char = colname, source_data = source_data)
+  count_from_source_data <- get_count_by_title_features(
+    title = title, 
+    feature_char = colname, 
+    source_data = source_data
+    )
 
   log_info("{fn_name}: The count retrieved from the source data is {count_from_source_data}")
   log_info("{fn_name}: count == cell: {signif(count_from_source_data, digits = 2) == signif(cell, digits = 2)}")
@@ -510,21 +528,54 @@ verify_random_cell <- function(all_vars, source_data) {
 
 ## Clustering
 
-# Wrapper around dist() and as.dist() which allows the user to supply a function as a custom distance measure. 
+# utility to add new test to `object` variable
+# .x: data
+# f: function to be applied using map (corresponds to map's .f argument)
+# ...: other keyword arguments to pass to the function
+# label: label to be given to the list that contains the result.
+object_map <- function(.x, f, ..., label) {
+  if (missing(label)) stop("label argument is required.")
+  map(
+    .x, 
+    ~ c(
+      .x, 
+      setNames(
+        list(f(.x[[1]])),
+        label
+        )
+      ), 
+    ...)
+}
+
+# Wrapper around dist() and as.dist() which allows the user to supply a function 
+#   as a custom distance measure. 
 # The custom method assumes the first two arguments are vectors to be compared.
+# The return value of the function passed to the method argument must be a 
+#   single double
 # ... contains other arguments to be passed to the custom method.
 # Retains default behavior of get_dist() if a string is supplied.
 custom_dist <- function(m, method, diag = FALSE, upper = FALSE, ...) {
   # If a function is supplied, use it to create a distance matrix.
   if (typeof(method) == "closure") {
+    
+    # To convert the results to class "dist", all the code is wrapped in 
+    #   brackets and placed in the first argument to `as.dist()`
     as.dist({
+      
+      # Get the number of observations (i.e. documents)
       observations <- nrow(m)
-      # Each column of the following combinations will let us select every combination of rows.
+      
+      # Each column of the following variable (to_compare) will be a length two 
+      #   integer vector that lets us select every combination of rows.
       # Each column will also be the 2D coordinate in the distance matrix.
       to_compare <- combn(observations, 2)
       
-      # Result matrix
-      dist_matrix <- matrix(nrow = observations, ncol = obsrevations)
+      # Result matrix, which we initialize as an empty matrix full of zeroes
+      dist_matrix <- matrix(
+        data = 0.0, 
+        nrow = observations, 
+        ncol = observations
+        )
       
       anonymous <- function(x) {
         # Get two rows as vectors
@@ -534,32 +585,68 @@ custom_dist <- function(m, method, diag = FALSE, upper = FALSE, ...) {
         # Raise an error if the number of arguments is incorrect.
         tryCatch(
           error = function(cnd) {
-            if (pmatch("unused argument", cnd$message)) {
-              rlang::abort(message = glue::glue("Expected method with at least two arguments, method has {length(formals(method))} arguments"))
+            if (pmatch("unused argument", cnd$message, nomatch = 0L) > 0L) {
+              rlang::abort(
+                message = paste0(
+                  "Expected method with at least two arguments,",
+                  glue::glue(" method has {length(formals(method))} arguments"
+                             )
+                  )
+                )
             } else stop(cnd)
           },
-          distance <- method(vec_a, vec_b, ...) 
+           distance <- method(vec_a, vec_b, ...) 
         )
+        
         # Add the distance to the matrix
-        dist_matrix[x[1], x[2]] <- distance
+        tryCatch(
+          error = function(cnd) {
+            if (pmatch("replacement length", cnd$message, nomatch = 0L) > 0L) {
+              rlang::abort(message = paste0(
+                "Expected distance method to return a single double,",
+                " got a vector of length ",
+                glue::glue("{length(distance)}: {distance[1:5]...}")))
+            } else stop(cnd)
+          },
+          {
+            dist_matrix[x[2], x[1]] <<- distance
+            if (upper) dist_matrix[x[1], x[2]] <<- distance
+          }
+        )
       }
       
       apply(X=to_compare, MARGIN=2, anonymous)
-      
     
       rownames(dist_matrix) <- rownames(m)
       
-      # placeholder attributes
-      # list(Size = observations, Labels = dimnames(m)[[1L]], Diag = diag, 
-      #      Upper = upper, method = if (is.character(method)) method else "custom", call = match.call(), 
-      #      class = "dist")
       dist_matrix
     },
     diag,
     upper)
     
-  } else if (pmatch(method, c("pearson", "spearman", "kendall", "euclidean", "maximum", "manhattan", "canberra", 
-                              "binary", "minkowski"))) {
+  } else if (
+    pmatch(
+      method, 
+      c(
+        "pearson", 
+        "spearman", 
+        "kendall", 
+        "euclidean", 
+        "maximum", 
+        "manhattan", 
+        "canberra",
+        "binary", 
+        "minkowski"
+        )
+      )
+    ) {
     factoextra::get_dist(m, method, diag, upper)
   }
+}
+
+minmax <- function(a, b) {
+  min <- sum(map2_dbl(a, b, ~ min(c(.x, .y))))
+  max <- sum(map2_dbl(a, b, ~ max(c(.x, .y))))
+  value <- min / max
+  1.0 - value
 }
