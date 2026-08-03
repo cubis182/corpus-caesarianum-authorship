@@ -578,11 +578,23 @@ tmp <- object %>% object_map(f = \(x) lsa::cosine(t(x)), label = "cosine")
 object <- tmp
 rm(tmp)
 
-# min-max
+# Default methods
+methods <- c(
+  "pearson", 
+  "spearman", 
+  "kendall", 
+  "euclidean", 
+  "maximum", 
+  "manhattan", 
+  "canberra",
+  "binary", 
+  "minkowski"
+)
 
-
-# spearman's rho
-# get_dist(..., method = "spearman")
+# minmax
+tmp <- object %>% object_map(f = \(x) custom_dist(x, method = minmax), label = "minmax")
+object <- tmp
+rm(tmp)
 
 # Cosine delta
 

@@ -561,7 +561,6 @@ custom_dist <- function(m, method, diag = FALSE, upper = FALSE, ...) {
     # To convert the results to class "dist", all the code is wrapped in 
     #   brackets and placed in the first argument to `as.dist()`
     as.dist({
-      
       # Get the number of observations (i.e. documents)
       observations <- nrow(m)
       
