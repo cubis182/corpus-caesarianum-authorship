@@ -490,8 +490,8 @@ lookup_table <- setNames(
 
 object <- list(
   simplex_vars_only,
-  gorman.vars,
-  sectioned.gorman.vars
+  gorman.vars
+  #sectioned.gorman.vars
 )
 
 # We need to add rownames, then convert each to a matrix. This will prepare us for some of the functions coming up, which assume an entirely numeric dataset and assume rownames for graphing and generating a dist object
@@ -500,7 +500,7 @@ object %<>% map(~ as.matrix(.x))
 
 # Add each to a named list
 object %<>% map(~ list(.x))
-names(object) <- c("simplex", "gorman", "sectioned")
+names(object) <- c("simplex", "gorman")#, "sectioned")
 summary(object)
 ```
 
@@ -590,6 +590,10 @@ methods <- c(
   "binary", 
   "minkowski"
 )
+
+for (method in methods) {
+  object %<>% object_map(f = \(x) custom_dist(x, method = method), label = method)
+}
 
 # minmax
 tmp <- object %>% object_map(f = \(x) custom_dist(x, method = minmax), label = "minmax")
