@@ -538,12 +538,12 @@ object_map <- function(.x, f, ..., label) {
   map(
     .x, 
     ~ c(
-      .x, 
-      setNames(
-        list(f(.x[[1]])),
-        label
-        )
-      ), 
+          .x, 
+          setNames(
+            list(f(.x[[1]])),
+            label
+            )
+        ), 
     ...)
 }
 
@@ -578,8 +578,9 @@ custom_dist <- function(m, method, diag = FALSE, upper = FALSE, ...) {
       
       anonymous <- function(x) {
         # Get two rows as vectors
-        vec_a <- t(m[x[1],])
-        vec_b <- t(m[x[2],])
+        vec_a <- as.numeric(m[x[1],])
+        
+        vec_b <- as.numeric(m[x[2],])
         
         # Raise an error if the number of arguments is incorrect.
         tryCatch(
