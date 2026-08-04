@@ -746,6 +746,10 @@ object <- modify(
     )
   )
 
+# prediction.strength:
+# Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
+
+# fpc::nselectboot()
 
 ```
 
@@ -771,6 +775,7 @@ in on 1.0 with non-random data.
 ```{r, cluster-tendency}
 
 # Use the results of the distance-measures code block here
+
 ```
 
 The validity of the clusters can be evaluated with a model or a
@@ -806,3 +811,19 @@ the following:
 
 # Use the results of cluster-algorithm-tests, with each test being on a different algorithm. Each algorithm in turn has copies for each metric and frequency type.
 ```
+
+```{r, fpc-verification}
+# cluster.stats(dist, clustering = c(1, 1, 1, 1, 2, 2, 2 ...))
+
+# prediction.strength:
+# Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
+```
+
+# Post-clustering Analysis
+
+```{r}
+# try fpc::plotcluster
+
+
+```
+
