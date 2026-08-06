@@ -507,19 +507,29 @@ get_count_by_title_features <- function(title, feature_char, source_data) {
 run_custom <- function(
     source_data, 
     title_str, 
-    pos_ngrams = feature_ngrams(source_data, "tag", 3, "PUNCT"),
-    lemmas = get_top_lemmas(source_data),
+    pos_ngrams = feature_ngrams(source_data, "tag", 3),
+    lemmas = get_top_lemmas(source_data)
     ) {
   # Features to use:
   # High-frequency lemmas (concatenated with POS tag)
   # POS frequencies
   # POS n-grams
   
-  browser()
-  pos <- unique(source_data$tag)
+  #POS
+  pos <- unique(as.character(source_data$tag))
+  pos_count <- map_dbl(pos, ~ nrow(source_data[source_data$tag == .x,]) / nrow(source_data))
+  final_pos_count <- tibble(pasted = pos, n = pos_count)
   
+  # LEMMAS
+  final_lemmas <- count_lemmas(source_data, lemmas)
   
+  # POS NGRAMS
+  final_pos_ngrams <- count_ngrams(source_data, pos_ngrams)
+
+  return_df <- bind_rows(final_pos_count, final_lemmas, final_pos_ngrams)
   
+  # Multiply all frequencies by 1,000
+  return_df |> mutate(title = title_str, n = n * 1000)
 }
 
 get_vars_custom <- function(mode = "book", source) {
@@ -539,7 +549,7 @@ get_vars_custom <- function(mode = "book", source) {
   }
   
   lemmas <- get_top_lemmas(data)
-  pos_ngrams <- feature_ngrams(data, "tag", 3, "PUNCT")
+  pos_ngrams <- feature_ngrams(data, "tag", 3, top = 100)
   pos <- unique(data$tag); pos <- data$tag[data$tag != "PUNCT"]
   
   source_data |>
@@ -551,16 +561,31 @@ get_vars_custom <- function(mode = "book", source) {
 }
 
 # Get n-grams of a feature from the column.
-# For tags, you should discount PUNCT by passing it to the `to_exclude` param
-feature_ngrams <- function(source_data, colname, n, to_exclude = character()) {
+# .unique tells whether to return unique values, or to return copies of every
+#   n-gram. (So, if NOUN|NOUN|NOUN appears 20 times, it will appear 20 separate
+#   times in the list when this argument is FALSE)
+# top is accepts an integer as an argument, saying the number of top ngrams to
+#   include. Pass NULL to return all
+feature_ngrams <- function(source_data, colname, n, .unique = TRUE, top = NULL) {
   var <- source_data[[colname]]
+  to_exclude <- c("PUNCT", "X")
   var <- var[var %notin% to_exclude]
   # For each variable, paste it with the *n* following items in the sequence.
-  # na.omit() ensures anything indexed past the end is discarded
-  imap_chr(var, ~ {
+  # The if statement ensures anything indexed past the end is discarded
+  combos_with_repetition <- imap_chr(var, ~ {
     # browser()
-    paste0(na.omit(var[.y:(.y + (n - 1))]), collapse = "|")
+    if (.y + (n - 1) < length(var)) paste0(var[.y:(.y + (n - 1))], collapse = "|") else NA_character_
     })
+  combos_with_repetition <- na.omit(combos_with_repetition)
+  
+  # Get only the top n-grams, if requested
+  if (length(top) > 0) {
+    tab_ngrams <- sort(table(combos_with_repetition), decreasing = TRUE)
+    combos_with_repetition <- names(tab_ngrams[1:top])
+  }
+  
+  # Return only unique values
+  if (.unique) unique(combos_with_repetition) else combos_with_repetition
 }
 
 
@@ -574,7 +599,7 @@ get_top_lemmas <- function(source_data) {
   exclude <- c(".", "Caesar", "?", "castra", "hostis", "bellum", "publicus", 
                "legio", "dies", "miles", "magnus", "noster")
   lemmas <- source_data %>%
-    filter_out(tag %in% exclude) 
+    filter_out(lemma %in% exclude) 
   lemmas <- paste(lemmas$lemma, lemmas$tag, sep = "|")  
   names(sort(table(lemmas), decreasing = TRUE)[1:51])
 }
@@ -584,10 +609,23 @@ count_lemmas <- function(source_data, lemma_tag_combos) {
   source_data %<>% unite(col = pasted, lemma, tag, sep = "|")
   tibble(
     pasted = lemma_tag_combos,
-    n = map(lemma_tag_combos, ~ nrow(source_data[source_data$lemma == .x,]) / nrow(source_data))
+    n = map_dbl(lemma_tag_combos, ~ nrow(source_data[source_data$pasted == .x,]) / nrow(source_data))
   )
 }
 
+count_ngrams <- function(source_data, pos_ngrams) {
+  # Split the n_grams
+  # Turning into a tibble unnecessary, but helps
+  n <- length(str_split(pos_ngrams[1], "[|]")[[1]])
+  ngrams_in_section <- feature_ngrams(source_data, "tag", n, FALSE)
+  
+  counts <- map_dbl(pos_ngrams, ~ sum(str_count(ngrams_in_section, coll(.x))) / nrow(source_data))
+
+  tibble(
+    pasted = pos_ngrams,
+    n = counts
+  )
+}
 
 
 verify_random_cell <- function(all_vars, source_data) {
