@@ -8,8 +8,8 @@ editor_options:
   markdown:
     wrap: 72
 params:
-  use_att: TRUE
-  use_parent: TRUE
+  use_att: FALSE
+  use_parent: FALSE
   new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
@@ -143,6 +143,29 @@ summary(data)
 
 ```
 
+## Method of Counting Variables
+
+In most cases, the *term frequency* or *normalized frequency* describes
+the variables we select here. When we count the occurrence of a part of
+speech, or a lemma, we divide the number of times it occurs in a text by
+the number of words in that text. This normalization makes it possible
+to compare across texts of different sizes.
+
+Some data scientists use *tf-idf* as a metric in classification, but we
+are reluctant to include it here. The *tf-idf* measure weights the *term
+frequency* with the *inverse document frequency*
+[@kestemont_authenticating_2016] . What this means is that terms that
+occur in few documents is given more importance. The idea behind this is
+sound: *hapax legomena* have been used in authorship identification
+before for their value in discriminating authors
+([@stamatatos_survey_2009], [@devel2001]). However, we are relying on
+high-frequency syntactic information for much of this study, and we are
+not including many low-frequency words as a result. If we tailored our
+feature set to this measure, we might expect different results.
+[@kestemont_authenticating_2016] found that the distance measure was
+more important for accuracy in their case than the frequency measure
+itself, so we will rely on the simpler solution.
+
 ## Simple Variable Counts
 
 Now that we have the data, what we're *really* interested in is how many
@@ -238,7 +261,23 @@ With the frequency information, we can keep only the high frequency
 features as Gorman 2020 does. We use the same cutoff: the feature or
 combination of features must appear in at least 20% of the corpus.
 
-The process is developed in functions.R, which is in this directory.
+Keeping the highest-frequency features is the goal, but this process can
+be accomplished multiple ways. The route we take is selecting the most
+common features in the whole corpus, but we can pick the most common
+features in only one document. If we had a baseline genuine "Caesar"
+document, we might take the features from it to make the process of
+verification easier, with all documents compared with one baseline
+feature set. However, since we are admitting here the possibility of
+multiple authorship in the whole corpus, we cannot take this path.
+Taking either Cicero or Sallust as baselines present additional
+problems. Cicero represents several genres, and the choice of genre
+would be somewhat arbitrary, since none of his works are history.
+Sallust's style is quite distinct from the other two, so it is difficult
+to imagine the most common features in Sallust will be helpful in
+distinguishing all the authors in the corpus either. As a result, we
+will perform feature selection on the whole corpus, before counting
+those features in individual documents. The same procedure is
+accomplished in the following section.
 
 ```{r, get-combinations-of-features, include=FALSE}
 
@@ -283,6 +322,46 @@ if (!exists("combinations")){
 
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
+
+## Custom Variable Set
+
+The main problem with using the Gorman-style variables is explored in
+more detail in the postagged-data-accuracy-dashboard.Rmd file. The
+accuracy of dependency relations and parent-child relationships in the
+syntax tree is too low to make confident assertions about the resulting
+analysis. The accuracy of POS tags and morphology is much more
+promising, which takes us to a mixed approach that still accounts for
+word order and context but includes some of the lexical features used in
+prior authorship verification studies, including the previous approaches
+to Caesar [@kestemont_authenticating_2016].
+
+This custom variable set includes:
+
+- The top \~50 most common lemmas. Each is combined with its tag, so
+  *cum* "with" and *cum* "when/since/although" are distinguished as
+  "cum\|ADP" and "cum\|SCONJ". Lexical measures are popular
+  [@stamatatos_survey_2009] and can enhance syntactic feature sets
+  [@stamatatos2001].
+
+- The features contained in "UFeats" in the CONLLU format, such as
+  "Number=Singular" and "Case=Nominative". These are the morphological
+  tags.
+
+- Part of speech (POS) and POS n-grams. POS n-grams encode the number of
+  times parts of speech occur in a row, so ADP –\> ADJ -\> NOUN would be
+  a 3-gram showing the number of times a preposition occurs before an
+  adjective and then a noun, NOUN –\> NOUN –\> VERB when two nouns occur
+  in a row before a verb, and so on. This POS n-gram approach is based
+  loosely on [@baayen1993] and [@stamatatos2001], but we have to
+  simplify it to fit the NLP tools at our disposal. Instead of *phrase*
+  n-grams, which look at combinations of noun phrases, verb phrases, and
+  so on, we have to restrict ourselves to the analysis of individual
+  words.
+
+- (Optional) Combine this with Gorman's variables for a high-dimension
+  feature set. Will try both with and without this modification.
+
+## Data Re-organization and Saving to Disk
 
 This cell uses the get_vars() function (which is in a hidden code block)
 to take all the feature combinations retrieved above. For each
@@ -421,6 +500,11 @@ gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", go
 file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
 
 sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv");sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
+
+# Add new feature set here, both book-by-book and section-by-section
+
+# Add new feature set COMBINED with morph n-grams (without parent features or Deprel)
+
 
 cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
 
@@ -821,9 +905,10 @@ the following:
 
 # Post-clustering Analysis
 
+Sources: [@stamatatos2001]
+
 ```{r}
 # try fpc::plotcluster
 
-
+# ANOVA to evaluate variables with r^2, see Stamatatos et al. 2001, p. 210
 ```
-

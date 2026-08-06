@@ -195,7 +195,7 @@ variable_combinations <- function(combinations_n, source_data) {
 
 # Requires a row from a tibble that only includes valid column names and no numerics / other data types
 # Discards any data points that occur less than 30 times
-
+# USE THIS TO COUNT A VARIABLE OR SET OF VARIABLES!!!!
 get_var_combos <- function(var_combn, source_data) {
   # browser()
 
@@ -496,6 +496,70 @@ get_count_by_title_features <- function(title, feature_char, source_data) {
   # Normalize the value per 1000 words
   (count_from_source_data / nrow(filtered_data)) * 1000
 }
+
+## CUSTOM FEATURE SET
+#> This feature set is a hodge-podge developed from research, with the sources
+#> described in more detail in the data-processing notebook.
+#> 
+# The following code is run just like `run_combos()`
+# Output is three-column tibble: title, pasted, n
+# Avoid using the default values of the parameters to this function.
+run_custom <- function(
+    source_data, 
+    title_str, 
+    posngrams = feature_ngrams(source_data, "tag", 3, "PUNCT"),
+    lemmas = get_top_lemmas(source_data),
+    ) {
+  # Features to use:
+  # High-frequency lemmas (concatenated with POS tag)
+  # POS frequencies
+  # POS n-grams
+  
+  pos <- unique(source_data$tag)
+  
+  
+  
+}
+
+# Get n-grams of a feature from the column.
+# For tags, you should discount PUNCT by passing it to the `to_exclude` param
+feature_ngrams <- function(source_data, colname, n, to_exclude = character()) {
+  var <- source_data[[colname]]
+  var <- var[var %notin% to_exclude]
+  # For each variable, paste it with the *n* following items in the sequence.
+  # na.omit() ensures anything indexed past the end is discarded
+  imap_chr(var, ~ {
+    # browser()
+    paste0(na.omit(var[.y:(.y + (n - 1))]), collapse = "|")
+    })
+}
+
+
+# For lemmas, I would recommend sticking to top 20-25; some content words, 
+#   such as 'castra', begin to peek in. These will not help us distinguish 
+#   authors.
+# Methods include "tf" and "tf-idf" currently
+get_top_lemmas <- function(source_data) {
+  
+  # Get top lemmas, removing undesirable ones
+  exclude <- c(".", "Caesar", "?", "castra", "hostis", "bellum", "publicus", 
+               "legio", "dies", "miles", "magnus", "noster")
+  lemmas %<>%
+    filter_out(lemma %in% exclude) 
+  lemmas <- paste(lemma$lemma, lemma$tag, sep = "|")  
+  names(sort(table(source_data$pasted), decreasing = TRUE)[1:51])
+}
+
+# Counts lemma-tag combos provided from the get_top_lemmas function.
+count_lemmas <- function(source_data, lemma_tag_combos) {
+  source_data %<>% unite(col = pasted, lemma, tag, sep = "|")
+  tibble(
+    pasted = lemma_tag_combos,
+    n = map(lemma_tag_combos, ~ nrow(source_data[source_data$lemma == .x,]) / nrow(source_data))
+  )
+}
+
+
 
 verify_random_cell <- function(all_vars, source_data) {
   # For logging purposes
