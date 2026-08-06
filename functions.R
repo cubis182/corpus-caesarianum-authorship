@@ -398,7 +398,7 @@ run_combos <- function(source_data, title_str, pb) {
 # mode: whether to divide the data into commentaries, books, or chapters
 # If getting the variables from an existing data frame, make sure they're
 # in the combinations variable and use_preset is set to TRUE
-get_vars <- function(mode = "book", source, presupplied_variables = NULL) {
+get_vars_gorman <- function(mode = "book", source, presupplied_variables = NULL) {
   if (mode == "book") {
     # browser()
     source_data <- source |>
@@ -507,7 +507,7 @@ get_count_by_title_features <- function(title, feature_char, source_data) {
 run_custom <- function(
     source_data, 
     title_str, 
-    posngrams = feature_ngrams(source_data, "tag", 3, "PUNCT"),
+    pos_ngrams = feature_ngrams(source_data, "tag", 3, "PUNCT"),
     lemmas = get_top_lemmas(source_data),
     ) {
   # Features to use:
@@ -515,9 +515,38 @@ run_custom <- function(
   # POS frequencies
   # POS n-grams
   
+  browser()
   pos <- unique(source_data$tag)
   
   
+  
+}
+
+get_vars_custom <- function(mode = "book", source) {
+  if (mode == "book") {
+    # browser()
+    source_data <- source |>
+      rowwise() |>
+      mutate(title = get_title_segment(title))
+  } else if (mode == "commentary") {
+    source_data <- source |>
+      rowwise() |>
+      mutate(title = get_title_segment(title, "title"))
+  } else if (mode == "chapter") {
+    source_data <- source
+  } else {
+    return(NULL)
+  }
+  
+  lemmas <- get_top_lemmas(data)
+  pos_ngrams <- feature_ngrams(data, "tag", 3, "PUNCT")
+  pos <- unique(data$tag); pos <- data$tag[data$tag != "PUNCT"]
+  
+  source_data |>
+    group_by(title) %>%
+    group_map(~ run_custom(.x, .y, pos_ngrams, lemmas)) |>
+    bind_rows() |>
+    mutate(title = unlist(title))
   
 }
 
@@ -544,10 +573,10 @@ get_top_lemmas <- function(source_data) {
   # Get top lemmas, removing undesirable ones
   exclude <- c(".", "Caesar", "?", "castra", "hostis", "bellum", "publicus", 
                "legio", "dies", "miles", "magnus", "noster")
-  lemmas %<>%
-    filter_out(lemma %in% exclude) 
-  lemmas <- paste(lemma$lemma, lemma$tag, sep = "|")  
-  names(sort(table(source_data$pasted), decreasing = TRUE)[1:51])
+  lemmas <- source_data %>%
+    filter_out(tag %in% exclude) 
+  lemmas <- paste(lemmas$lemma, lemmas$tag, sep = "|")  
+  names(sort(table(lemmas), decreasing = TRUE)[1:51])
 }
 
 # Counts lemma-tag combos provided from the get_top_lemmas function.

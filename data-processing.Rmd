@@ -361,6 +361,14 @@ This custom variable set includes:
 - (Optional) Combine this with Gorman's variables for a high-dimension
   feature set. Will try both with and without this modification.
 
+```{r, get_variables_custom}
+
+lemmas <- get_top_lemmas(data)
+pos_ngrams <- feature_ngrams(data, "tag", 3, "PUNCT")
+pos <- unique(data$tag); pos <- data$tag[data$tag != "PUNCT"]
+
+```
+
 ## Data Re-organization and Saving to Disk
 
 This cell uses the get_vars() function (which is in a hidden code block)
