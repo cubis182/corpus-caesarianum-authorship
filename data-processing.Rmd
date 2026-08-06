@@ -363,10 +363,17 @@ This custom variable set includes:
 
 ```{r, get_variables_custom}
 
-lemmas <- get_top_lemmas(data)
-pos_ngrams <- feature_ngrams(data, "tag", 3, "PUNCT")
-pos <- unique(data$tag); pos <- data$tag[data$tag != "PUNCT"]
+all_vars_custom_by_book <- get_vars_custom(mode = "book", source = data)
 
+all_vars_custom_by_book %<>% transpose_all_vars()
+
+write_csv(all_vars_custom_by_book |> unnest(everything()), "feature_csv_files/feature_values_custom_by_book.csv")
+
+all_vars_custom_by_section <- get_vars_custom(mode = "chapter", source = data)
+
+all_vars_custom_by_section %<>% transpose_all_vars()
+
+write_csv(all_vars_custom_by_section |> unnest(everything()), "feature_csv_files/feature_values_custom_by_section.csv")
 ```
 
 ## Data Re-organization and Saving to Disk
@@ -483,7 +490,6 @@ its frequency in the main data frame.
 
 ```{r, eval=FALSE}
 verify_random_cell
-
 ```
 
 # Clustering
@@ -512,6 +518,9 @@ sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_
 # Add new feature set here, both book-by-book and section-by-section
 
 # Add new feature set COMBINED with morph n-grams (without parent features or Deprel)
+
+custom_vars_book <- read.csv("feature_csv_files/feature_values_custom_by_book.csv")
+custom_vars_section <- read.csv("feature_csv_files/feature_values_custom_by_section.csv")
 
 
 cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
@@ -542,7 +551,8 @@ lookup_table <- setNames(
 
 object <- list(
   simplex_vars_only,
-  gorman.vars
+  gorman.vars,
+  custom_vars_book,
   #sectioned.gorman.vars
 )
 
@@ -552,7 +562,7 @@ object %<>% map(~ as.matrix(.x))
 
 # Add each to a named list
 object %<>% map(~ list(.x))
-names(object) <- c("simplex", "gorman")#, "sectioned")
+names(object) <- c("simplex", "gorman", "custom")#, "sectioned")
 summary(object)
 ```
 
@@ -660,6 +670,8 @@ rm(tmp)
 # SPATIUM-L1
 
 # We can use get_dist() with a variety of distance metrics
+
+# COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
 ```
 
 Which clustering method should be used is another non-trivial problem.

@@ -528,6 +528,8 @@ run_custom <- function(
 
   return_df <- bind_rows(final_pos_count, final_lemmas, final_pos_ngrams)
   
+  log_debug("Finished {title_str}")
+  
   # Multiply all frequencies by 1,000
   return_df |> mutate(title = title_str, n = n * 1000)
 }
