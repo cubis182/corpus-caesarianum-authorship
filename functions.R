@@ -112,7 +112,7 @@ prepare_data <- function(data, use_parent = params$use_parent) {
   data
 }
 
-# Gorman Variables
+## Gorman Variables -------
 
 # Filters to rows which have ZERO NA values in them
 no_na <- function(tib, vec) {
