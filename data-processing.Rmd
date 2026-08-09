@@ -522,19 +522,12 @@ sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_
 custom_vars_book <- read.csv("feature_csv_files/feature_values_custom_by_book.csv")
 custom_vars_section <- read.csv("feature_csv_files/feature_values_custom_by_section.csv")
 
+sectioned.gorman.vars %<>% reorder_works()
 
-cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
+gorman.vars %<>% reorder_works()
 
-# move Cicero to the end, to keep authors separated
-sectioned.gorman.vars <- bind_rows(
-  filter(sectioned.gorman.vars, str_starts(title, cicero_works)),
-  filter(sectioned.gorman.vars, !str_starts(title, cicero_works))
-  )
-
-gorman.vars <- bind_rows(
-  filter(gorman.vars, str_starts(title, cicero_works)),
-  filter(gorman.vars, !str_starts(title, cicero_works))
-)
+custom_vars_book %<>% reorder_works()
+custom_vars_section %<>% reorder_works()
 ```
 
 ```{r}
@@ -546,6 +539,7 @@ lookup_table <- setNames(
 ```
 
 ```{r, create-test-structure}
+# DEPRECATED CODE BLOCK, WILL REMOVE ONCE NEW STRATEGY IS IMPLEMENTED
 
 # Set up a data structure we can add the results to.
 
@@ -670,24 +664,12 @@ Our options for pair-wise similarity measures are the following:
 - Spearman's $\rho$ (see first bullet point)
   [@zhelezniak_correlation_2019]
 
-- Cosine delta (Burrows 2002)
-
-- Eder's Delta (Eder et al. 2016)
-
-- SPATIUM-L1 [@kocher_unine_nodate]
-
-  - A copy from the original article:
-
-    ![](images/clipboard-413147957.png)
-
-  - In one sentence, it is the sum of the absolute differences between
-    the relative frequencies of each term in the two documents.
-
 ```{r, distance-measures}
 
 # NOTE: Apply all of these to each frequency measurement used in the previous code block.
 
 # Create a new dissimilarity OR similarity matrix with each distance metric
+metrics <- list()
 
 # Cosine SIMILARITY matrix:
 # lsa::cosine(m)
@@ -724,15 +706,47 @@ rm(tmp)
 # Eder's Delta
 
 # SPATIUM-L1
+# SPATIUM is more than a measurement method; Kocher 2016 just uses Manhattan distance to compare vectors
 
 # We can use get_dist() with a variety of distance metrics
 
-# COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
+
+
+
 ```
 
-Which clustering method should be used is another non-trivial problem.
-K-means has been expanded many different ways. Note [@jain2010] p. 659
-cites Fisher and vanNess on the following:
+The following were considered for inclusion, but the methods themselves
+go beyond a single similarity metric and describe a whole methodology.
+In the following section, I might consider some of the lexical-based
+measures (which the following are) in more detail, especially if we do
+not get reasonable results with the syntactic information.
+
+- Cosine delta (Burrows 2002)
+
+- Eder's Delta (Eder et al. 2016)
+
+- SPATIUM-L1 [@kocher_unine_nodate]
+
+  - A copy from the original article:
+
+    ![](images/clipboard-413147957.png)
+
+  - In one sentence, it is the sum of the absolute differences between
+    the relative frequencies of each term in the two documents. It is
+    the Manhattan distance, in other words.
+
+Another option to be considered is scaling the variables differently for
+each test. I have decided to forego this primarily for the sake of time,
+as the distance measures above represent a wide variety of approaches to
+handling the data. Some are more sensitive to direction, others more
+sensitive to non-parametric data, and still others are highly influenced
+by sparse data sets. If we implement different strategies for scaling
+the data in the future, we can look to [@evert2017].
+
+Next, we try a variety of clustering algorithms. Which clustering method
+should be used is another non-trivial problem. K-means has been expanded
+many different ways. Note [@jain2010] p. 659 cites Fisher and vanNess on
+the following requirements for a clustering algorithm to keep in mind:
 
 1.  **Convex**: A clustering algorithm is convex-admissible if it
     results in a clustering where the convex hulls of clusters do not
@@ -840,7 +854,18 @@ tmp <- object %>% imodify(~ c(.x, map(pams, \(pam) anonymous(pam, .y)) |>
 
 # SOM
 
-# Agglomerative clustering
+# Agglomerative clustering (use AGNES, put the agglomerative coefficient somewhere visible)
+# COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
+# pvclust allows you to create and visualize p-values for hierarchical clusters!
+# install.packages(pvclust)
+# library(pvclust)
+
+# Linkage type
+
+# Visualize with pvclust
+
+
+
 
 # CLIQUE 
 # subspace::CLIQUE(); # WOULD NEED TO USE AN OLDER VERSION OF R
@@ -851,9 +876,11 @@ tmp <- object %>% imodify(~ c(.x, map(pams, \(pam) anonymous(pam, .y)) |>
 # Don’t guess eps. Draw the kNN distance plot (kNNdistplot(df, k = MinPts)) and read the knee. For MinPts, start at 5 for 2-D data and raise it for larger or noisier sets (a rule of thumb is MinPts ≥ dimensions + 1, at least 3). Remember the argument is minPts in the dbscan package, MinPts in fpc::dbscan().
 # NOTE THAT THEY SUGGEST USING PCA FIRST
 
-# HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. 
+# HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. My instinct from working on it has been no, but that has been in only two dimensions.
+
 
 # FANNY is available from the cluster package
+cluster::fanny()
 
 
 ```
@@ -900,7 +927,7 @@ than three dimensions, it is worth considering.
 
 ```{r, cluster-number-determination, eval=FALSE}
 
-# The input to this block is a set of `dist` objects from the previous code block
+# The input to this block is a set of `dist` objects from the previous code block's agglomerative clustering
 
 # Total within sum of squares
 object <- modify(
@@ -944,6 +971,12 @@ in on 1.0 with non-random data.
 
 # Use the results of the distance-measures code block here
 
+# placing this into a function for use in a functional
+# x is a matrix or data frame
+run_vat <- function(x) fclust::VAT(x) 
+
+
+
 ```
 
 The validity of the clusters can be evaluated with a model or a
@@ -975,9 +1008,12 @@ the following:
 - Cluster validation statistics for distance based clustering including
   corrected Rand index.
 
-```{r, cluster-validity}
+```{r, cluster-validity-mclust}
 
 # Use the results of cluster-algorithm-tests, with each test being on a different algorithm. Each algorithm in turn has copies for each metric and frequency type.
+
+# mclust boostrapping (see browseVignettes("mclust"))
+
 ```
 
 ```{r, fpc-verification}

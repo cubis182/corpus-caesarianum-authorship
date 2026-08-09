@@ -48,6 +48,22 @@ get_title_segment <- function(string, mode = "book") {
   ))
 }
 
+# reorder works so ones by the same author go together.
+reorder_works <- function(source_data) {
+  
+  cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
+  sallust_works <- "(catilinae_sallusti|iugurthine)"
+  
+  # move Cicero to the end, to keep authors separated
+  bind_rows(
+    filter(source_data, str_starts(title, cicero_works)),
+    filter(
+      source_data, 
+      !str_starts(title, cicero_works) & !str_starts(title, sallust_works)),
+    filter(source_data, str_starts(title, sallust_works)),
+  )
+}
+
 # Replace ambiguous names
 replace_ambiguous <- function(data, use_parent) {
   # Replace ambiguous names (i.e. Imp can be Imperfective or Imperative)
