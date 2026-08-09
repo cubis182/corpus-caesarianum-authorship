@@ -509,6 +509,9 @@ ablative, oblique argument with a 3rd person verb parent".
 
 simplex_vars_only <- read.csv("./feature_csv_files/feature_values.csv")
 
+caesar_simplex_vars <- simplex_vars_only %>%
+  filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
+
 file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman.csv" else "./feature_csv_files/feature_values_wordonly.csv"
 
 gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
@@ -550,10 +553,11 @@ lookup_table <- setNames(
 
 object <- list(
   simplex_vars_only,
+  caesar_simplex_vars,
   gorman.vars,
   caesar.gorman.vars,
   custom_vars_book,
-  custom_caesar_book
+  #custom_caesar_book # No clustering tendency
   #sectioned.gorman.vars
 )
 
@@ -563,7 +567,7 @@ object %<>% map(~ as.matrix(.x))
 
 # Add each to a named list
 object %<>% map(~ .x)
-names(object) <- c("simplex", "gorman", "caesar_gorman", "custom", "custom_caesar")#, "sectioned")
+names(object) <- c("simplex", "caesar_simplex", "gorman", "caesar_gorman", "custom", "custom_caesar")#, "sectioned")
 summary(object)
 ```
 
@@ -654,9 +658,11 @@ texts belong to the categories they do. With variable selection
 considered, we have made it to point (e), and we want a quick way to
 consider many alternative of e-i. We will consider all alternatives
 here, although the final article will only discuss the most salient or
-list the rest in a footnote.
+list the rest in a footnote. They will also be considered out of order,
+as some of the later questions (such as clustering tendency) are useful
+to explore before passing the data to a clustering method.
 
-Our options for pair-wise similarity measures are the following:
+**(e)** Our options for pair-wise similarity measures are the following:
 
 - Defaults in `get_dist()` ("euclidean", "maximum", "manhattan",
   "canberra", "binary", "minkowski", "pearson", "spearman" or
@@ -744,10 +750,75 @@ sensitive to non-parametric data, and still others are highly influenced
 by sparse data sets. If we implement different strategies for scaling
 the data in the future, we can look to [@evert2017].
 
-Next, we try a variety of clustering algorithms. Which clustering method
-should be used is another non-trivial problem. K-means has been expanded
-many different ways. Note [@jain2010] p. 659 cites Fisher and vanNess on
-the following requirements for a clustering algorithm to keep in mind:
+**(h)** Does the data have clustering tendency is a question discussed
+in [@moisl2015] and [@jain2010]. Visual approaches to clustering
+tendency are an issue when the data is more than three-dimensional, as
+it is here, although the graph generated through PCA gets us an idea.
+VAT (Visual Assessment of cluster Tendency) is a method where the
+dissimilarity matrix is reordered, so that similar items are placed next
+to each other and dissimilar items farther away. Clusters emerge more
+clearly this way; a gray and unstructured graph would show there are no
+clusters.[^1] A method for VAT is available in the R package `fclust`.
+
+[^1]: VAT is discussed in [@moisl2015] pp. 198-199 and [@bezdek2002].
+
+Statistical tests are also capable of measuring cluster tendency. The
+one presented here, the Hopkins statistic is also recommended by Moisl.
+Note that R package `clustertend` is capable of this (see the [Datanovia
+page](https://www.datanovia.com/en/lessons/assessing-clustering-tendency/)).
+The Hopkins statistic gives a value of 0.5 for random data, and closes
+in on 1.0 with non-random data.
+
+```{r, cluster-tendency}
+
+options(factoextra.warn_hopkins = FALSE)
+hopkins <- list()
+
+# placing this into a function for use in a functional
+# x is a matrix or data frame
+run_vat <- function(x) fclust::VAT(x) 
+
+# Hopkins statistic
+set.seed(123123)
+
+run_hopkins <- function(source_data, name) {
+  structure(
+    get_clust_tendency(source_data, n = nrow(source_data) - 1, graph = FALSE)$hopkins_stat,
+    dataset = name,
+    metric = attributes(source_data)$metric, #if it doesn't have a metric, this will                                              # be ignored 
+    tendency = "hopkins"
+  )
+}
+
+hopkins_results <- imap(object, \(x, y) run_hopkins(x, y))
+
+
+# RUN VAT HERE BASED ON HOPKINS
+
+# VAT on custom feature set with Caesar:
+fclust::VAT(object$custom_caesar)
+
+# VAT on simplex features with Caesar:
+fclust::VAT(object$caesar_simplex)
+# There are dark spots, but not strong ones. There appear to be three, or perhaps one large one with two smaller ones.
+
+# What if we look at a plot with multiple authors?
+fclust::VAT(object$custom)
+# I have to assume the very dark section in the bottom right is Cicero, but we will confirm that in the following code blocks.
+
+# fpc::clusterbenchstats using a variety of clusterings
+
+```
+
+The Caesar dataset alone, with the custom variable set combining lexical
+and syntactic information, has no clustering tendency, while the others
+have strong clusters at 1.
+
+**(g)** Next, we try a variety of clustering algorithms. Which
+clustering method should be used is another non-trivial problem. K-means
+has been expanded many different ways. Note [@jain2010] p. 659 cites
+Fisher and vanNess on the following requirements for a clustering
+algorithm to keep in mind:
 
 1.  **Convex**: A clustering algorithm is convex-admissible if it
     results in a clustering where the convex hulls of clusters do not
@@ -850,7 +921,7 @@ run_pamk <- function(dist) {
     pamk(dist, criterion = "ch", alpha = 0.001),
     dataset = attributes(dist)$dataset,
     algorithm = "pamk",
-    metric = attributes(dist)$metric,
+    metric = attributes(dist)$metric
   )
 }
 pamk_results <- map(metrics, run_pamk) %>%
@@ -879,16 +950,47 @@ run_agnes <- function(dist) {
 agnes_results <- map(metrics, run_agnes) %>%
   unlist(recursive = FALSE)
 
-algorithms_dist %<>% c(pamk_results)
+algorithms_dist %<>% c(agnes_results)
 
 # COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
 # pvclust allows you to create and visualize p-values for hierarchical clusters!
 # install.packages(pvclust)
 # library(pvclust)
 
-# Linkage type
+# Testing ALL methods is quite slow, so we might want to see which method got the best performance in AGNES first. I could parallelize the function, but the use of "custom_dist" begins to get us into a world of figuring out R internals and making sure the value associated with "custom_dist" actually gets passed to the function correctly.
 
-# Visualize with pvclust
+methods <- c("ward.D", "single", "complete", "average", "mcquitty", 
+             "median", "centroid", "ward.D2")
+
+anonymous <- function(x) {
+  
+}
+
+
+# Some code to consider adding:
+cl <- makeCluster(2)
+clusterExport(cl, "custom_dist", envir = current_env())
+ 
+pvclust_results <- list(
+  # A map function for each distance metric with different linkage methods
+  map(
+    methods, 
+    ~ structure(
+      parPvclust(cl, object$simplex, .x, \(x) custom_dist(x, lsa::cosine))
+      )
+    ) %>%
+      unlist(recursive = FALSE)
+  # map(
+  #   methods, 
+  #   ~ structure(
+  #     
+  #   )
+  # ) %>%
+  #   unlist(recursive = FALSE),
+)
+
+
+# Visualize with pvclust; the objects are plottable
 
 
 
@@ -898,17 +1000,35 @@ algorithms_dist %<>% c(pamk_results)
 
 # FANNY is available from the cluster package.
 # This is a fuzzy clustering algorithm which assigns each item a percentage
+
+
 run_fanny <- function(dist) {
-  structure(
-    fanny(dist),
-    dataset = attributes(dist)$dataset,
-    algorithm = "fanny",
-    metric = attributes(dist)$metric,
+  
+  map(
+    CLUSTERS, 
+    \(.x) {
+      withCallingHandlers(
+        warning = function(cnd) {
+          print(glue::glue("Fanny with {attributes(dist)$dataset}, k = {.x}, and metric {attributes(dist)$metric} failed to converge in max number of iterations"))
+        },
+        structure(
+          fanny(dist, .x),
+          dataset = attributes(dist)$dataset,
+          algorithm = "fanny",
+          metric = attributes(dist)$metric,
+          centers = .x
+        )
+      )
+    } 
   )
 }
 
-fanny_results <- map(metrics, run_fanny) %>%
-  unlist(recursive = FALSE)
+
+  fanny_results <- map(metrics, run_fanny) %>%
+    unlist(recursive = FALSE)
+  # Fanny did not converge in the max number of iterations on 16 of the 66 items in the 'metrics' list the first time this was run. Will add a calling handler to print more information in the warning than default, so the datasets and distance metrics responsible are clear.
+
+
 
 algorithms_dist %<>% c(fanny_results)
 ```
@@ -944,10 +1064,25 @@ algorithms_dist %<>% c(dbscan_results)
 # HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. My instinct from working on it has been no, but that has been in only two dimensions.
 ```
 
-Determining the number of clusters can be done with the following
-methods, each of which can get slightly different results, as there is
-no one method. We must use our domain-specific knowledge to limit the
-range:
+A brief aside is due here for exploring all the possible values. Some
+initial general exploration will be attempted in this first code block.
+The output will include:
+
+- Ideal clusters identified by pamk (histogram of cluster numbers across
+  datasets and distance metrics? remember that 1 suggests lack of
+  clustering)
+
+- Plot FANNY results (`plot.partition()` is a class method for this)
+
+```{r, visualizations-clustering}
+
+
+```
+
+**(f)** Determining the number of clusters can be done with the
+following methods, each of which can get slightly different results, as
+there is no one method. We must use our domain-specific knowledge to
+limit the range:
 
 - Gap statistic
 
@@ -977,80 +1112,23 @@ range:
 
 Given the amount of computation involved, and the need to implement many
 of these manually, I will probably only rely on the default tests for
-K-means. The number of clusters is by no means the most important value
-here, although we want to try different numbers for each. I will follow
-Moisl, who does not focus on this, although his use of SOM would require
-some extra implementation. The manifold is not very complex here, with
-texts clustering into blobs, but, since we are extrapolating to greater
-than three dimensions, it is worth considering.
+K-means, the `fpc` package's tools, and `pvclust`. The `pamk()` function
+and `*CBI()` functions from `fpc` both feature code testing for the
+right number of clusters using average silhouette width or the
+Calinski-Harabasz index. `pvclust` is a package that helps determine the
+statistical significance of clusters in agglomerative clustering, so
+that is used above in that application. If we find these methods are not
+satisfactory, we can implement other strategies such as the BIC with a
+new clustering method.
 
-```{r, cluster-number-determination, eval=FALSE}
+The number of clusters is by no means the most important value here
+either, although we want to try different numbers for each. I will
+follow Moisl, who does not focus on this, although his use of SOM would
+require some extra implementation. The manifold is not very complex
+here, with texts clustering into blobs, but, since we are extrapolating
+to greater than three dimensions, it is worth considering.
 
-# The input to this block is a set of `dist` objects from the previous code block's agglomerative clustering, the variables titled algorithms_dist and algorithms_agglom
-
-# Total within sum of squares
-object <- modify(
-  object, 
-  ~ map(
-    .x, 
-    ~ setNames(
-      , 
-      names(.x)
-      )
-    )
-  )
-
-# prediction.strength:
-# Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
-
-# fpc::nselectboot()
-
-```
-
-Does the data have clustering tendency is a question discussed in
-[@moisl2015] and [@jain2010]. Visual approaches to clustering tendency
-are an issue when the data is more than three-dimensional, as it is
-here, although the graph generated through PCA gets us an idea. VAT
-(Visual Assessment of cluster Tendency) is a method where the
-dissimilarity matrix is reordered, so that similar items are placed next
-to each other and dissimilar items farther away. Clusters emerge more
-clearly this way; a gray and unstructured graph would show there are no
-clusters.[^1] A method for VAT is available in the R package `fclust`.
-
-[^1]: VAT is discussed in [@moisl2015] pp. 198-199 and [@bezdek2002].
-
-Statistical tests are also capable of measuring cluster tendency. The
-one presented here, the Hopkins statistic is also recommended by Moisl.
-Note that R package `clustertend` is capable of this (see the [Datanovia
-page](https://www.datanovia.com/en/lessons/assessing-clustering-tendency/)).
-The Hopkins statistic gives a value of 0.5 for random data, and closes
-in on 1.0 with non-random data.
-
-```{r, cluster-tendency}
-
-hopkins <- list()
-
-# placing this into a function for use in a functional
-# x is a matrix or data frame
-run_vat <- function(x) fclust::VAT(x) 
-
-# Hopkins statistic
-setseed(123123)
-
-run_hopkins <- function(source_data, name) {
-  structure(
-    get_clust_tendency(source_data, n = nrow(source_data) - 1, graph = FALSE)$hopkins_stat,
-    dataset = name,
-    tendency = "hopkins"
-  )
-}
-
-# RUN VAT HERE BASED ON HOPKINS
-
-
-```
-
-The validity of the clusters can be evaluated with a model or a
+**(i)** The validity of the clusters can be evaluated with a model or a
 classifier. The classifier approach might be a fitting one here; we are
 aiming to discover true, verifiable labels (authors), so a classifier
 should be able to successfully distinguish them. Jain 2010 gives the
@@ -1079,16 +1157,22 @@ the following:
 - Cluster validation statistics for distance based clustering including
   corrected Rand index.
 
+The base R `stats` package includes the `cophenetic()` function, which
+is an implementation of a strategy suggested on [@moisl2015] p. 206.
+
 ```{r, cluster-validity-mclust}
 
 # Use the results of cluster-algorithm-tests, with each test being on a different algorithm. Each algorithm in turn has copies for each metric and frequency type.
 
 # mclust boostrapping (see browseVignettes("mclust"))
 
+# 
+
+# cophenetic correlation coefficient; if the correlation isn't high, we have more reason to disregard the data
+
 ```
 
 ```{r, fpc-verification}
-# 
 
 # cluster.stats(dist, clustering = c(1, 1, 1, 1, 2, 2, 2 ...))
 run_stats <- function(dist_matrix, clustering_input) {
@@ -1096,6 +1180,8 @@ run_stats <- function(dist_matrix, clustering_input) {
     cluster.stats(dist_matrix, clustering_input)
   )
 }
+
+# How to choose which clusters to use? Maybe the most common one found with kmeans, pam and pamk for each dataset?
 
 # prediction.strength:
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
