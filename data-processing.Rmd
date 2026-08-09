@@ -511,6 +511,9 @@ file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_g
 
 gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 
+caesar.gorman.vars <- gorman.vars %>% 
+  filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
+
 file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
 
 sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv");sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
@@ -521,6 +524,8 @@ sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_
 
 custom_vars_book <- read.csv("feature_csv_files/feature_values_custom_by_book.csv")
 custom_vars_section <- read.csv("feature_csv_files/feature_values_custom_by_section.csv")
+custom_caesar_book <- custom_vars_book %>%
+  filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
 
 sectioned.gorman.vars %<>% reorder_works()
 
@@ -539,14 +544,14 @@ lookup_table <- setNames(
 ```
 
 ```{r, create-test-structure}
-# DEPRECATED CODE BLOCK, WILL REMOVE ONCE NEW STRATEGY IS IMPLEMENTED
-
-# Set up a data structure we can add the results to.
+# Set up a data structure we can add the results to. The varieties with "caesar" in the title are the same as the others with the same name, but are restricted to Caesar alone.
 
 object <- list(
   simplex_vars_only,
   gorman.vars,
-  custom_vars_book
+  caesar.gorman.vars,
+  custom_vars_book,
+  custom_caesar_book
   #sectioned.gorman.vars
 )
 
@@ -555,8 +560,8 @@ object %<>% map(~ column_to_rownames(.x, "title"))
 object %<>% map(~ as.matrix(.x))
 
 # Add each to a named list
-object %<>% map(~ list(.x))
-names(object) <- c("simplex", "gorman", "custom")#, "sectioned")
+object %<>% map(~ .x)
+names(object) <- c("simplex", "gorman", "caesar_gorman", "custom", "custom_caesar")#, "sectioned")
 summary(object)
 ```
 
@@ -674,9 +679,11 @@ metrics <- list()
 # Cosine SIMILARITY matrix:
 # lsa::cosine(m)
 # Adds a new "cosine" list to each one; I transpose because it compares each COLUMN
-tmp <- object %>% object_map(f = \(x) custom_dist(x, method = lsa::cosine), label = "cosine")
-object <- tmp
-rm(tmp)
+tmp <- object %>% 
+  map(~ custom_dist(.x, method = lsa::cosine)) %>%
+  unname()
+tmp %<>% imap(\(.x, .y) set_attributes(.x, list(dataset = .y, metric = "cosine")))
+metrics %<>% c(tmp)
 
 # Default methods
 methods <- c(
@@ -692,27 +699,19 @@ methods <- c(
 )
 
 for (method in methods) {
-  object %<>% object_map(f = \(x) custom_dist(x, method = method), label = method)
+  tmp <- object %>%
+    map(\(x) custom_dist(x, method = method)) %>%
+    unname()
+  tmp %<>% imap(\(.x, .y) set_attributes(.x, list(dataset = .y, metric = method)))
+  metrics %<>% c(tmp)
 }
 
 # minmax
-tmp <- object %>% object_map(f = \(x) custom_dist(x, method = minmax), label = "minmax")
-object <- tmp
-rm(tmp)
-
-# Cosine delta
-
-
-# Eder's Delta
-
-# SPATIUM-L1
-# SPATIUM is more than a measurement method; Kocher 2016 just uses Manhattan distance to compare vectors
-
-# We can use get_dist() with a variety of distance metrics
-
-
-
-
+tmp <- object %>%
+  map(\(x) custom_dist(x, method = minmax)) %>%
+  unname()
+tmp %<>% imap(\(.x, .y) set_attributes(.x, list(dataset = .y, metric = "minmax")))
+metrics %<>% c(tmp)
 ```
 
 The following were considered for inclusion, but the methods themselves
@@ -775,7 +774,17 @@ Here are a few options from Moisl:
 
 - CLIQUE [@agrawal2005]
 
-- Dbscan (see Moisl pp. 166ff.)
+- Dbscan (see Moisl pp. 166ff. and [@ester1996]). Dbscan is helpful
+  because it deals with high dimensionality well (which is the case with
+  the Gorman-style variables), and it assigns outliers to a "noise"
+  category. An implementation is available in R with the `fpc` package.
+  However, I doubt this is the final algorithm we will look for. This
+  algorithm is best for clusters that are not roughly spherical, while
+  visualization of the data seems to show that texts do cluster together
+  in roughly spherical groups. Additionally, DBSCAN is likely to only
+  identify two clusters, as it requires substantial empty space to be
+  between sections. Perhaps tweaking the parameters will give workable
+  results in that case.
 
 - FANNY or Fuzzy clustering (see Kaufman and Rousseeuw 1990, chapter 4)
 
@@ -784,77 +793,92 @@ Here are a few options from Moisl:
 # This can be done AFTER measuring cluster tendency.
 
 # We will test a range of clusters
-CLUSTERS <- 3:10
+CLUSTERS <- 1:8
 
-# k-means on base data
-# TODO: TRY THIS WITH fpc::kmeansruns
-# Create a function to use on each number of clusters and dataset
-run_kmeans <- function(source_data, clusters) {
-  km_result <- list(kmeans(source_data, centers = clusters, nstart = 50))
-  names(km_result) <- glue::glue("kmeans-{clusters}-clusters")
-  # plot the result when it is generated
-  browser()
-  custom_fviz_clust(km_result[[1]], source_data)
-  
-  km_result
+# The list to store the algorithms in
+algorithms <- list()
+algorithms_dist <- list()
+algorithms_agglom <- list()
+
+#' k-means on base data
+#' 
+#' @param source_data An m x n data frame or matrix
+#' @param name The name passed from the "object" list, which is unique to this file.
+run_kmeans <- function(source_data, name) {
+  map(
+    CLUSTERS, 
+    ~ structure(
+      kmeans(source_data, centers = .x, nstart = 50), 
+      dataset = name,
+      algorithm = "kmeans",
+      centers = .x
+      ))
 }
 
 # Iterate over each potential number of clusters, then each dataset
 # Make sure to pass the name of the dataset AND 
-kmeans <- map(CLUSTERS, function(numclust) imodify(object, ~ run_kmeans(.x[[1]], numclust)))
+kmeans_results <- imap(object, run_kmeans) |>
+  unlist(recursive = FALSE)
 
-tmp <- object %>% imodify(~ c(.x, unlist(map(kmeans, .y), recursive = FALSE)))
-
+algorithms %<>% c(kmeans_results)
 
 # pam with dissimilarity matrix
-# TODO: TRY THIS WITH fpc::pamk
-run_pam <- function(dist, clusters, metric) {
-  pam_result <- list(pam(dist, clusters)) # all other default parameters can be ignored for a dissimilarity matrix
-  names(pam_result) <- glue::glue("pam-{metric}-{clusters}-clusters")
-  pam_result
+run_pam <- function(dist) {
+  
+  map(
+    CLUSTERS, 
+    ~ structure(
+      pam(dist, k = .x), 
+      dataset = attributes(dist)$dataset,
+      algorithm = "pam",
+      metric = attributes(dist)$metric,
+      centers = .x
+    ))
 }
 
-# NOTE: THIS CODE ASSUMES THE SAME NAMES ARE USED FOR ALL DATA SETS
-names <- c(
-  "cosine",
-  "pearson", 
-  "spearman", 
-  "kendall", 
-  "euclidean", 
-  "maximum", 
-  "manhattan", 
-  "canberra",
-  "binary", 
-  "minkowski",
-  "minmax"
-  #"cos_delta",
-  #"eders",
-  #"spatium"
-)
+pam_results <- map(metrics, run_pam) %>%
+  unlist(recursive = FALSE)
 
-pams <- list()
-for (numclust in CLUSTERS) {
-  clusts <- list()
-  for (metric in names) {
-    clusts <- c(
-      clusts,
-      list(map(object, ~ run_pam(pluck(.x, metric), numclust, metric)))
-    )
-  }
-  pams <- c(pams, list(clusts))
-}
+algorithms_dist %<>% c(pam_results)
 
-# here, .y is the name, currently either "simplex" or "gorman"
-anonymous <- function(.x, .y) {
-  map(.x, .y)
+# fpc::pamk, which can use average silhouette width OR Calinski-Harabasz index, and the Duda-Hart test to determine whether more than one cluster is necessary.
+run_pamk <- function(dist) {
+  
+  structure(
+    pamk(dist, criterion = "ch", alpha = 0.001),
+    dataset = attributes(dist)$dataset,
+    algorithm = "pamk",
+    metric = attributes(dist)$metric,
+  )
 }
-tmp <- object %>% imodify(~ c(.x, map(pams, \(pam) anonymous(pam, .y)) |> 
-                                unlist(recursive = FALSE) |> 
-                                unlist(recursive = FALSE)))
+pamk_results <- map(metrics, run_pamk) %>%
+  unlist(recursive = FALSE)
+
+algorithms_dist %<>% c(pamk_results)
 
 # SOM
+# TODO: This one works quite differently than the others, so it is worth waiting to implement this one, if at all.
 
 # Agglomerative clustering (use AGNES, put the agglomerative coefficient somewhere visible)
+# If we add the linkage methods "flexible" or "gaverage", we would have to be familiar with the Lance-Williams formula and parameters, and I do not trust my expertise in that regard. See the documentation for the `agnes()` function.
+run_agnes <- function(dist) {
+  map(
+    c("average", "single", "complete", "ward", "weighted"),
+    ~ structure(
+      agnes(dist, method = .x),
+      dataset = attributes(dist)$dataset,
+      algorithm = "agnes",
+      metric = attributes(dist)$metric,
+      linkage = .x
+    )
+  )
+  
+}
+agnes_results <- map(metrics, run_agnes) %>%
+  unlist(recursive = FALSE)
+
+algorithms_dist %<>% c(pamk_results)
+
 # COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
 # pvclust allows you to create and visualize p-values for hierarchical clusters!
 # install.packages(pvclust)
@@ -866,23 +890,56 @@ tmp <- object %>% imodify(~ c(.x, map(pams, \(pam) anonymous(pam, .y)) |>
 
 
 
-
 # CLIQUE 
 # subspace::CLIQUE(); # WOULD NEED TO USE AN OLDER VERSION OF R
 
+
+# FANNY is available from the cluster package.
+# This is a fuzzy clustering algorithm which assigns each item a percentage
+run_fanny <- function(dist) {
+  structure(
+    fanny(dist),
+    dataset = attributes(dist)$dataset,
+    algorithm = "fanny",
+    metric = attributes(dist)$metric,
+  )
+}
+
+fanny_results <- map(metrics, run_fanny) %>%
+  unlist(recursive = FALSE)
+
+algorithms_dist %<>% c(fanny_results)
+```
+
+```{r, work-in-progress-algorithms, eval=FALSE}
 # DBSCAN
 # we can pass the dbscan result directly to fviz_cluster, as shown [here](https://www.datanovia.com/learn/machine-learning/clustering/dbscan)
 # Recommendation from the above site:
 # Don’t guess eps. Draw the kNN distance plot (kNNdistplot(df, k = MinPts)) and read the knee. For MinPts, start at 5 for 2-D data and raise it for larger or noisier sets (a rule of thumb is MinPts ≥ dimensions + 1, at least 3). Remember the argument is minPts in the dbscan package, MinPts in fpc::dbscan().
 # NOTE THAT THEY SUGGEST USING PCA FIRST
 
+#> The challenge is estimating `eps` and `MinPts`. Section 4.2 of Ester et al. 1996 describes an algorithm for estimating the correct values.
+#> 
+
+k <- 4
+dbscan_MinPts <- k
+dbscan_eps <- 5 # generate this value as section 4.2 of Ester et al. 1996 suggests
+
+run_dbscan <- function(dist) {
+  
+  structure(
+    dbscan(dist, eps = dbscan_eps, MinPts = dbscan_MinPts, method = "dist"),
+    dataset = attributes(dist)$dataset,
+    algorithm = "dbscan",
+    metric = attributes(dist)$metric,
+  )
+}
+dbscan_results <- map(metrics, run_dbscan) %>%
+  unlist(recursive = FALSE)
+
+algorithms_dist %<>% c(dbscan_results)
+
 # HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. My instinct from working on it has been no, but that has been in only two dimensions.
-
-
-# FANNY is available from the cluster package
-cluster::fanny()
-
-
 ```
 
 Determining the number of clusters can be done with the following
@@ -927,7 +984,7 @@ than three dimensions, it is worth considering.
 
 ```{r, cluster-number-determination, eval=FALSE}
 
-# The input to this block is a set of `dist` objects from the previous code block's agglomerative clustering
+# The input to this block is a set of `dist` objects from the previous code block's agglomerative clustering, the variables titled algorithms_dist and algorithms_agglom
 
 # Total within sum of squares
 object <- modify(
@@ -969,12 +1026,24 @@ in on 1.0 with non-random data.
 
 ```{r, cluster-tendency}
 
-# Use the results of the distance-measures code block here
+hopkins <- list()
 
 # placing this into a function for use in a functional
 # x is a matrix or data frame
 run_vat <- function(x) fclust::VAT(x) 
 
+# Hopkins statistic
+setseed(123123)
+
+run_hopkins <- function(source_data, name) {
+  structure(
+    get_clust_tendency(source_data, n = nrow(source_data) - 1, graph = FALSE)$hopkins_stat,
+    dataset = name,
+    tendency = "hopkins"
+  )
+}
+
+# RUN VAT HERE BASED ON HOPKINS
 
 
 ```
@@ -1017,6 +1086,8 @@ the following:
 ```
 
 ```{r, fpc-verification}
+# 
+
 # cluster.stats(dist, clustering = c(1, 1, 1, 1, 2, 2, 2 ...))
 
 # prediction.strength:

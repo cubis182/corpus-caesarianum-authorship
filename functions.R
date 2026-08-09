@@ -48,11 +48,12 @@ get_title_segment <- function(string, mode = "book") {
   ))
 }
 
+# add a version of `attributes<-` which returns the object too
+
+cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
+sallust_works <- "(catilinae_sallusti|iugurthine)"
 # reorder works so ones by the same author go together.
 reorder_works <- function(source_data) {
-  
-  cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
-  sallust_works <- "(catilinae_sallusti|iugurthine)"
   
   # move Cicero to the end, to keep authors separated
   bind_rows(
@@ -675,30 +676,9 @@ verify_random_cell <- function(all_vars, source_data) {
   (signif(count_from_source_data, digits = 2) == signif(cell, digits = 2))[[1]]
 }
 
-## Clustering
-
-# utility to add new test to `object` variable
-# .x: data
-# f: function to be applied using map (corresponds to map's .f argument)
-# ...: other keyword arguments to pass to the function
-# label: label to be given to the list that contains the result.
-object_map <- function(.x, f, ..., label) {
-  if (missing(label)) stop("label argument is required.")
-  map(
-    .x, 
-    ~ c(
-          .x, 
-          setNames(
-            list(f(.x[[1]])),
-            label
-            )
-        ), 
-    ...)
-}
-
 # Wrapper around dist() and as.dist() which allows the user to supply a function 
 #   as a custom distance measure. 
-# The custom method assumes the first two arguments are vectors to be compared.
+# The first two arguments of the custom method must be the vectors to be compared.
 # The return value of the function passed to the method argument must be a 
 #   single double
 # ... contains other arguments to be passed to the custom method.
