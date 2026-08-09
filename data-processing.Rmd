@@ -65,6 +65,8 @@ library(ggdendro)
 library(fclust)
 library(lsa)
 library(fpc)
+library(pvclust)
+library(cowplot)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
@@ -1089,6 +1091,11 @@ the following:
 # 
 
 # cluster.stats(dist, clustering = c(1, 1, 1, 1, 2, 2, 2 ...))
+run_stats <- function(dist_matrix, clustering_input) {
+  structure(
+    cluster.stats(dist_matrix, clustering_input)
+  )
+}
 
 # prediction.strength:
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
