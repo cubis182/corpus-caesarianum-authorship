@@ -910,6 +910,17 @@ run_kmeans <- function(source_data, name) {
 # Make sure to pass the name of the dataset AND 
 kmeans_results <- imap(object, run_kmeans) |>
   unlist(recursive = FALSE)
+
+# Run each data set through PCA, to see which data sets have problems with dimensionality reduction.
+# Use R-mode PCA with prcomp(), since Q-mode with princomp() is requires at least as many observations as variables
+run_pca <- function(data, name) {
+  structure(
+    prcomp(data), 
+    dataset = name
+  )
+}
+pca_results <- imap(object, run_pca)
+
 ```
 
 ```{r, pam}
@@ -1200,6 +1211,17 @@ run_stats <- function(dist_matrix, clustering_input) {
 # prediction.strength:
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
 ```
+
+## Test (remove whole section later)
+
+```{r}
+
+fviz_cluster(kmeans_results$caesar_gorman3, data = object$caesar_gorman)
+
+
+
+```
+
 
 # Post-clustering Analysis
 
