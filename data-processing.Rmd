@@ -507,6 +507,15 @@ ablative, oblique argument with a 3rd person verb parent".
 
 ```{r}
 
+# Clear everything from previous sections of the notebook, and replace necessary variables
+rm(list = ls()); gc()
+source("functions.R")
+params <- list(
+  use_parent = FALSE,
+  use_att = FALSE,
+  new_combos = TRUE
+)
+
 simplex_vars_only <- read.csv("./feature_csv_files/feature_values.csv")
 
 caesar_simplex_vars <- simplex_vars_only %>%
@@ -556,7 +565,7 @@ object <- list(
   caesar_simplex_vars,
   gorman.vars,
   caesar.gorman.vars,
-  custom_vars_book,
+  custom_vars_book
   #custom_caesar_book # No clustering tendency
   #sectioned.gorman.vars
 )
@@ -567,7 +576,7 @@ object %<>% map(~ as.matrix(.x))
 
 # Add each to a named list
 object %<>% map(~ .x)
-names(object) <- c("simplex", "caesar_simplex", "gorman", "caesar_gorman", "custom", "custom_caesar")#, "sectioned")
+names(object) <- c("simplex", "caesar_simplex", "gorman", "caesar_gorman", "custom")#, "sectioned")
 summary(object)
 ```
 
@@ -580,7 +589,6 @@ cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward",
 palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray", "cyan", "black")
 geom <- "point"
 ellipse.type <- "convex"
-ggtheme <- theme_bw()
 
 # K-means
 k <- 3
@@ -690,7 +698,11 @@ metrics <- list()
 tmp <- object %>% 
   map(~ custom_dist(.x, method = lsa::cosine)) %>%
   unname()
-tmp %<>% imap(\(.x, .y) set_attributes(.x, list(dataset = .y, metric = "cosine")))
+tmp %<>% imap(\(.x, .y) {
+  attr(.x, "dataset") <- .y
+  attr(.x, "metric") <- "cosine"
+  .x
+  })
 metrics %<>% c(tmp)
 
 # Default methods
@@ -710,7 +722,11 @@ for (method in methods) {
   tmp <- object %>%
     map(\(x) custom_dist(x, method = method)) %>%
     unname()
-  tmp %<>% imap(\(.x, .y) set_attributes(.x, list(dataset = .y, metric = method)))
+  tmp %<>% imap(\(.x, .y) {
+    attr(.x, "dataset") <- .y
+    attr(.x, "metric") <- method
+    .x
+    })
   metrics %<>% c(tmp)
 }
 
@@ -718,7 +734,11 @@ for (method in methods) {
 tmp <- object %>%
   map(\(x) custom_dist(x, method = minmax)) %>%
   unname()
-tmp %<>% imap(\(.x, .y) set_attributes(.x, list(dataset = .y, metric = "minmax")))
+tmp %<>% imap(\(.x, .y) {
+  attr(.x, "dataset") <- .y
+  attr(.x, "metric") <- "minmax"
+  .x
+  })
 metrics %<>% c(tmp)
 ```
 
@@ -796,7 +816,7 @@ hopkins_results <- imap(object, \(x, y) run_hopkins(x, y))
 # RUN VAT HERE BASED ON HOPKINS
 
 # VAT on custom feature set with Caesar:
-fclust::VAT(object$custom_caesar)
+# fclust::VAT(object$custom_caesar)
 
 # VAT on simplex features with Caesar:
 fclust::VAT(object$caesar_simplex)
@@ -861,17 +881,12 @@ Here are a few options from Moisl:
 
 - FANNY or Fuzzy clustering (see Kaufman and Rousseeuw 1990, chapter 4)
 
-```{r, cluster-algorithm-tests}
+```{r, kmeans}
 
 # This can be done AFTER measuring cluster tendency.
 
 # We will test a range of clusters
 CLUSTERS <- 1:8
-
-# The list to store the algorithms in
-algorithms <- list()
-algorithms_dist <- list()
-algorithms_agglom <- list()
 
 #' k-means on base data
 #' 
@@ -892,8 +907,9 @@ run_kmeans <- function(source_data, name) {
 # Make sure to pass the name of the dataset AND 
 kmeans_results <- imap(object, run_kmeans) |>
   unlist(recursive = FALSE)
+```
 
-algorithms %<>% c(kmeans_results)
+```{r, pam}
 
 # pam with dissimilarity matrix
 run_pam <- function(dist) {
@@ -912,96 +928,96 @@ run_pam <- function(dist) {
 pam_results <- map(metrics, run_pam) %>%
   unlist(recursive = FALSE)
 
-algorithms_dist %<>% c(pam_results)
-
 # fpc::pamk, which can use average silhouette width OR Calinski-Harabasz index, and the Duda-Hart test to determine whether more than one cluster is necessary.
 run_pamk <- function(dist) {
   
   structure(
-    pamk(dist, criterion = "ch", alpha = 0.001),
+    pamk(dist, krange = CLUSTERS, criterion = "ch", alpha = 0.001),
     dataset = attributes(dist)$dataset,
     algorithm = "pamk",
     metric = attributes(dist)$metric
   )
 }
-pamk_results <- map(metrics, run_pamk) %>%
-  unlist(recursive = FALSE)
+pamk_results <- map(metrics, run_pamk)
+pamk_results %<>% discard(~ .x$nc == 1)
+# !!! The following variable shows that the Caesar data, in no cases, justified more than one cluster. Not with Gorman, and not with the new custom variables. !!!
+pamk_datasets <- names(object)[unique(map_int(pamk_results, ~ attributes(.x)$dataset))]
 
-algorithms_dist %<>% c(pamk_results)
+```
 
+```{r, SOM, eval=FALSE}
 # SOM
 # TODO: This one works quite differently than the others, so it is worth waiting to implement this one, if at all.
 
+```
+
+```{r, agglomerative-clustering}
 # Agglomerative clustering (use AGNES, put the agglomerative coefficient somewhere visible)
 # If we add the linkage methods "flexible" or "gaverage", we would have to be familiar with the Lance-Williams formula and parameters, and I do not trust my expertise in that regard. See the documentation for the `agnes()` function.
 run_agnes <- function(dist) {
-  map(
-    c("average", "single", "complete", "ward", "weighted"),
-    ~ structure(
-      agnes(dist, method = .x),
-      dataset = attributes(dist)$dataset,
-      algorithm = "agnes",
-      metric = attributes(dist)$metric,
-      linkage = .x
-    )
+  structure(
+    agnes(dist, method = "ward"),
+    dataset = attributes(dist)$dataset,
+    algorithm = "agnes",
+    metric = attributes(dist)$metric,
+    linkage = "ward"
   )
   
 }
 agnes_results <- map(metrics, run_agnes) %>%
   unlist(recursive = FALSE)
 
-algorithms_dist %<>% c(agnes_results)
+# What is the average agglomerative coefficient for each linkage method? This will help decide which linkage method is best for pvclust down below.
+ac_values <- list(linkage = character(), ac = double())
+for (item in agnes_results) {
+  ac_values$linkage <- c(ac_values$linkage, attributes(item)$linkage)
+  ac_values$ac <- c(ac_values$ac, item$ac)
+}
+ac_values <- as.data.frame(ac_values)
+ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linkage, mean)) + geom_col()
+# This graph shows that each linkage method is roughly equivalent, although Ward gives the largest average agglomerative coefficient by a very small margin. Since all are so similar and consistent (no value below 0.9 is reported for any data set), I feel confident using only ward for pvclust. We can remove the others.
+
+# agnes_results %<>% discard(~ attributes(.x)$linkage != "ward")
+
+# I would like to narrow to the top few metrics, but using the code above shows very little difference in agglomerative coefficient between metrics.
+
 
 # COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
 # pvclust allows you to create and visualize p-values for hierarchical clusters!
 # install.packages(pvclust)
 # library(pvclust)
-
 # Testing ALL methods is quite slow, so we might want to see which method got the best performance in AGNES first. I could parallelize the function, but the use of "custom_dist" begins to get us into a world of figuring out R internals and making sure the value associated with "custom_dist" actually gets passed to the function correctly.
 
-methods <- c("ward.D", "single", "complete", "average", "mcquitty", 
-             "median", "centroid", "ward.D2")
+# I will do this with only Euclidean distance and correlation method for pvclust to save on computation time
 
-anonymous <- function(x) {
-  
-}
-
-
-# Some code to consider adding:
-cl <- makeCluster(2)
-clusterExport(cl, "custom_dist", envir = current_env())
- 
-pvclust_results <- list(
+pvclust_results <- c(
   # A map function for each distance metric with different linkage methods
-  map(
-    methods, 
-    ~ structure(
-      parPvclust(cl, object$simplex, .x, \(x) custom_dist(x, lsa::cosine))
-      )
-    ) %>%
-      unlist(recursive = FALSE)
-  # map(
-  #   methods, 
-  #   ~ structure(
-  #     
-  #   )
-  # ) %>%
-  #   unlist(recursive = FALSE),
+  imap(
+    object,
+    \(x, y) structure(pvclust(x, "ward.D2", "euclidean"), dataset = y, method = "ward.D2", metric = "euclidean")
+  ),
+  imap(
+    object,
+    \(x, y) structure(pvclust(x, "ward.D2", "correlation"), dataset = y, method = "ward.D2", metric = "correlation")
+  )
 )
-
 
 # Visualize with pvclust; the objects are plottable
 
+```
 
+```{r, clique, eval=FALSE}
 
 # CLIQUE 
 # subspace::CLIQUE(); # WOULD NEED TO USE AN OLDER VERSION OF R
 
+```
+
+```{r, fanny}
 
 # FANNY is available from the cluster package.
+# CONSIDER USING FCLUST INSTEAD, WHICH PROVIDES PLOTTING FUNCTIONALITY?
 # This is a fuzzy clustering algorithm which assigns each item a percentage
-
-
 run_fanny <- function(dist) {
   
   map(
@@ -1024,13 +1040,9 @@ run_fanny <- function(dist) {
 }
 
 
-  fanny_results <- map(metrics, run_fanny) %>%
-    unlist(recursive = FALSE)
+fanny_results <- map(metrics, run_fanny) %>%
+  unlist(recursive = FALSE)
   # Fanny did not converge in the max number of iterations on 16 of the 66 items in the 'metrics' list the first time this was run. Will add a calling handler to print more information in the warning than default, so the datasets and distance metrics responsible are clear.
-
-
-
-algorithms_dist %<>% c(fanny_results)
 ```
 
 ```{r, work-in-progress-algorithms, eval=FALSE}
@@ -1064,20 +1076,6 @@ algorithms_dist %<>% c(dbscan_results)
 # HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. My instinct from working on it has been no, but that has been in only two dimensions.
 ```
 
-A brief aside is due here for exploring all the possible values. Some
-initial general exploration will be attempted in this first code block.
-The output will include:
-
-- Ideal clusters identified by pamk (histogram of cluster numbers across
-  datasets and distance metrics? remember that 1 suggests lack of
-  clustering)
-
-- Plot FANNY results (`plot.partition()` is a class method for this)
-
-```{r, visualizations-clustering}
-
-
-```
 
 **(f)** Determining the number of clusters can be done with the
 following methods, each of which can get slightly different results, as
@@ -1166,9 +1164,22 @@ is an implementation of a strategy suggested on [@moisl2015] p. 206.
 
 # mclust boostrapping (see browseVignettes("mclust"))
 
-# 
 
 # cophenetic correlation coefficient; if the correlation isn't high, we have more reason to disregard the data
+cophenetic_results <- map(
+  metrics,
+  \(x) {
+    cophenetic(hclust(x, method = "ward.D2"))
+  }
+)
+
+coph_coefficients <- imap(unname(metrics), \(x, y) structure(cor(x, cophenetic_results[[y]]), dataset = attributes(x)$dataset, metric = attributes(x)$metric))
+# Only keep ones with a coefficient > 0.75; in other words, distance matrices with a high correlation with their cophenetic matrices
+coph_coefficients %<>% keep(~ .x >= 0.75)
+# Print the data sets whose cophenetic coefficients are higher than 0.75
+coph_coefficients %>% map_int(~ attributes(.x)$dataset) %>% unique() %>% magrittr::extract(names(object), .) %>% print()
+# Print the metrics whose cophenetic coefficients are higher than 0.75; only one is missing
+coph_coefficients %>% map_chr(~ attributes(.x)$metric) %>% unique() %>% print()
 
 ```
 
