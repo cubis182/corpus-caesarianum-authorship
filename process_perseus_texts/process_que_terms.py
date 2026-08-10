@@ -261,7 +261,7 @@ corpus_importer = CorpusImporter("latin")
 corpus_importer.import_corpus("latin_models_cltk")
 
 # Load data
-df = pd.read_csv("full_data_text_perseus.csv", sep="|", index_col=0)
+df = pd.read_csv("caesar_text_perseus.csv", sep="|", index_col=0)
 
 # Init tokenizer
 tokenizer = WordTokenizer()
@@ -288,7 +288,7 @@ cicero = df[df['work'].isin(['amicitia', 'senectute', 'philippics', 'brutus', 'd
 sallust = df[df['work'].isin(['catilinae_sallusti', 'iugurthine',])]
 
 # Save 
-caesar.to_csv("full_data_text_perseus_tokenized.csv")
+caesar.to_csv("caesar_text_perseus_tokenized.csv")
 cicero.to_csv("cicero_text_perseus_tokenized.csv")
 sallust.to_csv("sallust_text_perseus_tokenized.csv")
 

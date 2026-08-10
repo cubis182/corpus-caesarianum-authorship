@@ -133,7 +133,10 @@ data <- bind_rows(
   )
 
 data %<>%
-    mutate(Person = as.factor(Person))
+  mutate(Person = as.factor(Person)) %>%
+  dplyr::select(-Voice)
+
+if (params$use_parent) data %<>% dplyr::select(-parent_Voice)
 
 summary(data)
 ```

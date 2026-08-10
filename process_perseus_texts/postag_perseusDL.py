@@ -43,6 +43,7 @@ import pandas as pd
 import numpy as np
 
 import csv
+from stanza.utils.get_tqdm import get_tqdm
 
 # Import Latincy processors
 sys.path.append("/home/mdehass/PycharmProjects/corpus-caesarianum-authorship/process_perseus_texts")
@@ -773,7 +774,7 @@ def select_random(tries=1, results_file = results_file, accuracy_data_file: str 
 
 
 def csv_postag(
-        path_origin: Union[str, Path]='full_data_text_perseus_tokenized.csv',
+        path_origin: Union[str, Path]='caesar_text_perseus_tokenized.csv',
         path_destination: Union[str, Path]=results_file,
         processor_variants: str="") -> None:
     """
@@ -871,7 +872,8 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
     )  # Call the neural pipeline on this list of documents
     # print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
-    for s in out_docs.sentences:
+    tdqm = get_tqdm()
+    for s in tqdm(out_docs.sentences):
         pass
         for word in s.words:
         
@@ -888,6 +890,10 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
 
                 #dependency relation
                 deprel = replace_feat(word.deprel)
+
+                # Adjustment for consistency with 'nihil', a common word
+                if s_lemma == "nihil":
+                    tag = "PRON"
 
                 #parent word
                 parent = get_parent(word)
@@ -913,6 +919,10 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
                 # Only get the features we're interested in
 
                 features = extract_features(word, f_set)
+
+                # make sure conjunct participles are tagged consistently
+                if features["VerbForm"] == "Part" and features["Case"] == "Nom":
+                    deprel = "advcl"
 
                 parent_features = extract_features(parent, f_set)
 
@@ -1073,7 +1083,7 @@ if __name__ == "__main__":
     # )
     #
     # csv_postag(
-    #     path_origin="full_data_text_perseus_tokenized.csv",
+    #     path_origin="caesar_text_perseus_tokenized.csv",
     #     path_destination="../postagged/postagged-texts.csv",
     #     processor_variants="latincy"
     # )
