@@ -288,7 +288,7 @@ get_number_rows_with_feature_types <- function(vector_of_feature_values, source_
   count_of_feature_values <- sum(
     apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = vector_of_feature_values)
   )
-  log_debug("{fn_name}: The feature values '{paste(vector_of_feature_values)}' occurred {count_of_feature_values} times in the dataset.")
+  log_debug("{fn_name}: The feature values '{paste0(vector_of_feature_values, collapse = ',')}' occurred {count_of_feature_values} times in the dataset.")
 
   count_of_feature_values
 }
@@ -347,7 +347,7 @@ select_top_variables <- function(all_vars, n) {
 
   sorted <- sort(combined_vars, decreasing = TRUE)[1:n]
   to_filter_by <- names(sorted)
-
+  
   all_vars |> filter(pasted %in% to_filter_by)
 }
 
@@ -378,7 +378,10 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
   # mutate(n = n * norm_val, title = title_str)
 
   # browser()
+  log_debug("Finished counting combinations for {title_str}")
   print(proc.time() - t1)
+  
+  
   return_value
 }
 

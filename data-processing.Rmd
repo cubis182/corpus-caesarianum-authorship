@@ -10,7 +10,7 @@ editor_options:
 params:
   use_att: FALSE
   use_parent: FALSE
-  new_combos: TRUE
+  new_combos: FALSE
 bibliography: rmd-notebook.bib
 ---
 
@@ -67,6 +67,7 @@ library(lsa)
 library(fpc)
 library(pvclust)
 library(cowplot)
+library(gt)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
@@ -136,7 +137,7 @@ data %<>%
   mutate(Person = as.factor(Person)) %>%
   dplyr::select(-Voice)
 
-if (params$use_parent) data %<>% dplyr::select(-parent_Voice)
+data %<>% dplyr::select(-parent_Voice)
 
 summary(data)
 ```
@@ -305,7 +306,7 @@ if (!exists("combinations")){
   
   #Let's get every combination of variables.
   
-  cols <- if (params$use_parent) colnames(data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(data |> tidytable::select(tag:Deprel))
+  cols <- if (params$use_parent) colnames(data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(data |> tidytable::select(tag:Gender))
   
   combinations <- bind_rows(
     tibble(a = cols), # Do it this way because we want to keep all of the single variables
@@ -407,7 +408,7 @@ if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 # profvis({
 
-all_vars_by_section <- get_vars("chapter", data, presupplied_variables=NULL)
+all_vars_by_section <- get_vars_gorman("chapter", data, presupplied_variables=NULL)
 # })
 
 # Ran a test of this function on the Bellum Hispaniense without culling 0-length variables.
@@ -465,8 +466,11 @@ again.
 # them back into the get_vars function to get the same variables, but with
 # the frequencies calculated book-by-book this time.
 
+rm(list = c("all_vars_by_section", "all_vars_custom_by_book", "all_vars_custom_by_section"))
+
 combinations <- combinations_from_existing(all_vars_by_section_culled)
-all_vars_by_book <- get_vars("book", data, combinations)
+rm(all_vars_by_section_culled)
+all_vars_by_book <- get_vars_gorman("book", data, combinations)
 
 ```
 
@@ -506,21 +510,16 @@ generates a vector of only length 865 (as each variable is just the
 count of each individual feature, such as accusative nouns, participles,
 3rd person verbs, and so on). The gorman.vars variables consider the top
 1,000 combinations of features, so a single feature might be "masculine,
-ablative, oblique argument with a 3rd person verb parent". The custom_vars_* 
-variables are a new set combining syntactic and lexical information; 
-this variable set includes the most frequent lemmas, POS, and POS n-grams, as
-described in the Custom Variables section above.
+ablative, oblique argument with a 3rd person verb parent". The
+custom_vars\_\* variables are a new set combining syntactic and lexical
+information; this variable set includes the most frequent lemmas, POS,
+and POS n-grams, as described in the Custom Variables section above.
 
 ```{r}
 
-# Clear everything from previous sections of the notebook, and replace necessary variables
-rm(list = ls()); gc()
+# Clear everything from previous sections of the notebook, except for the params value retrieved from the YAML header
+rm(list = setdiff(ls(), "params")); gc()
 source("functions.R")
-params <- list(
-  use_parent = FALSE,
-  use_att = FALSE,
-  new_combos = TRUE
-)
 
 # Reload only the saved feature sets from disk.
 
@@ -686,7 +685,8 @@ to explore before passing the data to a clustering method.
 
 - *Cosine distance (Deza and Deza 2009 Chs. 17, 19 and O Searcoid 2006)*
 
-  $cosine(\theta) = \frac{v . w}{|v| |w|}$
+  $cosine(\theta) = \frac{v . w}{|v| |w|}$\$cosine(\\theta) = \\frac{v .
+  w}{\|v\| \|w\|}\$\$cosine(\\theta) = \\frac{v . w}{\|v\| \|w\|}\$
 
 - min-max measure [@kestemont_authenticating_2016]
 
@@ -1095,7 +1095,6 @@ algorithms_dist %<>% c(dbscan_results)
 # HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. My instinct from working on it has been no, but that has been in only two dimensions.
 ```
 
-
 **(f)** Determining the number of clusters can be done with the
 following methods, each of which can get slightly different results, as
 there is no one method. We must use our domain-specific knowledge to
@@ -1226,7 +1225,6 @@ fviz_cluster(kmeans_results$caesar_gorman3, data = object$caesar_gorman)
 
 
 ```
-
 
 # Post-clustering Analysis
 
