@@ -343,7 +343,7 @@ to Caesar [@kestemont_authenticating_2016].
 
 This custom variable set includes:
 
-- The top \~50 most common lemmas. Each is combined with its tag, so
+- The top \~100 most common lemmas in Caesar. Each is combined with its tag, so
   *cum* "with" and *cum* "when/since/although" are distinguished as
   "cum\|ADP" and "cum\|SCONJ". Lexical measures are popular
   [@stamatatos_survey_2009] and can enhance syntactic feature sets
@@ -353,9 +353,9 @@ This custom variable set includes:
   "Number=Singular" and "Case=Nominative". These are the morphological
   tags.
 
-- Part of speech (POS) and POS n-grams. POS n-grams encode the number of
-  times parts of speech occur in a row, so ADP –\> ADJ -\> NOUN would be
-  a 3-gram showing the number of times a preposition occurs before an
+- Part of speech (POS) and POS n-grams in Caesar. POS n-grams encode the 
+  number of times parts of speech occur in a row, so ADP –\> ADJ -\> NOUN 
+  would be a 3-gram showing the number of times a preposition occurs before an
   adjective and then a noun, NOUN –\> NOUN –\> VERB when two nouns occur
   in a row before a verb, and so on. This POS n-gram approach is based
   loosely on [@baayen1993] and [@stamatatos2001], but we have to
@@ -543,6 +543,8 @@ sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_
 
 # Add new feature set COMBINED with morph n-grams (without parent features or Deprel)
 
+
+# Set of variables combining vocabulary and POS n-grams
 custom_vars_book <- read.csv("feature_csv_files/feature_values_custom_by_book.csv")
 custom_vars_section <- read.csv("feature_csv_files/feature_values_custom_by_section.csv")
 custom_caesar_book <- custom_vars_book %>%
@@ -819,6 +821,7 @@ run_hopkins <- function(source_data, name) {
 }
 
 hopkins_results <- imap(object, \(x, y) run_hopkins(x, y))
+print(hopkins_results) # A value of 1 or very close to 1 suggesting cluster tendency
 
 
 # RUN VAT HERE BASED ON HOPKINS
@@ -830,9 +833,15 @@ hopkins_results <- imap(object, \(x, y) run_hopkins(x, y))
 fclust::VAT(object$caesar_simplex)
 # There are dark spots, but not strong ones. There appear to be three, or perhaps one large one with two smaller ones.
 
+# VAT on Gorman with Caesar
+fclust::VAT(object$caesar_gorman)
+# Very strong clustering in four groups here; what about with the whole set of texts?
+fclust::VAT(object$gorman)
+# Four distinct clusters emerge!
+
 # What if we look at a plot with multiple authors?
 fclust::VAT(object$custom)
-# I have to assume the very dark section in the bottom right is Cicero, but we will confirm that in the following code blocks.
+# The cluster tendency is quite weak, as only one dark grouping in the bottom right is visible, maybe Cicero?
 
 # fpc::clusterbenchstats using a variety of clusterings
 
@@ -926,7 +935,13 @@ run_pca <- function(data, name) {
 }
 pca_results <- imap(object, run_pca)
 
+# Get the cumulative proportion of variance for the first two principal components of each one
+map(pca_results, ~ summary(.x)$importance[2,1:2] |> sum())
+
+# Highest cumulative proportion of variance is in the Gorman-only section of Caesar at 0.85579, while the lowest is caesar_simplex with 0.69492. Gorman's method is the only one that explains the variance in the data well with both the full corpus AND Caesar's texts alone.
 ```
+
+The PCA analysis in the above cell seems to suggest that Gorman's method is still worth keeping. My custom variable set failed to show any cluster tendency when restricted to Caesar alone (see below), and it is the second-lowest here with the full corpus. I modified feature selection to focus only on Caesar instead of the full corpus, and changed from 50 to 100 lemmas, but neither improved performance here or the VAT diagram above. See Moisl and Stamatatos et al. 2009 p. 545 on the research that uses PCA for dimensionality reduction.
 
 ```{r, pam}
 

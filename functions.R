@@ -125,6 +125,9 @@ prepare_data <- function(data, use_parent = params$use_parent) {
     mutate(title = gsub(" ", "", paste(title, "_", book, "_", section)))
 
   data %<>% replace_ambiguous(use_parent)
+  
+  # Remove all words which have "X" as their part of speech
+  data %<>% filter_out(tag == "X")
 
   data
 }
