@@ -8,7 +8,7 @@ from cltk.tokenize.latin.params import latin_exceptions
 #   The tokens are idenitified by looking at each instance of -ne
 #   See identify-mistokenized-ne.ipynb for more detail on the process
 
-addtl_caesar = [
+addtl_exceptions = [
     "aviene",
     "calydone",
     "cicerone",
@@ -124,9 +124,6 @@ addtl_caesar = [
     "opportune",
     "obscuratione",
     "percontatione",
-]
-
-addtl_exceptions_cicero = [
     "scipione",
     "exercitatione",
     "consuetudine",
@@ -250,6 +247,60 @@ addtl_exceptions_cicero = [
     "quaestione",
     "scriptione",
     "glabrione",
+    "Carthagine",
+    "Catabathmon",
+    "Persen",
+    "Philaenon",
+    "Rusone",
+    "Silane",
+    "Tanain",
+    "Theraeon",
+    "actione",
+    "adoptatione",
+    "divisione",
+    "expectatione",
+    "hortatione",
+    "rogatione",
+    "suffragatione",
+    "Aculeone",
+    "Aeschine",
+    "Aetione",
+    "Demosthene",
+    "Fannione",
+    "Gorgian",
+    "Isocraten",
+    "Lysiaden",
+    "Philone",
+    "Platone",
+    "Protogene",
+    "Thyesten",
+    "accusatione",
+    "adprobatione",
+    "cognatione",
+    "commemoratione",
+    "commentatione",
+    "comparatione",
+    "comprehensione",
+    "compressione",
+    "concitatione",
+    "concursatione",
+    "conspiratione",
+    "dictione",
+    "disceptatione",
+    "enumeratione",
+    "ignoratione",
+    "mentione",
+    "miseratione",
+    "narratione",
+    "notatione",
+    "observatione",
+    "partitione",
+    "potione",
+    "praecone",
+    "renovatione",
+    "rogatione",
+    "tibicen",
+    "usurpatione",
 ]
 
 failed_token_split = [
@@ -278,7 +329,7 @@ def tokenize(text):
     text = text.replace("CATO", "")
     text = text.replace("SCIPIO", "")
 
-    return " ".join(tokenizer.tokenize(str(text), enclitics_exceptions=latin_exceptions + addtl_caesar + addtl_exceptions_cicero))
+    return " ".join(tokenizer.tokenize(str(text), enclitics_exceptions=latin_exceptions + addtl_exceptions))
 
 df["tokens"] = df["text"].apply(tokenize)
 
