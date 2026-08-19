@@ -169,7 +169,7 @@ cull <- function(combinations) {
 
 # This function returns a list of all combinations of a variable which occur
 variable_combinations <- function(combinations_n, source_data) {
-  cols <- if (params$use_parent) colnames(source_data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(source_data |> tidytable::select(tag:Deprel))
+  cols <- if (params$use_parent) colnames(source_data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(source_data |> tidytable::select(tag:Gender))
 
   select_combinations <- combn(cols, combinations_n)
 
@@ -342,6 +342,7 @@ select_top_variables <- function(all_vars, n) {
 
   # NOTE: COMMENTING THIS OUT FOR NOW, TO SEE HOW THE HEURISTIC PERFORMS
   # For each distinct variable, sum up its values across all works, then store in a list
+  #browser()
   combined_vars <- lapply(variables, FUN = function(var) sum(all_vars_reduced$n[all_vars_reduced$pasted == var]))
   combined_vars %<>% unlist
 

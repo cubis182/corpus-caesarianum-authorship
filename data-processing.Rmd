@@ -10,7 +10,7 @@ editor_options:
 params:
   use_att: FALSE
   use_parent: FALSE
-  new_combos: FALSE
+  new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
 
@@ -343,9 +343,9 @@ to Caesar [@kestemont_authenticating_2016].
 
 This custom variable set includes:
 
-- The top \~100 most common lemmas in Caesar. Each is combined with its tag, so
-  *cum* "with" and *cum* "when/since/although" are distinguished as
-  "cum\|ADP" and "cum\|SCONJ". Lexical measures are popular
+- The top \~100 most common lemmas in Caesar. Each is combined with its
+  tag, so *cum* "with" and *cum* "when/since/although" are distinguished
+  as "cum\|ADP" and "cum\|SCONJ". Lexical measures are popular
   [@stamatatos_survey_2009] and can enhance syntactic feature sets
   [@stamatatos2001].
 
@@ -353,16 +353,16 @@ This custom variable set includes:
   "Number=Singular" and "Case=Nominative". These are the morphological
   tags.
 
-- Part of speech (POS) and POS n-grams in Caesar. POS n-grams encode the 
-  number of times parts of speech occur in a row, so ADP –\> ADJ -\> NOUN 
-  would be a 3-gram showing the number of times a preposition occurs before an
-  adjective and then a noun, NOUN –\> NOUN –\> VERB when two nouns occur
-  in a row before a verb, and so on. This POS n-gram approach is based
-  loosely on [@baayen1993] and [@stamatatos2001], but we have to
-  simplify it to fit the NLP tools at our disposal. Instead of *phrase*
-  n-grams, which look at combinations of noun phrases, verb phrases, and
-  so on, we have to restrict ourselves to the analysis of individual
-  words.
+- Part of speech (POS) and POS n-grams in Caesar. POS n-grams encode the
+  number of times parts of speech occur in a row, so ADP –\> ADJ -\>
+  NOUN would be a 3-gram showing the number of times a preposition
+  occurs before an adjective and then a noun, NOUN –\> NOUN –\> VERB
+  when two nouns occur in a row before a verb, and so on. This POS
+  n-gram approach is based loosely on [@baayen1993] and
+  [@stamatatos2001], but we have to simplify it to fit the NLP tools at
+  our disposal. Instead of *phrase* n-grams, which look at combinations
+  of noun phrases, verb phrases, and so on, we have to restrict
+  ourselves to the analysis of individual words.
 
 - (Optional) Combine this with Gorman's variables for a high-dimension
   feature set. Will try both with and without this modification.
@@ -434,7 +434,7 @@ analysis. The following cells take care of this transposition.
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
-  select_top_variables(n = 1000) 
+  select_top_variables(n = 500) 
 ```
 
 ```{r}
@@ -689,11 +689,15 @@ to explore before passing the data to a clustering method.
 - Defaults in `get_dist()` ("euclidean", "maximum", "manhattan",
   "canberra", "binary", "minkowski", "pearson", "spearman" or
   "kendall".)
-  - Pearson's r, which is correlation, not distance. More sensitive to outliers than Kendall or Spearman. 
-  
-  - Kendall's $\tau$, which is a correlation measure and rank-based, like Spearman.
 
-  - Canberra distance, which gives smaller values more emphasis. Not as large a concern here.
+  - Pearson's r, which is correlation, not distance. More sensitive to
+    outliers than Kendall or Spearman.
+
+  - Kendall's $\tau$, which is a correlation measure and rank-based,
+    like Spearman.
+
+  - Canberra distance, which gives smaller values more emphasis. Not as
+    large a concern here.
 
 - *Cosine distance (Deza and Deza 2009 Chs. 17, 19 and O Searcoid 2006)*
 
@@ -702,9 +706,8 @@ to explore before passing the data to a clustering method.
 
 - min-max measure [@kestemont_authenticating_2016]
 
-- Spearman's $\rho$, which is a correlation measure and rank-based instead of linear.
-  [@zhelezniak_correlation_2019]
-
+- Spearman's $\rho$, which is a correlation measure and rank-based
+  instead of linear. [@zhelezniak_correlation_2019]
 
 ```{r, distance-measures}
 
@@ -932,7 +935,6 @@ run_cbs <- function(source_data) {
   
 ```
 
-
 ```{r, kmeans}
 
 # This can be done AFTER measuring cluster tendency.
@@ -975,7 +977,14 @@ map(pca_results, ~ summary(.x)$importance[2,1:2] |> sum())
 # Highest cumulative proportion of variance is in the Gorman-only section of Caesar at 0.85579, while the lowest is caesar_simplex with 0.69492. Gorman's method is the only one that explains the variance in the data well with both the full corpus AND Caesar's texts alone. When combining the custom variable set WITH Gorman's features, we don't get any improvement.
 ```
 
-The PCA analysis in the above cell seems to suggest that Gorman's method is still worth keeping. My custom variable set failed to show any cluster tendency when restricted to Caesar alone (see below), and it is the second-lowest here with the full corpus. I modified feature selection to focus only on Caesar instead of the full corpus, and changed from 50 to 100 lemmas, but neither improved performance here or the VAT diagram above. See Moisl and Stamatatos et al. 2009 p. 545 on the research that uses PCA for dimensionality reduction.
+The PCA analysis in the above cell seems to suggest that Gorman's method
+is still worth keeping. My custom variable set failed to show any
+cluster tendency when restricted to Caesar alone (see below), and it is
+the second-lowest here with the full corpus. I modified feature
+selection to focus only on Caesar instead of the full corpus, and
+changed from 50 to 100 lemmas, but neither improved performance here or
+the VAT diagram above. See Moisl and Stamatatos et al. 2009 p. 545 on
+the research that uses PCA for dimensionality reduction.
 
 ```{r, pam}
 
@@ -1018,10 +1027,14 @@ df |>
   summarize(median_nc = median(nc))
 
 ```
-A few notes on each dataset:
-- The simplex features generate only two clusters for all metrics except *cosine*, which gives 8 clusters. The silhouette width is very small, though, for this 8-cluster one.
-- The same is true of the custom variable set, which equally has a very small silhouette width
-- On Caesar alone, all datasets got similar values. How similar? Let's visualize:
+
+A few notes on each dataset: - The simplex features generate only two
+clusters for all metrics except *cosine*, which gives 8 clusters. The
+silhouette width is very small, though, for this 8-cluster one. - The
+same is true of the custom variable set, which equally has a very small
+silhouette width - On Caesar alone, all datasets got similar values. How
+similar? Let's visualize:
+
 ```{r}
 
 # caesar_simplex, using Euclidean distance
@@ -1033,7 +1046,10 @@ v1 <- pamk_results[[32]]
 fviz_cluster(v1$pamobject, v1$pamobject$diss) + geom_text_repel(label = attributes(v1$pamobject$diss)$Labels)
 
 ```
-- The Gorman variables are the highest-distinguishing group. See the following:
+
+- The Gorman variables are the highest-distinguishing group. See the
+  following:
+
 ```{r}
 # Cosine distance is clearly very difficult to visualize with PCA, since the clusters are being fit to the angle of the vector, which is in no way visible in the graph. 
 # As a result, we will visualize the hierarchical clustering instead
@@ -1045,6 +1061,7 @@ fviz_dend(v1$pamobject$diss |> hcut(hc_func = "agnes", hc_metric = "cosine"))
 v1 <- pamk_results[[31]]
 fviz_cluster(v1$pamobject, v1$pamobject$diss)
 ```
+
 Are the issues with cosine consistent across the corpus? It appears so:
 
 ```{r}
@@ -1059,8 +1076,9 @@ v1 <- pamk_results[[5]]
 fviz_cluster(v1$pamobject, v1$pamobject$diss)
 print(v1$pamobject$silinfo)
 ```
-- Canberra distance is shown below to result in a low agglomerative coefficient. 
 
+- Canberra distance is shown below to result in a low agglomerative
+  coefficient.
 
 ```{r, SOM, eval=FALSE}
 # SOM
@@ -1337,7 +1355,6 @@ run_stats <- function(dist_matrix, clustering_input) {
 # prediction.strength:
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
 ```
-
 
 # Post-clustering Analysis
 
