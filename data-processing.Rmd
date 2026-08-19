@@ -716,18 +716,7 @@ to explore before passing the data to a clustering method.
 # Create a new dissimilarity OR similarity matrix with each distance metric
 metrics <- list()
 
-# Cosine SIMILARITY matrix:
-# lsa::cosine(m)
-# Adds a new "cosine" list to each one; I transpose because it compares each COLUMN
-tmp <- object %>% 
-  map(~ custom_dist(.x, method = lsa::cosine)) %>%
-  unname()
-tmp %<>% imap(\(.x, .y) {
-  attr(.x, "dataset") <- .y
-  attr(.x, "metric") <- "cosine"
-  .x
-  })
-metrics %<>% c(tmp)
+# Removed cosine 8/19/2026
 
 # Default methods
 methods <- c(
@@ -956,6 +945,10 @@ run_kmeans <- function(source_data, name) {
       ))
 }
 
+# TODO Questions to answer about kmeans:
+# How stable is the number of clusters? Histogram of cluster numbers
+# Histogram of twss for each one, one graph per dataset.
+
 # Iterate over each potential number of clusters, then each dataset
 # Make sure to pass the name of the dataset AND 
 kmeans_results <- imap(object, run_kmeans) |>
@@ -1028,10 +1021,12 @@ df |>
 
 ```
 
-A few notes on each dataset: - The simplex features generate only two
+A few notes on each dataset: 
+- Caesar has 4-6 clusters on all
+- The simplex features generate only two
 clusters for all metrics except *cosine*, which gives 8 clusters. The
-silhouette width is very small, though, for this 8-cluster one. - The
-same is true of the custom variable set, which equally has a very small
+silhouette width is very small, though, for this 8-cluster one. 
+- The same is true of the custom variable set, which equally has a very small
 silhouette width - On Caesar alone, all datasets got similar values. How
 similar? Let's visualize:
 
