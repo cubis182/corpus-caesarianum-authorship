@@ -217,7 +217,7 @@ if (params$use_att && params$use_parent) {
   # Normalize by number of words in each work
   for (i in 2:length(final.frame[1, ])) {
     for (n in 1:length(final.frame[, 1])) {
-      final.frame[n, i] <- final.frame[n, i] * (10000 / num_words[[final.frame[n, ]$title]])
+      final.frame[n, i] <- final.frame[n, i] * (1000 / num_words[[final.frame[n, ]$title]])
     }
   }
   
@@ -569,12 +569,17 @@ lookup_table <- setNames(
 ```{r, create-test-structure}
 # Set up a data structure with each data set in it. The varieties with "caesar" in the title are the same as the others with the same name, but are restricted to Caesar alone.
 
+custom_and_gorman_book <- bind_cols(custom_vars_book |> select(-2:-13), gorman.vars |> select(-title), .name_repair = "unique")
+caesar_custom_and_gorman <- custom_and_gorman_book %>% filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
+
 object <- list(
   simplex_vars_only,
   caesar_simplex_vars,
   gorman.vars,
   caesar.gorman.vars,
-  custom_vars_book
+  custom_vars_book,
+  custom_and_gorman_book,
+  caesar_custom_and_gorman
   #custom_caesar_book # No clustering tendency
   #sectioned.gorman.vars
 )
@@ -585,7 +590,7 @@ object %<>% map(~ as.matrix(.x))
 
 # Add each to a named list
 object %<>% map(~ .x)
-names(object) <- c("simplex", "caesar_simplex", "gorman", "caesar_gorman", "custom")#, "sectioned")
+names(object) <- c("simplex", "caesar_simplex", "gorman", "caesar_gorman", "custom", "custom_&_gorman", "caesar_custom_&_gorman")#, "sectioned")
 summary(object)
 ```
 
@@ -684,6 +689,11 @@ to explore before passing the data to a clustering method.
 - Defaults in `get_dist()` ("euclidean", "maximum", "manhattan",
   "canberra", "binary", "minkowski", "pearson", "spearman" or
   "kendall".)
+  - Pearson's r, which is correlation, not distance. More sensitive to outliers than Kendall or Spearman. 
+  
+  - Kendall's $\tau$, which is a correlation measure and rank-based, like Spearman.
+
+  - Canberra distance, which gives smaller values more emphasis. Not as large a concern here.
 
 - *Cosine distance (Deza and Deza 2009 Chs. 17, 19 and O Searcoid 2006)*
 
@@ -692,8 +702,9 @@ to explore before passing the data to a clustering method.
 
 - min-max measure [@kestemont_authenticating_2016]
 
-- Spearman's $\rho$ (see first bullet point)
+- Spearman's $\rho$, which is a correlation measure and rank-based instead of linear.
   [@zhelezniak_correlation_2019]
+
 
 ```{r, distance-measures}
 
@@ -843,7 +854,11 @@ fclust::VAT(object$gorman)
 fclust::VAT(object$custom)
 # The cluster tendency is quite weak, as only one dark grouping in the bottom right is visible, maybe Cicero?
 
-# fpc::clusterbenchstats using a variety of clusterings
+# What is the cluster tendency of the gorman varialbles combined with the custom ones?
+fclust::VAT(object$`caesar_custom_&_gorman`)
+fclust::VAT(object$`custom_&_gorman`)
+# The cluster tendency is strong with this one!
+
 
 ```
 
@@ -898,10 +913,29 @@ Here are a few options from Moisl:
 
 - FANNY or Fuzzy clustering (see Kaufman and Rousseeuw 1990, chapter 4)
 
+```{r, clusterbenchstats, eval=FALSE}
+# fpc::clusterbenchstats using a variety of clusterings
+# I may avoid using this, since it requires a lot of setup that I have already done in the code blocks below. It really only would have saved time if I started with it, or used it on only a couple methods.
+
+run_cbs <- function(source_data) {
+  cbs <- clusterbenchstats(
+    source_data,
+    CLUSTERS,
+    clustermethod = c("kmeansCBI", "hclustCBI", "hclusttreeCBI", "claraCBI", "tclustCBI"),
+    methodnames = ,
+    distmethod = c(FALSE, FALSE, FALSE, TRUE, FALSE),
+    ncinput = c(TRUE, TRUE, FALSE, FALSE, TRUE),
+    
+    
+  )
+}
+  
+```
+
+
 ```{r, kmeans}
 
 # This can be done AFTER measuring cluster tendency.
-
 # We will test a range of clusters
 CLUSTERS <- 1:8
 
@@ -938,7 +972,7 @@ pca_results <- imap(object, run_pca)
 # Get the cumulative proportion of variance for the first two principal components of each one
 map(pca_results, ~ summary(.x)$importance[2,1:2] |> sum())
 
-# Highest cumulative proportion of variance is in the Gorman-only section of Caesar at 0.85579, while the lowest is caesar_simplex with 0.69492. Gorman's method is the only one that explains the variance in the data well with both the full corpus AND Caesar's texts alone.
+# Highest cumulative proportion of variance is in the Gorman-only section of Caesar at 0.85579, while the lowest is caesar_simplex with 0.69492. Gorman's method is the only one that explains the variance in the data well with both the full corpus AND Caesar's texts alone. When combining the custom variable set WITH Gorman's features, we don't get any improvement.
 ```
 
 The PCA analysis in the above cell seems to suggest that Gorman's method is still worth keeping. My custom variable set failed to show any cluster tendency when restricted to Caesar alone (see below), and it is the second-lowest here with the full corpus. I modified feature selection to focus only on Caesar instead of the full corpus, and changed from 50 to 100 lemmas, but neither improved performance here or the VAT diagram above. See Moisl and Stamatatos et al. 2009 p. 545 on the research that uses PCA for dimensionality reduction.
@@ -966,8 +1000,8 @@ pam_results <- map(metrics, run_pam) %>%
 run_pamk <- function(dist) {
   
   structure(
-    pamk(dist, krange = CLUSTERS, criterion = "ch", alpha = 0.001),
-    dataset = attributes(dist)$dataset,
+    pamk(dist, krange = CLUSTERS, criterion = "ch", alpha = 0.001, keep.diss = TRUE),
+    dataset = names(object)[attributes(dist)$dataset],
     algorithm = "pamk",
     metric = attributes(dist)$metric
   )
@@ -975,9 +1009,58 @@ run_pamk <- function(dist) {
 pamk_results <- map(metrics, run_pamk)
 pamk_results %<>% discard(~ .x$nc == 1)
 # !!! The following variable shows that the Caesar data, in no cases, justified more than one cluster. Not with Gorman, and not with the new custom variables. !!!
-pamk_datasets <- names(object)[unique(map_int(pamk_results, ~ attributes(.x)$dataset))]
+pamk_datasets <- unique(map_chr(pamk_results, ~ attributes(.x)$dataset))
+
+# Find out what the average cluster number for each dataset is.
+df <- map_df(pamk_results, ~ tibble(dataset = attributes(.x)$dataset, nc = .x$nc, metric = attributes(.x)$metric))
+df |>
+  group_by(dataset) |>
+  summarize(median_nc = median(nc))
 
 ```
+A few notes on each dataset:
+- The simplex features generate only two clusters for all metrics except *cosine*, which gives 8 clusters. The silhouette width is very small, though, for this 8-cluster one.
+- The same is true of the custom variable set, which equally has a very small silhouette width
+- On Caesar alone, all datasets got similar values. How similar? Let's visualize:
+```{r}
+
+# caesar_simplex, using Euclidean distance
+v1 <- pamk_results[[30]]
+fviz_cluster(v1$pamobject, v1$pamobject$diss)
+
+# caesar_gorman, using Euclidean distance
+v1 <- pamk_results[[32]]
+fviz_cluster(v1$pamobject, v1$pamobject$diss) + geom_text_repel(label = attributes(v1$pamobject$diss)$Labels)
+
+```
+- The Gorman variables are the highest-distinguishing group. See the following:
+```{r}
+# Cosine distance is clearly very difficult to visualize with PCA, since the clusters are being fit to the angle of the vector, which is in no way visible in the graph. 
+# As a result, we will visualize the hierarchical clustering instead
+v1 <- pamk_results[[3]]
+fviz_dend(v1$pamobject$diss |> hcut(hc_func = "agnes", hc_metric = "cosine"))
+# Visual inspection shows very little differentiation, and average silhouette width is very small at -0.0816. It seems that cosine is not a very valuable metric for this dataset. 
+
+# Now Euclidean
+v1 <- pamk_results[[31]]
+fviz_cluster(v1$pamobject, v1$pamobject$diss)
+```
+Are the issues with cosine consistent across the corpus? It appears so:
+
+```{r}
+
+# cosine for simplex
+v1 <- pamk_results[[1]]
+fviz_cluster(v1$pamobject, v1$pamobject$diss)
+print(v1$pamobject$silinfo)
+
+# cosine for custom
+v1 <- pamk_results[[5]]
+fviz_cluster(v1$pamobject, v1$pamobject$diss)
+print(v1$pamobject$silinfo)
+```
+- Canberra distance is shown below to result in a low agglomerative coefficient. 
+
 
 ```{r, SOM, eval=FALSE}
 # SOM
@@ -991,21 +1074,22 @@ pamk_datasets <- names(object)[unique(map_int(pamk_results, ~ attributes(.x)$dat
 run_agnes <- function(dist) {
   structure(
     agnes(dist, method = "ward"),
-    dataset = attributes(dist)$dataset,
+    dataset = names(object)[attributes(dist)$dataset],
     algorithm = "agnes",
     metric = attributes(dist)$metric,
     linkage = "ward"
   )
   
 }
-agnes_results <- map(metrics, run_agnes) %>%
-  unlist(recursive = FALSE)
+agnes_results <- map(metrics, run_agnes) 
 
 # What is the average agglomerative coefficient for each linkage method? This will help decide which linkage method is best for pvclust down below.
-ac_values <- list(linkage = character(), ac = double())
+ac_values <- list(linkage = character(), ac = double(), dataset = character(), metric = character())
 for (item in agnes_results) {
   ac_values$linkage <- c(ac_values$linkage, attributes(item)$linkage)
   ac_values$ac <- c(ac_values$ac, item$ac)
+  ac_values$dataset <- c(ac_values$dataset, attributes(item)$dataset)
+  ac_values$metric <- c(ac_values$metric, attributes(item)$metric)
 }
 ac_values <- as.data.frame(ac_values)
 ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linkage, mean)) + geom_col()
@@ -1013,7 +1097,7 @@ ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linka
 
 # agnes_results %<>% discard(~ attributes(.x)$linkage != "ward")
 
-# I would like to narrow to the top few metrics, but using the code above shows very little difference in agglomerative coefficient between metrics.
+# The worst metric for agglomerative coefficient is cosine, while the highest is Pearson's r. Euclidean distance does fairly well, with the minimum AC being 0.87 if we discount the `caesar_simplex` dataset as an outlier. Maximum is the same story, hovering around 0.9 other than `caesar_simplex`. Canberra always gets a low value when only considering Caesar. Manhattan distance has a similar problem, but it never has a lower AC than about 0.6.
 
 
 # COMPARE DENDROGRAMS GENERATED FROM THESE DISTANCE METRICS NUMERICALLY
@@ -1022,17 +1106,13 @@ ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linka
 # library(pvclust)
 # Testing ALL methods is quite slow, so we might want to see which method got the best performance in AGNES first. I could parallelize the function, but the use of "custom_dist" begins to get us into a world of figuring out R internals and making sure the value associated with "custom_dist" actually gets passed to the function correctly.
 
-# I will do this with only Euclidean distance and correlation method for pvclust to save on computation time
+# I will do this with only Euclidean distance for pvclust to save on computation time, especially given what we saw in the code blocks above and the challenges with cosine similarity.
 
 pvclust_results <- c(
   # A map function for each distance metric with different linkage methods
   imap(
     object,
     \(x, y) structure(pvclust(x, "ward.D2", "euclidean"), dataset = y, method = "ward.D2", metric = "euclidean")
-  ),
-  imap(
-    object,
-    \(x, y) structure(pvclust(x, "ward.D2", "correlation"), dataset = y, method = "ward.D2", metric = "correlation")
   )
 )
 
@@ -1195,8 +1275,35 @@ is an implementation of a strategy suggested on [@moisl2015] p. 206.
 
 # Use the results of cluster-algorithm-tests, with each test being on a different algorithm. Each algorithm in turn has copies for each metric and frequency type.
 
-# mclust boostrapping (see browseVignettes("mclust"))
+# considered mclust boostrapping here (see browseVignettes("mclust")), but I am not using that method of clustering.
 
+#nselectboot
+run_nselectboot <- function(source_data, name) {
+  structure(
+    nselectboot(
+      source_data,
+      B = 50,
+      clustermethod = kmeansCBI,
+      classification = "centroid",
+      krange = CLUSTERS,
+      count = TRUE,
+      largeisgood = TRUE
+    )
+  )
+}
+
+# TODO Run the above function on the section-by-section datasets too!
+nselect_results <- imap(object, \(x, y) run_nselectboot(x, y))
+
+sectioned <- list(
+  gorman = sectioned.gorman.vars,
+  caesar_gorman = sectioned.gorman.vars %>%
+    filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works)),
+  custom = custom_vars_section,
+  caesar_custom = custom_vars_section %>%
+    filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
+)
+nselect_res_sections <- imap(sectioned, \(x, y) run_nselectboot(x, y))
 
 # cophenetic correlation coefficient; if the correlation isn't high, we have more reason to disregard the data
 cophenetic_results <- map(
@@ -1231,15 +1338,6 @@ run_stats <- function(dist_matrix, clustering_input) {
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
 ```
 
-## Test (remove whole section later)
-
-```{r}
-
-fviz_cluster(kmeans_results$caesar_gorman3, data = object$caesar_gorman)
-
-
-
-```
 
 # Post-clustering Analysis
 
@@ -1249,4 +1347,6 @@ Sources: [@stamatatos2001]
 # try fpc::plotcluster
 
 # ANOVA to evaluate variables with r^2, see Stamatatos et al. 2001, p. 210
+
+# Use the ANOVA for the preliminary article, then add the classifier for the final one.
 ```

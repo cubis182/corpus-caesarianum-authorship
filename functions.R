@@ -498,12 +498,13 @@ combinations_from_existing <- function(all_vars) {
   combinations_new
 }
 
-get_count_by_title_features <- function(title, feature_char, source_data) {
+get_count_by_title_features <- function(title, feature_char, source_data, pipe = TRUE) {
   # Remove space from the title
   title_selected <- gsub(pattern = " ", replacement = "", title)
 
   # Split column name into a character vector
-  vars_unsplit <- unlist(strsplit(feature_char, "[|]"))
+  if (pipe)  vars_unsplit <- unlist(strsplit(feature_char, "[|]"))
+  else vars_unsplit <- unlist(strsplit(feature_char, "[.]"))
 
   # Filter source_data to the title, 
   #   using partial matches with str_starts() from stringr package
@@ -653,7 +654,8 @@ count_ngrams <- function(source_data, pos_ngrams) {
 }
 
 
-verify_random_cell <- function(all_vars, source_data) {
+# Set pipe to FALSE if each combined variable is separated by periods instead
+verify_random_cell <- function(all_vars, source_data, pipe = TRUE) {
   # For logging purposes
   fn_name <- get_logger_meta_variables(log_level = INFO)$fn
 
@@ -674,7 +676,8 @@ verify_random_cell <- function(all_vars, source_data) {
   count_from_source_data <- get_count_by_title_features(
     title = title, 
     feature_char = colname, 
-    source_data = source_data
+    source_data = source_data,
+    pipe
     )
 
   log_info("{fn_name}: The count retrieved from the source data is {count_from_source_data}")
