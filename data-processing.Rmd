@@ -689,12 +689,13 @@ to explore before passing the data to a clustering method.
 - Defaults in `get_dist()` ("euclidean", "maximum", "manhattan",
   "canberra", "binary", "minkowski", "pearson", "spearman" or
   "kendall".)
+  - Euclidean can be challenging to use in high-dimensional vectors, but most vectors are going to be relatively close to each other here. In fact, this should make Euclidean distance one of the more ideal measures.
 
   - Pearson's r, which is correlation, not distance. More sensitive to
     outliers than Kendall or Spearman.
 
   - Kendall's $\tau$, which is a correlation measure and rank-based,
-    like Spearman.
+    like Spearman. (CITE GRIES ON KENDALL VS. SPEARMAN!)
 
   - Canberra distance, which gives smaller values more emphasis. Not as
     large a concern here.
@@ -716,18 +717,18 @@ to explore before passing the data to a clustering method.
 # Create a new dissimilarity OR similarity matrix with each distance metric
 metrics <- list()
 
-# Removed cosine 8/19/2026
+# Removed cosine 8/19/2026, see notes below
 
 # Default methods
 methods <- c(
   "pearson", 
   "spearman", 
-  "kendall", 
+  "kendall", # 
   "euclidean", 
-  "maximum", 
+  #"maximum", # Only considers the distance between the farthest parts of each vector. This results in MORE clusters, but we want to be conservative and account for even low-frequency variables.
   "manhattan", 
-  "canberra",
-  "binary", 
+  #"canberra", # Will only use Canberra for section-by-section variables, since it is good with sparse vectors
+  #"binary", # Proportion of values in the vector which are above 0; worthless for the book-by-book variables
   "minkowski"
 )
 
@@ -1022,15 +1023,15 @@ df |>
 ```
 
 A few notes on each dataset: 
-- Caesar has 4-6 clusters on all
+- Caesar has median 3 to 5 clusters; Gorman's stronger clustering tendency is responsible for the 5.
 - The simplex features generate only two
 clusters for all metrics except *cosine*, which gives 8 clusters. The
 silhouette width is very small, though, for this 8-cluster one. 
 - The same is true of the custom variable set, which equally has a very small
 silhouette width - On Caesar alone, all datasets got similar values. How
-similar? Let's visualize:
+similar? Let's visualize (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK IN FOR THE FOLLOWING CODE TO WORK!):
 
-```{r}
+```{r, eval=FALSE}
 
 # caesar_simplex, using Euclidean distance
 v1 <- pamk_results[[30]]
@@ -1043,7 +1044,7 @@ fviz_cluster(v1$pamobject, v1$pamobject$diss) + geom_text_repel(label = attribut
 ```
 
 - The Gorman variables are the highest-distinguishing group. See the
-  following:
+  following (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK IN FOR THE FOLLOWING CODE TO WORK!):
 
 ```{r}
 # Cosine distance is clearly very difficult to visualize with PCA, since the clusters are being fit to the angle of the vector, which is in no way visible in the graph. 
@@ -1060,6 +1061,7 @@ fviz_cluster(v1$pamobject, v1$pamobject$diss)
 Are the issues with cosine consistent across the corpus? It appears so:
 
 ```{r}
+# (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK IN FOR THE FOLLOWING CODE TO WORK!)
 
 # cosine for simplex
 v1 <- pamk_results[[1]]
@@ -1124,12 +1126,15 @@ ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linka
 pvclust_results <- c(
   # A map function for each distance metric with different linkage methods
   imap(
-    object,
+    object[3:4],
     \(x, y) structure(pvclust(x, "ward.D2", "euclidean"), dataset = y, method = "ward.D2", metric = "euclidean")
   )
 )
 
 # Visualize with pvclust; the objects are plottable
+walk(pvclust_results, ~ plot(.x))
+
+# use pvclust::pvpick to get the significant clusters from a result.
 
 ```
 
