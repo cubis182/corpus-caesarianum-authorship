@@ -8,7 +8,7 @@ editor_options:
   markdown:
     wrap: 72
 params:
-  use_att: FALSE
+  use_att: TRUE
   use_parent: FALSE
   new_combos: TRUE
 bibliography: rmd-notebook.bib
@@ -194,15 +194,20 @@ and every row is a unique work.
 #NOTE: There's a parameter for using these variables in the yaml header. By default, it is false and the next three cells (three if we include this one) will not run.
 
 #NOTE 2: This currently only runs if we're using parent variables too
-if (params$use_att && params$use_parent) {
+if (params$use_att) {
   fdata <- data |> mutate(title = get_title_segment(title))
+  if (!params$use_parent) fdata %<>% select(!Deprel:parent_Deprel)
   titles <- unique(fdata$title)
   num_words <- table(fdata$title)
   final.frame <- data.frame(title = titles)
   
   for (i in 1:length(titles)) {
       frame <- fdata[fdata$title == titles[i],]
-      frame <- tidytable::select(frame, title, tag:parent_Deprel & !parent_form & !parent_lemma) #Leave off everything unnecessary except for the title
+      if (params$use_parent) {
+        frame <- tidytable::select(frame, title, tag:parent_Deprel & !parent_form & !parent_lemma) #Leave off everything unnecessary except for the title 
+      } else {
+        frame <- tidytable::select(frame, title, tag:Gender)
+      }
       for (n in 2:length(frame)) {
         t <- table(frame[, ..n])
         # t <- prop.table(t)
@@ -233,7 +238,10 @@ Let's save this to a file so we can open it in another RMarkdown file.
 
 ```{r save-simplex-vars}
 
-if (params$use_att) write_csv(final.frame, file = "./feature_csv_files/feature_values.csv")
+if (params$use_att) {
+  if (params$use_parent) write_csv(final.frame, file = "./feature_csv_files/feature_values.csv")
+  else write_csv(final.frame, file = "./feature_csv_files/feature_values_simplex_wordonly.csv")
+}
 ```
 
 ## Gorman Variables
@@ -300,7 +308,7 @@ if (!exists("combinations")){
     #inelegant, but it works
     mutate(commentary = across(title, get_title_segment)) |>
     ungroup() |>
-    dplyr::slice_sample(n = 1000, by = commentary)
+    dplyr::slice_sample(n = 2000, by = commentary)
   
   data$commentary <- as.factor(unlist(data$commentary))
   
@@ -312,8 +320,8 @@ if (!exists("combinations")){
     tibble(a = cols), # Do it this way because we want to keep all of the single variables
     variable_combinations(2, data),
     variable_combinations(3, data),
-    variable_combinations(4, data)
-    #variable_combinations(5, data)
+    variable_combinations(4, data),
+    variable_combinations(5, data)
   )
   
   write_csv(combinations, file = combos_filename,)
@@ -434,7 +442,7 @@ analysis. The following cells take care of this transposition.
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
-  select_top_variables(n = 500) 
+  select_top_variables(n = 500, "sum") 
 ```
 
 ```{r}
@@ -523,6 +531,8 @@ source("functions.R")
 
 # Reload only the saved feature sets from disk.
 
+file.simplex <- if (params$use_parent) "./feature_csv_files/feature_values.csv" else "./feature_csv_files/feature_values_simplex_wordonly.csv"
+
 simplex_vars_only <- read.csv("./feature_csv_files/feature_values.csv")
 
 caesar_simplex_vars <- simplex_vars_only %>%
@@ -567,7 +577,7 @@ lookup_table <- setNames(
 ```
 
 ```{r, create-test-structure}
-# Set up a data structure with each data set in it. The varieties with "caesar" in the title are the same as the others with the same name, but are restricted to Caesar alone.
+# Set up a data structure with each data set in it. The varieties with "caesar" or "cicero" in the title are the same as the others with the same name, but are restricted to that author alone.
 
 custom_and_gorman_book <- bind_cols(custom_vars_book |> select(-2:-13), gorman.vars |> select(-title), .name_repair = "unique")
 caesar_custom_and_gorman <- custom_and_gorman_book %>% filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
@@ -774,7 +784,7 @@ not get reasonable results with the syntactic information.
 
   - In one sentence, it is the sum of the absolute differences between
     the relative frequencies of each term in the two documents. It is
-    the Manhattan distance, in other words.
+    the Manhattan distance, in other words, which is also called L1.
 
 Another option to be considered is scaling the variables differently for
 each test. I have decided to forego this primarily for the sake of time,
@@ -1121,14 +1131,15 @@ ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linka
 # library(pvclust)
 # Testing ALL methods is quite slow, so we might want to see which method got the best performance in AGNES first. I could parallelize the function, but the use of "custom_dist" begins to get us into a world of figuring out R internals and making sure the value associated with "custom_dist" actually gets passed to the function correctly.
 
-# I will do this with only Euclidean distance for pvclust to save on computation time, especially given what we saw in the code blocks above and the challenges with cosine similarity.
+# I will do this with only correlation distance for pvclust to save on computation time, especially given what we saw in the code blocks above and the challenges with cosine similarity.
 
 pvclust_results <- c(
-  # A map function for each distance metric with different linkage methods
   imap(
-    object[3:4],
-    \(x, y) structure(pvclust(x, "ward.D2", "euclidean"), dataset = y, method = "ward.D2", metric = "euclidean")
+    object[1:2],
+    \(x, y) structure(pvclust(t(x), "ward.D2", "correlation"), dataset = y, method = "ward.D2", metric = "correlation")
   )
+  # Is Cicero more stable?
+  # list(cicero = structure(pvclust(t(simplex_vars_only |> filter(str_starts(title, cicero_works)) |> column_to_rownames("title")), "ward.D2", "correlation"), dataset = "cicero_simplex", method = "ward.D2", metric = "correlation"))
 )
 
 # Visualize with pvclust; the objects are plottable
@@ -1137,6 +1148,10 @@ walk(pvclust_results, ~ plot(.x))
 # use pvclust::pvpick to get the significant clusters from a result.
 
 ```
+Notes on the above dendrogram, **when performed with the simplex variables**:
+- With Caesar alone, proceeding in order from the first linkage, the first statistically significant split is the link (au p-value = 97) between *BGall.* 8 and the rest of its cluster. The next significant result is the linkage between *BGall.* 2, 4 and *BGall.* 3, *BAlex* 1 (i.e. sections 1-22). The final significant result is the cluster combining *BHisp.* with the other members of the supplementary corpus, alongside some other curiosities.
+- Notably, the split between the three main clusters is NOT significant (au p-value = 84). 
+- A question of interpretation is what we say when a larger cluster is highly significant, but clusters lower in the tree are not. Does this mean that the clusters within the highly significant one link in different ways, but usually stay together?
 
 ```{r, clique, eval=FALSE}
 

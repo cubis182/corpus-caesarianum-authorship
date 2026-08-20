@@ -209,7 +209,7 @@ variable_combinations <- function(combinations_n, source_data) {
   tib_select_combinations <- tib_select_combinations |>
     filter(num > 0) |>
     arrange(num)
-
+  
   return(tib_select_combinations |> cull() |> dplyr::select(-num))
 }
 
@@ -319,8 +319,12 @@ transpose_all_vars <- function(all_vars) {
   return(all_vars |> as_tibble())
 }
 
-# Reduces output of transpose_all_vars to top n variables; maximum value for n is 18,000
-select_top_variables <- function(all_vars, n) {
+#' Reduces output of transpose_all_vars to top n variables; maximum value for n is 18,000
+#'
+#'@param all_vars Result of `get_vars_*()` function.
+#'@param n Number of variables to cull to
+#'@param criterion "sum" culls to top n variables by raw frequency, "sd" culls to top n variables by standard deviation
+select_top_variables <- function(all_vars, n, criterion = c("frequency", "sd")) {
   # For logging
   fn_name <- get_logger_meta_variables(log_level = INFO)$fn
 
@@ -339,11 +343,18 @@ select_top_variables <- function(all_vars, n) {
   # Get a list of the distinct variables
   variables <- unique(all_vars_reduced$pasted)
   log_info("{fn_name}: Number of variables to compare is {format(length(variables), big.mark = ',')}")
+  
+  # Choose the right criterion function for the combined_vars variable below
+  tryCatch(
+    criterion_fun <- mget(criterion, inherits = TRUE),
+    error = function(cnd) abort("Criterion is not 'sum', 'sd', or the name of another function returning a single value and accepting a numeric vector")
+  )
+  
 
   # NOTE: COMMENTING THIS OUT FOR NOW, TO SEE HOW THE HEURISTIC PERFORMS
   # For each distinct variable, sum up its values across all works, then store in a list
   #browser()
-  combined_vars <- lapply(variables, FUN = function(var) sum(all_vars_reduced$n[all_vars_reduced$pasted == var]))
+  combined_vars <- lapply(variables, FUN = function(var) criterion_fun(all_vars_reduced$n[all_vars_reduced$pasted == var]))
   combined_vars %<>% unlist
 
   # Add the names to the list
