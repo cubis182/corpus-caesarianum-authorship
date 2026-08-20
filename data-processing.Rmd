@@ -442,7 +442,7 @@ analysis. The following cells take care of this transposition.
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
-  select_top_variables(n = 500, "sum") 
+  select_top_variables(n = 1000, "var") 
 ```
 
 ```{r}
@@ -473,8 +473,6 @@ again.
 # Use the function from the above cell, get the variables, and then feed
 # them back into the get_vars function to get the same variables, but with
 # the frequencies calculated book-by-book this time.
-
-rm(list = c("all_vars_by_section", "all_vars_custom_by_book", "all_vars_custom_by_section"))
 
 combinations <- combinations_from_existing(all_vars_by_section_culled)
 rm(all_vars_by_section_culled)

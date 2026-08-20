@@ -145,8 +145,7 @@ no_na <- function(tib, vec) {
 }
 
 # Given a matrix which includes a set of column names in the source_data, return the number of rows that have valid data in all columns
-variable_count <- function(matrix, source_data, pb) {
-  pb$tick()
+variable_count <- function(matrix, source_data) {
   subset_of_data <- source_data %>%
     tidytable::select(all_of(matrix)) %>%
     no_na(colnames(.))
@@ -160,8 +159,8 @@ variable_count <- function(matrix, source_data, pb) {
 cull <- function(combinations) {
   print(paste("Length before culling: ", as.character(length(combinations$a))))
 
-  # Get rid of features which occur in less than 20% of the corpus
-  filtered <- combinations |> filter(num > (nrow(data) / 5))
+  # Get rid of features which occur in less than 5% of the corpus
+  filtered <- combinations |> filter(num > (nrow(data) / 20))
 
   print(paste("Length after culling: ", as.character(length(filtered$a))))
   return(filtered)
@@ -176,7 +175,7 @@ variable_combinations <- function(combinations_n, source_data) {
   # length(select_combinations)
 
   # Get a table showing the number of times all the features in a combination are attested
-  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data, pb = progress_bar$new(total = length(select_combinations) * combinations_n))
+  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data)
 
   tib_select_combinations <- as_tibble(select_combinations)
 
@@ -346,14 +345,13 @@ select_top_variables <- function(all_vars, n, criterion = c("frequency", "sd")) 
   
   # Choose the right criterion function for the combined_vars variable below
   tryCatch(
-    criterion_fun <- mget(criterion, inherits = TRUE),
+    criterion_fun <- mget(criterion, inherits = TRUE)$var,
     error = function(cnd) abort("Criterion is not 'sum', 'sd', or the name of another function returning a single value and accepting a numeric vector")
   )
   
-
   # NOTE: COMMENTING THIS OUT FOR NOW, TO SEE HOW THE HEURISTIC PERFORMS
   # For each distinct variable, sum up its values across all works, then store in a list
-  #browser()
+  
   combined_vars <- lapply(variables, FUN = function(var) criterion_fun(all_vars_reduced$n[all_vars_reduced$pasted == var]))
   combined_vars %<>% unlist
 
