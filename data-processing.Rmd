@@ -578,7 +578,7 @@ lookup_table <- setNames(
 # Set up a data structure with each data set in it. The varieties with "caesar" or "cicero" in the title are the same as the others with the same name, but are restricted to that author alone.
 
 custom_and_gorman_book <- bind_cols(custom_vars_book |> select(-2:-13), gorman.vars |> select(-title), .name_repair = "unique")
-caesar_custom_and_gorman <- custom_and_gorman_book %>% filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
+caesar_custom_and_gorman <- custom_and_gorman_book %>% filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))q
 
 object <- list(
   simplex_vars_only,
@@ -1133,7 +1133,7 @@ ac_values |> group_by(linkage) |> summarize(mean = mean(ac)) |> ggplot(aes(linka
 
 pvclust_results <- c(
   imap(
-    object[1:2],
+    object[3:4],
     \(x, y) structure(pvclust(t(x), "ward.D2", "correlation"), dataset = y, method = "ward.D2", metric = "correlation")
   )
   # Is Cicero more stable?
@@ -1326,7 +1326,7 @@ run_nselectboot <- function(source_data, name) {
 # TODO Run the above function on the section-by-section datasets too!
 nselect_results <- imap(object, \(x, y) run_nselectboot(x, y))
 
-sectioned <- list(
+Dsectioned <- list(
   gorman = sectioned.gorman.vars,
   caesar_gorman = sectioned.gorman.vars %>%
     filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works)),
