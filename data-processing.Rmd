@@ -442,7 +442,7 @@ analysis. The following cells take care of this transposition.
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
-  select_top_variables(n = 1000, "var") 
+  select_top_variables(n = 2000, "var") 
 ```
 
 ```{r}
