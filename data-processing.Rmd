@@ -697,7 +697,11 @@ to explore before passing the data to a clustering method.
 - Defaults in `get_dist()` ("euclidean", "maximum", "manhattan",
   "canberra", "binary", "minkowski", "pearson", "spearman" or
   "kendall".)
-  - Euclidean can be challenging to use in high-dimensional vectors, but most vectors are going to be relatively close to each other here. In fact, this should make Euclidean distance one of the more ideal measures.
+
+  - Euclidean can be challenging to use in high-dimensional vectors, but
+    most vectors are going to be relatively close to each other here. In
+    fact, this should make Euclidean distance one of the more ideal
+    measures.
 
   - Pearson's r, which is correlation, not distance. More sensitive to
     outliers than Kendall or Spearman.
@@ -1030,14 +1034,15 @@ df |>
 
 ```
 
-A few notes on each dataset: 
-- Caesar has median 3 to 5 clusters; Gorman's stronger clustering tendency is responsible for the 5.
-- The simplex features generate only two
-clusters for all metrics except *cosine*, which gives 8 clusters. The
-silhouette width is very small, though, for this 8-cluster one. 
-- The same is true of the custom variable set, which equally has a very small
-silhouette width - On Caesar alone, all datasets got similar values. How
-similar? Let's visualize (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK IN FOR THE FOLLOWING CODE TO WORK!):
+A few notes on each dataset: - Caesar has median 3 to 5 clusters;
+Gorman's stronger clustering tendency is responsible for the 5. - The
+simplex features generate only two clusters for all metrics except
+*cosine*, which gives 8 clusters. The silhouette width is very small,
+though, for this 8-cluster one. - The same is true of the custom
+variable set, which equally has a very small silhouette width - On
+Caesar alone, all datasets got similar values. How similar? Let's
+visualize (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK IN
+FOR THE FOLLOWING CODE TO WORK!):
 
 ```{r, eval=FALSE}
 
@@ -1052,7 +1057,8 @@ fviz_cluster(v1$pamobject, v1$pamobject$diss) + geom_text_repel(label = attribut
 ```
 
 - The Gorman variables are the highest-distinguishing group. See the
-  following (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK IN FOR THE FOLLOWING CODE TO WORK!):
+  following (NOTE: THIS IS OUT OF DATE, I WOULD NEED TO ADD COSINE BACK
+  IN FOR THE FOLLOWING CODE TO WORK!):
 
 ```{r}
 # Cosine distance is clearly very difficult to visualize with PCA, since the clusters are being fit to the angle of the vector, which is in no way visible in the graph. 
@@ -1146,10 +1152,20 @@ walk(pvclust_results, ~ plot(.x))
 # use pvclust::pvpick to get the significant clusters from a result.
 
 ```
-Notes on the above dendrogram, **when performed with the simplex variables**:
-- With Caesar alone, proceeding in order from the first linkage, the first statistically significant split is the link (au p-value = 97) between *BGall.* 8 and the rest of its cluster. The next significant result is the linkage between *BGall.* 2, 4 and *BGall.* 3, *BAlex* 1 (i.e. sections 1-22). The final significant result is the cluster combining *BHisp.* with the other members of the supplementary corpus, alongside some other curiosities.
-- Notably, the split between the three main clusters is NOT significant (au p-value = 84). 
-- A question of interpretation is what we say when a larger cluster is highly significant, but clusters lower in the tree are not. Does this mean that the clusters within the highly significant one link in different ways, but usually stay together?
+
+Notes on the above dendrogram, **when performed with the simplex
+variables**: - With Caesar alone, proceeding in order from the first
+linkage, the first statistically significant split is the link (au
+p-value = 97) between *BGall.* 8 and the rest of its cluster. The next
+significant result is the linkage between *BGall.* 2, 4 and *BGall.* 3,
+*BAlex* 1 (i.e. sections 1-22). The final significant result is the
+cluster combining *BHisp.* with the other members of the supplementary
+corpus, alongside some other curiosities. - Notably, the split between
+the three main clusters is NOT significant (au p-value = 84). - A
+question of interpretation is what we say when a larger cluster is
+highly significant, but clusters lower in the tree are not. Does this
+mean that the clusters within the highly significant one link in
+different ways, but usually stay together?
 
 ```{r, clique, eval=FALSE}
 
