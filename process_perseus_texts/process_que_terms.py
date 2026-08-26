@@ -1,4 +1,4 @@
-#Note: requires Python 3.7, cltk 1.x, and nltk 3.5
+#Note: requires Python 3.7, cltk 0.1.x, and nltk 3.5
 import pandas as pd
 from cltk.corpus.utils.importer import CorpusImporter
 from cltk.tokenize.latin.word import WordTokenizer

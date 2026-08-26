@@ -9,7 +9,7 @@ editor_options:
     wrap: 72
 params:
   use_att: TRUE
-  use_parent: FALSE
+  use_parent: TRUE
   new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
@@ -578,7 +578,7 @@ lookup_table <- setNames(
 # Set up a data structure with each data set in it. The varieties with "caesar" or "cicero" in the title are the same as the others with the same name, but are restricted to that author alone.
 
 custom_and_gorman_book <- bind_cols(custom_vars_book |> select(-2:-13), gorman.vars |> select(-title), .name_repair = "unique")
-caesar_custom_and_gorman <- custom_and_gorman_book %>% filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))q
+caesar_custom_and_gorman <- custom_and_gorman_book %>% filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
 
 object <- list(
   simplex_vars_only,
@@ -920,20 +920,34 @@ Here are a few options from Moisl:
 
 ```{r, clusterbenchstats, eval=FALSE}
 # fpc::clusterbenchstats using a variety of clusterings
-# I may avoid using this, since it requires a lot of setup that I have already done in the code blocks below. It really only would have saved time if I started with it, or used it on only a couple methods.
 
+CLUSTERS <- 2:7
+
+# Notes from Akhanli and Hennig 2020, which is the inspiration for this function:
+#> The user is expected to choose the indices that best fit their goals, not just all of the options
+#> Some indices focus on cluster homogeneity, others on separation of clusters, and others on cluster stability. All of these are not usually helpful for every situation.
 run_cbs <- function(source_data) {
+  # cmp <- list()
+  # cmp[1:4] <- list()
+  
   cbs <- clusterbenchstats(
     source_data,
     CLUSTERS,
-    clustermethod = c("kmeansCBI", "hclustCBI", "hclusttreeCBI", "claraCBI", "tclustCBI"),
-    methodnames = ,
-    distmethod = c(FALSE, FALSE, FALSE, TRUE, FALSE),
-    ncinput = c(TRUE, TRUE, FALSE, FALSE, TRUE),
-    
+    clustermethod = c("kmeansCBI"), # , "hclustCBI", "hclusttreeCBI", "claraCBI", "tclustCBI"),
+    clustermethodpars = list(list(runs = 5, criterion = "asw")),
+    #methodnames = , # using default parameter here
+    distmethod = c(FALSE), #, FALSE, FALSE, TRUE, FALSE),
+    ncinput = c(TRUE), #, TRUE, FALSE, FALSE, TRUE),
+    useboot = TRUE,
+    bootclassif = c("centroid"), #, ),
+    bootmethod = "nselectboot",
+    bootruns = 5
     
   )
 }
+
+
+system.time(cbs_res <- run_cbs(object$gorman))
   
 ```
 
@@ -993,6 +1007,8 @@ the VAT diagram above. See Moisl and Stamatatos et al. 2009 p. 545 on
 the research that uses PCA for dimensionality reduction.
 
 ```{r, pam}
+
+CLUSTERS <- 2
 
 # pam with dissimilarity matrix
 run_pam <- function(dist) {
@@ -1383,6 +1399,92 @@ run_stats <- function(dist_matrix, clustering_input) {
 
 # prediction.strength:
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
+```
+
+# Draft 8/23/2026
+
+I will use K-means, because nothing in this dataset is considered an
+outlier; the adjustment to medoids in PAM is not necessary. I want to
+show visually how the two authors cluster.
+
+This section is also an opportunity to create a pipeline for creating
+the final visualizations. This will be the second section of the final
+notebook, of which the first section will contain mathematical tests
+rather than visualizations, for statisticians to review.
+
+```{r}
+gorman.vars$title <- lookup_table[gorman.vars$title]
+gorman.vars %<>% column_to_rownames("title")
+km_result <- kmeans(gorman.vars, centers = 2, nstart = 50)
+
+fviz_cluster(km_result, data = gorman.vars, stand = TRUE, repel = TRUE) + 
+  labs(title = "Cluster plot of the *Corpus Caesarianum* and works of Cicero.")
+ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
+# Add annotation with Jaccard coefficients from below, showing how strong the clustering is.
+# In the final R notebook, give the 
+
+cb_res <- clusterboot(gorman.vars, clustermethod = kmeansCBI, k = 2)
+print(cb_res)
+
+```
+
+```{r, draft-cluster-stability}
+# NOTE: YOU LEFT OFF ON P. A10 OF YOUR REFERENCE NOTEBOOK
+caesar <- gorman.vars[17:31,]
+cicero <- gorman.vars[1:16,]
+
+fclust::VAT(caesar)
+fclust::VAT(cicero)
+
+get_clust_tendency(caesar, n = nrow(caesar) - 1, graph = TRUE)
+get_clust_tendency(cicero, n = nrow(cicero) - 1, graph = TRUE)
+
+# Transpose the data frame because it expects observations in columns, not rows
+caesar_res <- pvclust(t(caesar), method.hclust = "ward.D2", method.dist = "correlation", use.cor = "all.obs")
+cicero_res <- pvclust(t(cicero), method.hclust = "ward.D2", method.dist = "correlation", use.cor = "all.obs")
+full_res <- pvclust(t(gorman.vars), method.hclust = "ward.D2", method.dist = "correlation", use.cor = "all.obs")
+
+png("./Images/august-draft/caesar_pvclust.png", width = 1824, height = 1824, res = 380)
+plot(caesar_res, print.pv = FALSE, print.num = FALSE, main = "P-values (%) for clusters in Corpus Caesarianum", cex.main = 1.0); text(caesar_res, cex = 0.6, print.num = FALSE)
+dev.off()
+
+png("./Images/august-draft/gorman_pvclust.png", width = 1824, height = 1824, res = 380)
+plot(full_res, print.pv = FALSE, print.num = FALSE, main = "P-values (%) for clusters in Cicero and Caesar", cex = 0.7, cex.main = 1.0); text(full_res, cex = 0.45, print.num = FALSE)
+dev.off()
+
+png("./Images/august-draft/cicero_pvclust.png", width = 1824, height = 1824, res = 380)
+plot(cicero_res, print.pv = FALSE, print.num = FALSE, main = "P-values (%) for clusters in Cicero", cex.main = 1.0); text(cicero_res, cex = 0.6, print.num = FALSE)
+dev.off()
+
+# coph_caesar <- cophenetic(hclust(get_dist(caesar, method = "spearman"), method = "ward.D2"))
+# coph_cicero <- cophenetic(hclust(get_dist(cicero, method = "spearman"), method = "ward.D2"))
+# coph_full <- cophenetic(hclust(get_dist(gorman.vars, method = "spearman"), method = "ward.D2"))
+# 
+# cor(get_dist(caesar, method = "spearman"), coph_caesar)
+# cor(get_dist(cicero, method = "spearman"), coph_cicero)
+# cor(get_dist(gorman.vars, method = "spearman"), coph_full)
+
+# clusterboot
+cb_caesar <- clusterboot(caesar, clustermethod = kmeansCBI, k = 2) #k retrieved through pamk
+cb_cicero <- clusterboot(cicero, clustermethod = kmeansCBI, k = 3) #k retrieved through pamk
+
+cb_full <- clusterboot(gorman.vars, clustermethod = kmeansCBI, krange = 2:5) #k retrieved through pamk
+
+```
+
+```{r, random-data-example}
+
+test_data <- tibble(a = runif(n = 250, max = 100), b = runif(n = 250, max = 100))
+test_km <- kmeans(test_data, 3, nstart = 50)
+
+ggplot(test_data, aes(a, b)) + geom_point() + 
+  theme_minimal() + labs(title = "Plot of random noise", x = "Var1", y = "Var2")
+ggsave("./Images/august-draft/random_noise.png", dpi = "print")
+
+ggplot(test_data %>% mutate(cluster = as.factor(test_km$cluster)), aes(a, b, shape = cluster, color = cluster)) + geom_point() + 
+  theme_minimal() + labs(title = "K-means applied to random dataset", x = "Var1", y = "Var2")
+ggsave("./Images/august-draft/random_noise_clustering.png", dpi = "print")
+
 ```
 
 # Post-clustering Analysis
