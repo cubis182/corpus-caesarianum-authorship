@@ -9,7 +9,7 @@ editor_options:
     wrap: 72
 params:
   use_att: TRUE
-  use_parent: TRUE
+  use_parent: FALSE
   new_combos: TRUE
 bibliography: rmd-notebook.bib
 ---
@@ -134,10 +134,8 @@ data <- bind_rows(
   )
 
 data %<>%
-  mutate(Person = as.factor(Person)) %>%
-  dplyr::select(-Voice)
+  mutate(Person = as.factor(Person)) 
 
-data %<>% dplyr::select(-parent_Voice)
 
 summary(data)
 ```
@@ -320,8 +318,8 @@ if (!exists("combinations")){
     tibble(a = cols), # Do it this way because we want to keep all of the single variables
     variable_combinations(2, data),
     variable_combinations(3, data),
-    variable_combinations(4, data),
-    variable_combinations(5, data)
+    variable_combinations(4, data)
+    #variable_combinations(5, data)
   )
   
   write_csv(combinations, file = combos_filename,)
@@ -442,7 +440,7 @@ analysis. The following cells take care of this transposition.
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
-  select_top_variables(n = 2000, "var") 
+  select_top_variables(n = 1000, "sum") 
 ```
 
 ```{r}
@@ -608,7 +606,7 @@ summary(object)
 # Add this with the + operator to fviz_cluster plots. @param data is the original dataset used for cluster analysis (df_clust in the first case)
 cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward", hjust = "inward", max.overlaps = 20, size = 3)
 # Args for fviz_clust
-palette <- c("#2E9FDF", "#00AFBB", "#E7B800", "red", "gray", "cyan", "black")
+palette <- c("blue", "#00FFFF", "#E7B800", "red", "black")
 geom <- "point"
 ellipse.type <- "convex"
 
@@ -997,6 +995,24 @@ map(pca_results, ~ summary(.x)$importance[2,1:2] |> sum())
 # Highest cumulative proportion of variance is in the Gorman-only section of Caesar at 0.85579, while the lowest is caesar_simplex with 0.69492. Gorman's method is the only one that explains the variance in the data well with both the full corpus AND Caesar's texts alone. When combining the custom variable set WITH Gorman's features, we don't get any improvement.
 ```
 
+```{r, visualize-kmeans}
+
+# Make sure it prints more than the last plot
+devAskNewPage(TRUE)
+
+plot_km <- function(x) {
+  plt <- fviz_cluster(x, object[[attributes(x)$dataset]]) + 
+    
+    labs(title = glue::glue("K-means on whole corpus, total within sum of squares: {x$tot.withinss}"))
+  print(plt)
+}
+
+walk(keep(kmeans_results, ~ attributes(.x)$centers == 4 && attributes(.x)$dataset == "gorman"), plot_km
+     )
+
+devAskNewPage(FALSE)
+```
+
 The PCA analysis in the above cell seems to suggest that Gorman's method
 is still worth keeping. My custom variable set failed to show any
 cluster tendency when restricted to Caesar alone (see below), and it is
@@ -1008,7 +1024,7 @@ the research that uses PCA for dimensionality reduction.
 
 ```{r, pam}
 
-CLUSTERS <- 2
+CLUSTERS <- 2:8
 
 # pam with dissimilarity matrix
 run_pam <- function(dist) {
@@ -1048,6 +1064,22 @@ df |>
   group_by(dataset) |>
   summarize(median_nc = median(nc))
 
+```
+
+```{r, plot-pamk}
+# Make sure it prints more than the last plot
+devAskNewPage(TRUE)
+
+plot_km <- function(x) {
+  plt <- fviz_cluster(x$pamobject, object[[attributes(x)$dataset]]) + 
+    labs(title = glue::glue("K-means on whole corpus, total within sum of squares: {x$tot.withinss}"))
+  print(plt)
+}
+
+walk(keep(pamk_results, ~ .x$nc > 2 && attributes(.x)$dataset == "gorman"), plot_km
+)
+
+devAskNewPage(FALSE)
 ```
 
 A few notes on each dataset: - Caesar has median 3 to 5 clusters;
@@ -1188,6 +1220,7 @@ different ways, but usually stay together?
 # CLIQUE 
 # subspace::CLIQUE(); # WOULD NEED TO USE AN OLDER VERSION OF R
 
+
 ```
 
 ```{r, fanny}
@@ -1234,7 +1267,7 @@ fanny_results <- map(metrics, run_fanny) %>%
 
 k <- 4
 dbscan_MinPts <- k
-dbscan_eps <- 5 # generate this value as section 4.2 of Ester et al. 1996 suggests
+dbscan_eps <- 0.25 # generate this value as section 4.2 of Ester et al. 1996 suggests
 
 run_dbscan <- function(dist) {
   
@@ -1242,13 +1275,14 @@ run_dbscan <- function(dist) {
     dbscan(dist, eps = dbscan_eps, MinPts = dbscan_MinPts, method = "dist"),
     dataset = attributes(dist)$dataset,
     algorithm = "dbscan",
-    metric = attributes(dist)$metric,
+    metric = attributes(dist)$metric
   )
 }
-dbscan_results <- map(metrics, run_dbscan) %>%
-  unlist(recursive = FALSE)
+dbscan_results <- map(metrics, run_dbscan)
 
-algorithms_dist %<>% c(dbscan_results)
+dbscan_results %<>% keep(~ attributes(.x)$dataset == 3)
+
+#algorithms_dist %<>% c(dbscan_results)
 
 # HDBSCAN will be useful if our clusters are of varying densities, which is entirely possible. Need to visualize the data. My instinct from working on it has been no, but that has been in only two dimensions.
 ```
@@ -1485,6 +1519,25 @@ ggplot(test_data %>% mutate(cluster = as.factor(test_km$cluster)), aes(a, b, sha
   theme_minimal() + labs(title = "K-means applied to random dataset", x = "Var1", y = "Var2")
 ggsave("./Images/august-draft/random_noise_clustering.png", dpi = "print")
 
+```
+
+# Draft 8/31/2026
+
+```{r, all-author-clusters}
+
+
+gorman.vars$title <- lookup_table[gorman.vars$title]
+gorman.vars %<>% column_to_rownames("title")
+
+# Try standardizing?
+
+eclust(object$gorman, "kmeans", 2, hc_metric = "pearson", stand = TRUE)
+ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
+# Add annotation with Jaccard coefficients from below, showing how strong the clustering is.
+# In the final R notebook, give the 
+
+# cb_res <- clusterboot(gorman.vars, clustermethod = kmeansCBI, k = 2)
+# print(cb_res)
 ```
 
 # Post-clustering Analysis

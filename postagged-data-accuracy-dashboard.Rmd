@@ -293,7 +293,7 @@ render_gt({
   
   
   # Add to Data Table
-  tibble(
+  final_gt <- tibble(
     Sample = as.integer(nrow(render_error)),
     UPOS = UPOS_acc,
     UFEATS = UFeats_acc,
@@ -303,7 +303,11 @@ render_gt({
     LAS = LAS_acc
   ) |>
     gt() |>
-    fmt_number()
+    fmt_number(columns = 2:7)
+  
+  gtsave(final_gt, "./tables/sample_accuracy.rtf")
+  
+  final_gt
 })
 
 ```

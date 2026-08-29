@@ -160,7 +160,7 @@ cull <- function(combinations) {
   print(paste("Length before culling: ", as.character(length(combinations$a))))
 
   # Get rid of features which occur in less than 5% of the corpus
-  filtered <- combinations |> filter(num > (nrow(data) / 20))
+  filtered <- combinations |> filter(num > (nrow(data) / 10))
 
   print(paste("Length after culling: ", as.character(length(filtered$a))))
   return(filtered)
@@ -323,7 +323,7 @@ transpose_all_vars <- function(all_vars) {
 #'@param all_vars Result of `get_vars_*()` function.
 #'@param n Number of variables to cull to
 #'@param criterion "sum" culls to top n variables by raw frequency, "sd" culls to top n variables by standard deviation
-select_top_variables <- function(all_vars, n, criterion = c("frequency", "sd")) {
+select_top_variables <- function(all_vars, n, criterion = c("sum", "sd")) {
   # For logging
   fn_name <- get_logger_meta_variables(log_level = INFO)$fn
 
@@ -345,7 +345,7 @@ select_top_variables <- function(all_vars, n, criterion = c("frequency", "sd")) 
   
   # Choose the right criterion function for the combined_vars variable below
   tryCatch(
-    criterion_fun <- mget(criterion, inherits = TRUE)$var,
+    criterion_fun <- mget(criterion, inherits = TRUE)[[1]],
     error = function(cnd) abort("Criterion is not 'sum', 'sd', or the name of another function returning a single value and accepting a numeric vector")
   )
   
