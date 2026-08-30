@@ -3,7 +3,7 @@ title: "data_clustering"
 output: html_document
 date: "2026-04-25"
 params:
-  use_parent: TRUE
+  use_parent: FALSE
 ---
 
 ```{r setup, include=FALSE}
@@ -563,11 +563,19 @@ names(scores.correlation.per.text) <- titles
 gorman.vars$title <- lookup_table[gorman.vars$title]
 gorman.vars <- as.data.frame(gorman.vars)
 rownames(gorman.vars) <- gorman.vars$title
+# temporary solution to reorder the titles
+reorder_vec <- c(2, 8:15, 3:7, 1, 16, 20, 25, 21, 34, 17:19, 35, 22:24, 26:33)
+gorman.vars <- gorman.vars[reorder_vec,]
+# NOTE: REDUCING TO VARIABLES 250-500 GETS RESULTS VERY SIMILAR TO WHAT WE GOT WITH THE FULL DATASET, INCLUDING PARENTS, BEFORE; PERHAPS REMOVING THE MOST AND LEAST COMMON WILL HELP MAKE THE PICTURE LESS MUDDY?
+gorman.vars <- gorman.vars[,c(1, 250:500)]
+
 gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
 attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
 attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
+
+
 
 mat <- as.matrix(gorman_dist)
 d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
@@ -608,7 +616,7 @@ Dissimilarity matrix with just Cicero, B Alex, and B Gall 5-8
 ```{r}
 #be lazy and copy code
 
-gorman.vars.2 <- gorman.vars |> filter(title %notin% c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.")) 
+gorman.vars.2 <- gorman.vars |> filter(title %notin% c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.", "Bellum Iugurthinum", "Catilinae Coniuratio")) 
 gorman_dist <- get_dist(gorman.vars.2 |> dplyr::select(-title), method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")

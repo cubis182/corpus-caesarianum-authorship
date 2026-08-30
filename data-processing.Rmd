@@ -537,6 +537,8 @@ caesar_simplex_vars <- simplex_vars_only %>%
 file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman.csv" else "./feature_csv_files/feature_values_wordonly.csv"
 
 gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
+# for this next adjustment, see Obsidian notebook 8/29/2026
+gorman.vars <- gorman.vars[,c(1,250:500)]
 
 caesar.gorman.vars <- gorman.vars %>% 
   filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
@@ -946,6 +948,7 @@ run_cbs <- function(source_data) {
 
 
 system.time(cbs_res <- run_cbs(object$gorman))
+cbs_res
   
 ```
 
@@ -1531,13 +1534,16 @@ gorman.vars %<>% column_to_rownames("title")
 
 # Try standardizing?
 
-eclust(object$gorman, "kmeans", 2, hc_metric = "pearson", stand = TRUE)
+# attempting to use the more restricted variable set
+eclust(gorman.vars[,250:500], "pam", 2, hc_metric = "pearson", stand = FALSE) + 
+  geom_text_repel(label = rownames(gorman.vars)) + 
+  labs(title = "Cluster plot of the *Corpus Caesarianum*, Sallust, and Cicero.")
 ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
 # Add annotation with Jaccard coefficients from below, showing how strong the clustering is.
 # In the final R notebook, give the 
 
-# cb_res <- clusterboot(gorman.vars, clustermethod = kmeansCBI, k = 2)
-# print(cb_res)
+cb_res <- clusterboot(gorman.vars[,250:500], clustermethod = kmeansCBI, k = 2)
+print(cb_res)
 ```
 
 # Post-clustering Analysis
