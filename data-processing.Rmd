@@ -1010,7 +1010,7 @@ plot_km <- function(x) {
   print(plt)
 }
 
-walk(keep(kmeans_results, ~ attributes(.x)$centers == 4 && attributes(.x)$dataset == "gorman"), plot_km
+walk(keep(kmeans_results, ~ attributes(.x)$centers > 2 && attributes(.x)$dataset == "gorman"), plot_km
      )
 
 devAskNewPage(FALSE)
@@ -1256,6 +1256,20 @@ run_fanny <- function(dist) {
 fanny_results <- map(metrics, run_fanny) %>%
   unlist(recursive = FALSE)
   # Fanny did not converge in the max number of iterations on 16 of the 66 items in the 'metrics' list the first time this was run. Will add a calling handler to print more information in the warning than default, so the datasets and distance metrics responsible are clear.
+```
+
+```{r, fanny-one-attempt}
+
+fan_res <- fanny((metrics |> keep(~ attributes(.x)$metric == "pearson" && attributes(.x)$dataset == 3))[[1]], 2)
+
+fviz_cluster(fan_res, object$gorman, 
+             ellipse.type = "norm",   # normal-distribution concentration ellipse
+             repel = TRUE,            # keep state labels from overlapping
+             palette = "jco",         # colourblind-safe journal palette
+             ggtheme = theme_minimal(),
+             legend = "right")
+
+fviz_silhouette(fan_res)
 ```
 
 ```{r, work-in-progress-algorithms, eval=FALSE}
@@ -1533,17 +1547,239 @@ gorman.vars$title <- lookup_table[gorman.vars$title]
 gorman.vars %<>% column_to_rownames("title")
 
 # Try standardizing?
+km_res <- kmeans(gorman.vars, 2, nstart = 50)
 
 # attempting to use the more restricted variable set
-eclust(gorman.vars[,250:500], "pam", 2, hc_metric = "pearson", stand = FALSE) + 
-  geom_text_repel(label = rownames(gorman.vars)) + 
+fviz_cluster(km_res, gorman.vars, ggtheme = theme_minimal(), repel = TRUE) + 
   labs(title = "Cluster plot of the *Corpus Caesarianum*, Sallust, and Cicero.")
 ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
 # Add annotation with Jaccard coefficients from below, showing how strong the clustering is.
 # In the final R notebook, give the 
 
-cb_res <- clusterboot(gorman.vars[,250:500], clustermethod = kmeansCBI, k = 2)
+cb_res <- clusterboot(gorman.vars, clustermethod = kmeansCBI, k = 2)
 print(cb_res)
+```
+
+## Dissimilarity Verification with Sections
+
+First, let's add a new variable to the sectioned corpus which contains
+only the name of the commentary. The goal is, for each commentary, to
+get a pairwise similarity score of every vector using Spearman's ρ. That
+way, we can get a p-value for how likely the correlation is to be due to
+chance for each text, or not. We can also see which texts have high
+internal inconsistencies.
+
+```{r}
+
+#Add a 'path' variable which is just the commentary name
+# TODO: Remove this cell, and use the title field instead? Or include this in the following cells
+
+sectioned.gorman.vars %<>% 
+  rowwise() %>%
+  mutate(path = (strsplit(title, "_") |> unlist())[1:2] |> paste0(collapse = "_")) %>%
+  relocate(path, .before = 2)
+
+```
+
+Now we'll create a list of vectors, and each one is the set of
+correlations retrieved by comparing pairwise
+
+```{r}
+if (!'pspearman' %in% .packages()) library(pspearman)
+if (!'Kendall' %in% .packages()) library(Kendall)
+if (!'lsa' %in% .packages()) library(lsa)
+
+retrieve_combination_similarity <- function(combo, section_vectors, type) {
+  vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path)
+  #browser()
+  vec_a <- vectors[1,] |> t() |> as.vector() 
+  vec_b <- vectors[2,] |> t() |> as.vector() 
+  
+  #browser()
+  #If using Spearman, use approximation AS89 when the number of variables is under 1,290
+  if (type == "spearman") {
+    amount_jitter <- 0.001
+    vec_a %<>% jitter(amount = amount_jitter)
+    vec_b %<>% jitter(amount = amount_jitter)
+    
+    rho_estimate <- spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate
+    #Note: we'll be comparing this with dissimilarity scores, which are actually the absolute value of (rho - 1)
+    return(abs(rho_estimate - 1.0))  
+  } else if (type == "cosine" ) {
+    return(cosine(vec_a, vec_b))  
+  } else if (type == "euclidean") {
+    return(dist(rbind(vec_a, vec_b)))
+  }
+  
+}
+
+#Parameters:
+#  character book: Name of commentary book. Valid values: "gallic _ 1", "gallic _ 2", etc.
+#  tibble section_vectors: NEEDSDOC
+# double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
+within.book.similarity <- function(section_vectors, rows, type_of_similarity = "spearman") {
+  
+  sub_section_vectors <- section_vectors[sample(1:nrow(section_vectors), rows),]
+  #browser()
+  
+  log_info("Starting sub_section_vectors...")
+  t1 <- proc.time()
+  
+  #Use the columns if this to select
+  #combn(sectioned.gorman.vars |> filter(path == "african ") |> pull(title), 2)
+  combos <- combn(sub_section_vectors$title, 2)
+  
+  similarities <- apply(X = combos, MARGIN = 2, FUN = retrieve_combination_similarity, section_vectors = sub_section_vectors, type = type_of_similarity)
+  
+  print("Finished one book in within.book.similarity")
+  print(proc.time() - t1)
+  return(similarities)
+  
+}
+
+```
+
+Using Kendall, BA took 239.47 seconds to execute.
+
+Using Spearman with the AS89 approximation, BA took 208.86 seconds to
+execute. We'll stick with that for now.
+
+Let's create a function that does this all for us and gets us a list of
+vectors.
+
+```{r}
+
+#Get a vector of all the titles2
+titles <- unique(sectioned.gorman.vars$path)
+
+#Get the spearman correlation coefficients, add them to a list, with the label being the title
+
+
+scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$path, FUN = within.book.similarity, rows = 16, type_of_similarity = "spearman")
+
+names(scores.correlation.per.text) <- titles
+
+# temporary solution to reorder the titles
+reorder_vec <- c(2, 8:15, 3:7, 1, 16, 20, 25, 21, 34, 17:19, 35, 22:24, 26:33)
+gorman.vars <- gorman.vars[reorder_vec,]
+# NOTE: REDUCING TO VARIABLES 250-500 GETS RESULTS VERY SIMILAR TO WHAT WE GOT WITH THE FULL DATASET, INCLUDING PARENTS, BEFORE; PERHAPS REMOVING THE MOST AND LEAST COMMON WILL HELP MAKE THE PICTURE LESS MUDDY?
+
+
+gorman_dist <- get_dist(gorman.vars, method = "spearman")
+#gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
+#gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
+attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
+attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
+
+
+
+mat <- as.matrix(gorman_dist)
+d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
+d_long$value <- as.vector(mat)
+d_long$value <- round(d_long$value, digits = 2)
+d_long$x_axis <- rep(1:nrow(gorman.vars), times = nrow(gorman.vars))
+d_long$y_axis <- rep(1:nrow(gorman.vars), each = nrow(gorman.vars))
+d_long <- as.data.frame(d_long)
+
+graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
+graph <- graph + 
+  geom_tile(
+    data = d_long,
+    aes(x = x_axis, y = y_axis, fill = value), 
+    inherit.aes = FALSE
+            ) +
+  geom_text(
+              data = d_long,
+              aes(x = x_axis, y = y_axis, label = value), 
+              color = "black", 
+              size.unit = "pt",
+              size = 5,
+              inherit.aes = FALSE) 
+
+#Using the 5th percentile here. The 95th percentile is beyond any differences between texts, suggesting that difference doesn't guarantee different authorship. However, below about 0.2 is highly suggestive of same authorship, as that's lower than the lower tail (0.05) of the data
+graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
+ggsave("Images/dissimilarity_matrix_between_books_by_correlation.png", dpi = "print")
+
+graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = 0.3)
+ggsave("Images/dissimilarity_matrix_between_books.png", dpi = "print")
+
+#View(as.data.frame(as.matrix(gorman_dist)))
+
+```
+
+Dissimilarity matrix with just Cicero, B Alex, and B Gall 5-8
+
+```{r}
+#be lazy and copy code
+
+gorman.vars.2 <- gorman.vars |> filter(title %notin% c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.", "Bellum Iugurthinum", "Catilinae Coniuratio")) 
+gorman_dist <- get_dist(gorman.vars.2 |> dplyr::select(-title), method = "spearman")
+#gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
+#gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
+attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
+attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
+
+mat <- as.matrix(gorman_dist)
+d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
+d_long$value <- as.vector(mat)
+d_long$value <- round(d_long$value, digits = 2)
+d_long$x_axis <- rep(1:length(gorman.vars.2 $title), times = length(gorman.vars.2 $title))
+d_long$y_axis <- rep(1:length(gorman.vars.2 $title), each = length(gorman.vars.2 $title))
+d_long <- as.data.frame(d_long)
+
+graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
+graph <- graph + 
+  geom_tile(
+    data = d_long,
+    aes(x = x_axis, y = y_axis, fill = value), 
+    inherit.aes = FALSE
+  ) +
+  geom_text(
+    data = d_long,
+    aes(x = x_axis, y = y_axis, label = value), 
+    color = "black", 
+    size.unit = "pt",
+    size = 5,
+    inherit.aes = FALSE) 
+
+
+
+graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05), limits = c(0, 0.8))
+ggsave("Images/dissimilarity_matrix_between_books_by_correlation-2.png", dpi = "print")
+
+```
+
+How about the mean dissimilarity and the Student's t-test that Li et al.
+used?
+
+```{r}
+
+#These indices currently only select Caesar
+caesar_counts <- as_tibble(mat[17:30,17:30]) |> rowwise() |> mutate(means = mean(c_across(1:13)))
+caesar_counts$title <- colnames(caesar_counts)[-15]
+
+gallic_counts <- as_tibble(mat[22:29,22:29]) |> rowwise() |> mutate(means = mean(c_across(1:8)))
+gallic_counts$title <- colnames(gallic_counts)[-9]
+```
+
+Perform a Student's t-test on each combination of texts in the
+dissimilarity matrix
+
+```{r}
+
+col1 <- rep(dimnames(mat)[[1]], times = length(dimnames(mat)[[1]]))
+col2 <- rep(dimnames(mat)[[1]], each = length(dimnames(mat)[[1]]))
+
+df <- tibble(col1 = col1, col2 = col2)
+
+df %<>% rowwise() %>%
+  mutate(
+  pvalue = t.test(
+    mat[unlist(col1),], 
+    mat[unlist(col2),])$p.value
+  )
+
+df %<>% pivot_wider(names_from = col2, values_from = pvalue)
 ```
 
 # Post-clustering Analysis
