@@ -608,7 +608,7 @@ summary(object)
 # Add this with the + operator to fviz_cluster plots. @param data is the original dataset used for cluster analysis (df_clust in the first case)
 cluster_labels <- geom_text_repel(aes(label = rownames(data)), vjust = "inward", hjust = "inward", max.overlaps = 20, size = 3)
 # Args for fviz_clust
-palette <- c("blue", "#00FFFF", "#E7B800", "red", "black")
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 geom <- "point"
 ellipse.type <- "convex"
 
@@ -1267,9 +1267,20 @@ fviz_cluster(fan_res, object$gorman,
              repel = TRUE,            # keep state labels from overlapping
              palette = "jco",         # colourblind-safe journal palette
              ggtheme = theme_minimal(),
-             legend = "right")
+             legend = "right") + geom_label(aes(label = round(fan_res$membership[,1], digits = 2) * 100))
 
 fviz_silhouette(fan_res)
+
+# bar plot of cluster membership
+members <- rbind(fan_res$membership[1:18,], fan_res$membership[19:33,2:1], fan_res$membership[34:35,])
+
+# get the data ready for a stacked barplot in ggplot
+ggplot_input_df <- members %>% as.data.frame() %>% rename(`Member cluster` = "V1", `Other cluster` = "V2") %>% rownames_to_column("title") %>% pivot_longer(cols = -title, names_to = "group", values_to = "value")
+
+# Some nonsense to keep title column in order when it gets turned into a factor
+ggplot_input_df$title <- factor(ggplot_input_df$title, levels = ggplot_input_df$title[ggplot_input_df$group == "Member cluster" & order(ggplot_input_df$value)])
+
+ggplot(ggplot_input_df, aes(x = title, y = value, fill = group)) + geom_col(position = "stack") + theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0)) + labs(title = glue::glue("Visualization of cluster membership with fanny"), subtitle = glue::glue("Average Cicero text membership: {round(mean(fan_res$membership[1:18,1]), digits = 2) * 100}%. Average Corpus Caesarianum text membership: {round(mean(fan_res$membership[19:33,2]), digits = 2) * 100}%.")) + scale_fill_brewer() 
 ```
 
 ```{r, work-in-progress-algorithms, eval=FALSE}
@@ -1659,9 +1670,6 @@ scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.g
 
 names(scores.correlation.per.text) <- titles
 
-# temporary solution to reorder the titles
-reorder_vec <- c(2, 8:15, 3:7, 1, 16, 20, 25, 21, 34, 17:19, 35, 22:24, 26:33)
-gorman.vars <- gorman.vars[reorder_vec,]
 # NOTE: REDUCING TO VARIABLES 250-500 GETS RESULTS VERY SIMILAR TO WHAT WE GOT WITH THE FULL DATASET, INCLUDING PARENTS, BEFORE; PERHAPS REMOVING THE MOST AND LEAST COMMON WILL HELP MAKE THE PICTURE LESS MUDDY?
 
 
@@ -1712,7 +1720,7 @@ Dissimilarity matrix with just Cicero, B Alex, and B Gall 5-8
 ```{r}
 #be lazy and copy code
 
-gorman.vars.2 <- gorman.vars |> filter(title %notin% c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.", "Bellum Iugurthinum", "Catilinae Coniuratio")) 
+gorman.vars.2 <- gorman.vars |> rownames_to_column("title") |>  filter(title %notin% c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.", "Bellum Iugurthinum", "Catilinae Coniuratio")) 
 gorman_dist <- get_dist(gorman.vars.2 |> dplyr::select(-title), method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")

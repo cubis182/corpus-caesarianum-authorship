@@ -55,9 +55,10 @@ sallust_works <- "(catilinae_sallusti|iugurthine)"
 # reorder works so ones by the same author go together.
 reorder_works <- function(source_data) {
   
+  cicero_reordered <- filter(source_data, str_starts(title, cicero_works))
   # move Cicero to the end, to keep authors separated
   bind_rows(
-    filter(source_data, str_starts(title, cicero_works)),
+    cicero_reordered[str_order(cicero_reordered$title, numeric = TRUE),],
     filter(
       source_data, 
       !str_starts(title, cicero_works) & !str_starts(title, sallust_works)),
