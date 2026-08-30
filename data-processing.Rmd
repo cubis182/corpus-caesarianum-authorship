@@ -68,6 +68,7 @@ library(fpc)
 library(pvclust)
 library(cowplot)
 library(gt)
+library(RColorBrewer)
 
 conflict_prefer("filter", "dplyr")
 conflicted::conflicts_prefer(combinat::combn)
@@ -1280,7 +1281,8 @@ ggplot_input_df <- members %>% as.data.frame() %>% rename(`Member cluster` = "V1
 # Some nonsense to keep title column in order when it gets turned into a factor
 ggplot_input_df$title <- factor(ggplot_input_df$title, levels = ggplot_input_df$title[ggplot_input_df$group == "Member cluster" & order(ggplot_input_df$value)])
 
-ggplot(ggplot_input_df, aes(x = title, y = value, fill = group)) + geom_col(position = "stack") + theme_minimal() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0)) + labs(title = glue::glue("Visualization of cluster membership with fanny"), subtitle = glue::glue("Average Cicero text membership: {round(mean(fan_res$membership[1:18,1]), digits = 2) * 100}%. Average Corpus Caesarianum text membership: {round(mean(fan_res$membership[19:33,2]), digits = 2) * 100}%.")) + scale_fill_brewer() 
+ggplot(ggplot_input_df, aes(x = title, y = value, fill = group)) + geom_col(position = "stack") + theme_minimal() + theme(axis.text.x = element_text(angle = 45, hjust = 1.0), plot.subtitle = element_text(size = 8)) + labs(title = glue::glue("Visualization of cluster membership with FANNY"), subtitle = glue::glue("Average Cicero text membership: {round(mean(fan_res$membership[1:18,1]), digits = 2) * 100}%. Average Corpus Caesarianum text membership: {round(mean(fan_res$membership[19:33,2]), digits = 2) * 100}%.")) + ylab("Percentage assigned to the work's main cluster") + scale_fill_brewer()
+ggsave("./Images/fanny_cluster_membership.png", dpi="print")
 ```
 
 ```{r, work-in-progress-algorithms, eval=FALSE}
@@ -1561,8 +1563,8 @@ gorman.vars %<>% column_to_rownames("title")
 km_res <- kmeans(gorman.vars, 2, nstart = 50)
 
 # attempting to use the more restricted variable set
-fviz_cluster(km_res, gorman.vars, ggtheme = theme_minimal(), repel = TRUE) + 
-  labs(title = "Cluster plot of the *Corpus Caesarianum*, Sallust, and Cicero.")
+fviz_cluster(km_res, gorman.vars, repel = TRUE, palette = cbbPalette) + 
+  labs(title = "Cluster plot of the *Corpus Caesarianum*, Sallust, and Cicero.") 
 ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
 # Add annotation with Jaccard coefficients from below, showing how strong the clustering is.
 # In the final R notebook, give the 
@@ -1704,11 +1706,13 @@ graph <- graph +
               size = 5,
               inherit.aes = FALSE) 
 
+dist_palette <- brewer.pal(n = 5, "YlOrRd")
+
 #Using the 5th percentile here. The 95th percentile is beyond any differences between texts, suggesting that difference doesn't guarantee different authorship. However, below about 0.2 is highly suggestive of same authorship, as that's lower than the lower tail (0.05) of the data
-graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
+graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
 ggsave("Images/dissimilarity_matrix_between_books_by_correlation.png", dpi = "print")
 
-graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = 0.3)
+graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = 0.3)
 ggsave("Images/dissimilarity_matrix_between_books.png", dpi = "print")
 
 #View(as.data.frame(as.matrix(gorman_dist)))
@@ -1719,9 +1723,11 @@ Dissimilarity matrix with just Cicero, B Alex, and B Gall 5-8
 
 ```{r}
 #be lazy and copy code
+remove_list <- c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.", "Bellum Iugurthinum", "Catilinae Coniuratio")
 
-gorman.vars.2 <- gorman.vars |> rownames_to_column("title") |>  filter(title %notin% c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1", "BC 2", "BC 3", "BAfr.", "Bellum Iugurthinum", "Catilinae Coniuratio")) 
-gorman_dist <- get_dist(gorman.vars.2 |> dplyr::select(-title), method = "spearman")
+gorman.vars.2 <- gorman.vars |> rownames_to_column("title") |>  filter(title %notin% remove_list) |> column_to_rownames("title")
+
+gorman_dist <- get_dist(gorman.vars.2, method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
 attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
@@ -1731,8 +1737,10 @@ mat <- as.matrix(gorman_dist)
 d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
 d_long$value <- as.vector(mat)
 d_long$value <- round(d_long$value, digits = 2)
-d_long$x_axis <- rep(1:length(gorman.vars.2 $title), times = length(gorman.vars.2 $title))
-d_long$y_axis <- rep(1:length(gorman.vars.2 $title), each = length(gorman.vars.2 $title))
+
+rows = nrow(gorman.vars.2)
+d_long$x_axis <- rep(1:rows, times = rows)
+d_long$y_axis <- rep(1:rows, each = rows)
 d_long <- as.data.frame(d_long)
 
 graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
@@ -1752,7 +1760,7 @@ graph <- graph +
 
 
 
-graph + scale_fill_gradient2(low = "red", high = "blue", midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05), limits = c(0, 0.8))
+graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05), limits = c(0, 0.8))
 ggsave("Images/dissimilarity_matrix_between_books_by_correlation-2.png", dpi = "print")
 
 ```
