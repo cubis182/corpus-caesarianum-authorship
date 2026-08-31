@@ -1537,7 +1537,7 @@ cb_full <- clusterboot(gorman.vars, clustermethod = kmeansCBI, krange = 2:5) #k 
 ```
 
 ```{r, random-data-example}
-
+set.seed(123123)
 test_data <- tibble(a = runif(n = 250, max = 100), b = runif(n = 250, max = 100))
 test_km <- kmeans(test_data, 3, nstart = 50)
 
@@ -1561,15 +1561,23 @@ gorman.vars %<>% column_to_rownames("title")
 
 # Try standardizing?
 km_res <- kmeans(gorman.vars, 2, nstart = 50)
+km_caesar_only <- kmeans(object$caesar_gorman, 2, nstart = 50)
 
 # attempting to use the more restricted variable set
 fviz_cluster(km_res, gorman.vars, repel = TRUE, palette = cbbPalette) + 
   labs(title = "Cluster plot of the *Corpus Caesarianum*, Sallust, and Cicero.") 
 ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
+
+fviz_cluster(km_caesar_only, object$caesar_gorman, repel = TRUE, palette = cbbPalette) + 
+  labs(title = "Cluster plot of the *Corpus Caesarianum* in two clusters") 
+ggsave("./Images/august-draft/caesar_cluster.png", dpi = "print")
 # Add annotation with Jaccard coefficients from below, showing how strong the clustering is.
 # In the final R notebook, give the 
 
 cb_res <- clusterboot(gorman.vars, clustermethod = kmeansCBI, k = 2)
+print(cb_res)
+
+cb_res <- clusterboot(object$caesar_gorman, clustermethod = kmeansCBI, k = 2)
 print(cb_res)
 ```
 
