@@ -1682,6 +1682,7 @@ names(scores.correlation.per.text) <- titles
 
 # NOTE: REDUCING TO VARIABLES 250-500 GETS RESULTS VERY SIMILAR TO WHAT WE GOT WITH THE FULL DATASET, INCLUDING PARENTS, BEFORE; PERHAPS REMOVING THE MOST AND LEAST COMMON WILL HELP MAKE THE PICTURE LESS MUDDY?
 
+if (!is.null(gorman.vars$title)) gorman.vars <- gorman.vars %>% mutate(title = lookup_table[title]) %>% column_to_rownames("title")
 
 gorman_dist <- get_dist(gorman.vars, method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
@@ -1711,7 +1712,7 @@ graph <- graph +
               aes(x = x_axis, y = y_axis, label = value), 
               color = "black", 
               size.unit = "pt",
-              size = 5,
+              size = 4,
               inherit.aes = FALSE) 
 
 dist_palette <- brewer.pal(n = 5, "YlOrRd")
