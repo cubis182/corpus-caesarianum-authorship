@@ -56,7 +56,6 @@ library(multcomp)
 library(ggtext)
 library(printr)
 library(magrittr)
-library(logrittr)
 library(data.table)
 library(collapse)
 library(logger)
@@ -1278,6 +1277,8 @@ members <- rbind(fan_res$membership[1:18,], fan_res$membership[19:33,2:1], fan_r
 # get the data ready for a stacked barplot in ggplot
 ggplot_input_df <- members %>% as.data.frame() %>% rename(`Member cluster` = "V1", `Other cluster` = "V2") %>% rownames_to_column("title") %>% pivot_longer(cols = -title, names_to = "group", values_to = "value")
 
+ggplot_input_df %<>% mutate(title = lookup_table[title])
+
 # Some nonsense to keep title column in order when it gets turned into a factor
 ggplot_input_df$title <- factor(ggplot_input_df$title, levels = ggplot_input_df$title[ggplot_input_df$group == "Member cluster" & order(ggplot_input_df$value)])
 
@@ -1558,6 +1559,8 @@ ggsave("./Images/august-draft/random_noise_clustering.png", dpi = "print")
 
 gorman.vars$title <- lookup_table[gorman.vars$title]
 gorman.vars %<>% column_to_rownames("title")
+
+rownames(object$caesar_gorman) <- lookup_table[rownames(object$caesar_gorman)]
 
 # Try standardizing?
 km_res <- kmeans(gorman.vars, 2, nstart = 50)
