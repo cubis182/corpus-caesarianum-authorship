@@ -1076,25 +1076,25 @@ if __name__ == "__main__":
         f"{prefix}phi0430/phi001/phi0430.phi001.perseus-lat1.xml",
     ]
 
-    # csv_postag(
-    #     path_origin="cicero_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-cicero.csv",
-    #     processor_variants="latincy"
-    # )
-    #
-    # csv_postag(
-    #     path_origin="caesar_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-texts.csv",
-    #     processor_variants="latincy"
-    # )
-    #
-    # csv_postag(
-    #     path_origin="sallust_text_perseus_tokenized.csv",
-    #     path_destination="../postagged/postagged-sallust.csv",
-    #     processor_variants="latincy"
-    # )
+    csv_postag(
+        path_origin="cicero_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-cicero.csv",
+        processor_variants="latincy"
+    )
 
-    accuracy_output = "../postagged/postag-tests-v2.csv"
-    #select_random(5, results_file, accuracy_output)
-    select_random(5, "../postagged/postagged-cicero.csv", accuracy_output)
-    select_random(10, "../postagged/postagged-sallust.csv", accuracy_output)
+    csv_postag(
+        path_origin="caesar_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-texts.csv",
+        processor_variants="latincy"
+    )
+
+    csv_postag(
+        path_origin="sallust_text_perseus_tokenized.csv",
+        path_destination="../postagged/postagged-sallust.csv",
+        processor_variants="latincy"
+    )
+
+    # accuracy_output = "../postagged/postag-tests-v2.csv"
+    # #select_random(5, results_file, accuracy_output)
+    # select_random(5, "../postagged/postagged-cicero.csv", accuracy_output)
+    # select_random(10, "../postagged/postagged-sallust.csv", accuracy_output)

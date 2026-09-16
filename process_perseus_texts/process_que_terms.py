@@ -301,6 +301,10 @@ addtl_exceptions = [
     "rogatione",
     "tibicen",
     "usurpatione",
+    "elatione",
+    "perfectione",
+    "perio/don", #temporary, need to deal with these Greek words in Latin alphabet
+    "politiko/n", # same
 ]
 
 failed_token_split = [
@@ -335,8 +339,8 @@ df["tokens"] = df["text"].apply(tokenize)
 
 #MD 6/2/2026: Added to separate Cicero from Caesar
 caesar = df[df['work'].isin(['gallic', 'civil', 'spanish', 'alexandrine', 'african'])]
-cicero = df[df['work'].isin(['amicitia', 'senectute', 'philippics', 'brutus', 'deiotaro'])]
-sallust = df[df['work'].isin(['catilinae_sallusti', 'iugurthine',])]
+cicero = df[df['work'].isin(['amicitia', 'senectute', 'philippics', 'brutus', 'deiotaro', 'ligario', 'marcello'])]
+sallust = df[df['work'].isin(['catilinae_sallusti', 'iugurthine'])]
 
 # Save 
 caesar.to_csv("caesar_text_perseus_tokenized.csv")
