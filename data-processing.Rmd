@@ -1609,57 +1609,7 @@ Now we'll create a list of vectors, and each one is the set of
 correlations retrieved by comparing pairwise
 
 ```{r}
-if (!'pspearman' %in% .packages()) library(pspearman)
-if (!'Kendall' %in% .packages()) library(Kendall)
-if (!'lsa' %in% .packages()) library(lsa)
 
-retrieve_combination_similarity <- function(combo, section_vectors, type) {
-  vectors <-section_vectors |> filter(title %in% combo) |> dplyr::select(-title, -path)
-  #browser()
-  vec_a <- vectors[1,] |> t() |> as.vector() 
-  vec_b <- vectors[2,] |> t() |> as.vector() 
-  
-  #browser()
-  #If using Spearman, use approximation AS89 when the number of variables is under 1,290
-  if (type == "spearman") {
-    amount_jitter <- 0.001
-    vec_a %<>% jitter(amount = amount_jitter)
-    vec_b %<>% jitter(amount = amount_jitter)
-    
-    rho_estimate <- spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate
-    #Note: we'll be comparing this with dissimilarity scores, which are actually the absolute value of (rho - 1)
-    return(abs(rho_estimate - 1.0))  
-  } else if (type == "cosine" ) {
-    return(cosine(vec_a, vec_b))  
-  } else if (type == "euclidean") {
-    return(dist(rbind(vec_a, vec_b)))
-  }
-  
-}
-
-#Parameters:
-#  character book: Name of commentary book. Valid values: "gallic _ 1", "gallic _ 2", etc.
-#  tibble section_vectors: NEEDSDOC
-# double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
-within.book.similarity <- function(section_vectors, rows, type_of_similarity = "spearman") {
-  
-  sub_section_vectors <- section_vectors[sample(1:nrow(section_vectors), rows),]
-  #browser()
-  
-  log_info("Starting sub_section_vectors...")
-  t1 <- proc.time()
-  
-  #Use the columns if this to select
-  #combn(sectioned.gorman.vars |> filter(path == "african ") |> pull(title), 2)
-  combos <- combn(sub_section_vectors$title, 2)
-  
-  similarities <- apply(X = combos, MARGIN = 2, FUN = retrieve_combination_similarity, section_vectors = sub_section_vectors, type = type_of_similarity)
-  
-  print("Finished one book in within.book.similarity")
-  print(proc.time() - t1)
-  return(similarities)
-  
-}
 
 ```
 
@@ -1821,3 +1771,12 @@ Sources: [@stamatatos2001]
 
 # Use the ANOVA for the preliminary article, then add the classifier for the final one.
 ```
+
+# Investigating Dissimilarities
+
+Our first goal is to better visualize the instability within authors. We
+could get a single value (average dissimilarity), which would be
+valuable if the dissimilarities are normally distributed, which I think
+they generally are. We could use box and whisker plots; at the very
+least, even if it would be too much going on for a single visualization
+in the paper, it will help me decide how to represent this.
