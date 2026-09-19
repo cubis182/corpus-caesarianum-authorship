@@ -1605,21 +1605,10 @@ sectioned.gorman.vars %<>%
 
 ```
 
-Now we'll create a list of vectors, and each one is the set of
-correlations retrieved by comparing pairwise
-
-```{r}
-
-
-```
-
-Using Kendall, BA took 239.47 seconds to execute.
-
-Using Spearman with the AS89 approximation, BA took 208.86 seconds to
-execute. We'll stick with that for now.
-
-Let's create a function that does this all for us and gets us a list of
-vectors.
+Get a list of numeric vectors, each of which represents a text. The
+numbers are dissimilarity scores between random sections; the number of
+sections sampled are given in the `rows` argument to
+`within.book.similarity` below.
 
 ```{r}
 
