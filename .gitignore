@@ -21,3 +21,4 @@ variable_counts_by_section.csv
 .positai
 dotnet-install.sh
 data_clustering.Rmd
+ds1_log.txt
