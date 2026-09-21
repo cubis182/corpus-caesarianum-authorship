@@ -1584,7 +1584,7 @@ cb_res <- clusterboot(object$caesar_gorman, clustermethod = kmeansCBI, k = 2)
 print(cb_res)
 ```
 
-## Dissimilarity Verification with Sections
+## Dissimilarity Verification with Sections {#dissimilarity-verification}
 
 First, let's add a new variable to the sectioned corpus which contains
 only the name of the commentary. The goal is, for each commentary, to
@@ -1618,7 +1618,7 @@ titles <- unique(sectioned.gorman.vars$path)
 #Get the spearman correlation coefficients, add them to a list, with the label being the title
 
 
-scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$path, FUN = within.book.similarity, rows = 16, type_of_similarity = "spearman")
+scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$path, FUN = within.book.similarity, rows = 20, type_of_similarity = "spearman")
 
 names(scores.correlation.per.text) <- titles
 
@@ -1631,8 +1631,6 @@ gorman_dist <- get_dist(gorman.vars, method = "spearman")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
 attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
 attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
-
-
 
 mat <- as.matrix(gorman_dist)
 d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
@@ -1769,3 +1767,72 @@ valuable if the dissimilarities are normally distributed, which I think
 they generally are. We could use box and whisker plots; at the very
 least, even if it would be too much going on for a single visualization
 in the paper, it will help me decide how to represent this.
+
+The single value we can already get from `scores.correlation.per.text`
+(yes, I'm using dots, I know it's not approved of). We can apply
+`mean()` to each one, which would be best if they're normally
+distributed. Let's test that first.
+
+```{r}
+
+print(
+  map_dbl(scores.correlation.per.text, ~ wilcox.test(.x)$p.value)
+)
+
+hist(scores.correlation.per.text$brutus_1)
+```
+
+None of them are normally distributed; the histogram above shows they
+are close, but have a tail on one side or the other. What do box and
+whisker plots show?
+
+```{r}
+
+longest <- map_int(scores.correlation.per.text, ~ length(.x)) %>% max()
+
+even_out <- function(.x) {
+  if(length(.x) < longest) {
+    c(.x, rep(NA, longest - length(.x)))
+  } else .x
+}
+
+scores.correlation.per.text %<>% map(even_out) 
+  
+diss_scores_df <- do.call(data.frame, scores.correlation.per.text)
+
+diss_scores_pivoted <- diss_scores_df %>% pivot_longer(cols = everything(), names_to = "title", values_to = "dissimilarities", values_drop_na = TRUE)
+
+ggplot(diss_scores_pivoted, aes(title, dissimilarities)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
+```
+
+It looks like the variation within a single work provides some extra
+information: although there is a lot more variety in the dissimilarity
+scores between books of the *Corpus Caesarianum*, as shown previously in
+[Dissimilarity Verification](#dissimilarity-verification), the actual variation within a single book is higher in Cicero. This can certainly be explained on generic grounds: for example, Brutus has various snippets of dialogue more or less expository in nature, which would register fairly strongly here. The same could probably be said of a speech as well. 
+
+Let's get a variability score for each one (remember to ignore the NAs!):
+
+```{r}
+dissimilarity_median <- map(scores.correlation.per.text, ~ median(.x, na.rm = TRUE))
+
+print(sort(unlist(dissimilarity_median)))
+```
+
+With the exception of *BG* 3 and *BC* 1, this list cleanly separates Cicero from the two historians. On the face of it, this might seem to go against our argument. If the individual books of Caesar are more internally consistent (still need to get significance tests in! but I suspect they will be significant given the sample size), then that would suggest, in a vacuum at least, that Caesar's is a unified, highly worked over corpus. However, there are two elements of the context to keep in mind. First, if the whole of the Caesarian corpus is highly internally consistent, that would again suggest later reworking, as we know for a fact (at least, as close to fact as can be ascertained) that Caesar did not finish them. The second, and most important element, that really overrides the previous two, is that the consistency *between* books is simply not there. I think worthy of note here is that, despite the fact that history is clearly shown as a less "varied" genre than the works of Cicero, the cohesion between texts is still very high in Cicero while it is not in Caesar. This seems to even more strongly support divided publication, in my view.
+
+We should use a non-parametric test to determine the significance, but the question is what to compare against. We are arguing for a greater internal consistency in Cicero, but we want to know whether the internal consistency is unusual **for that genre**. So, we want to know how many texts in the Cicero corpus have a mean/median significantly different from the Cicero corpus at large, and we want to know how many texts in the Caesar corpus have a mean/median significantly different from the history corpus at large.
+
+```{r}
+
+# A function would be desirable, you give the full set, and the name of the column you want to single out. 
+# I would review Gries first, to make sure you use the right test; the K-S test might work.
+
+# corpus_segment needs to be a section of scores.correlation.per.text
+ks_test_map <- function(corpus_segment) {
+  # corpus_segment is either Cicero texts, or "Caesar"/Sallust
+  
+  map(names(corpus_segment), ~ ks.test(corpus_segment[[.x]], corpus_segment))
+}
+
+```
+

@@ -818,9 +818,12 @@ retrieve_combination_similarity <- function(combo, section_vectors, type) {
     vec_a %<>% jitter(amount = amount_jitter)
     vec_b %<>% jitter(amount = amount_jitter)
     
-    rho_estimate <- spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate
+    #rho_estimate <- spearman.test(vec_a, vec_b, alternative = "two.sided", approximation = "AS89")$estimate
+    #NOTE: updating to use the `cor()` function, since this is what `get_dist()` uses, which is what we're comparing with
+    rho_estimate <- cor(vec_a, vec_b, method = type)
+    
     #Note: we'll be comparing this with dissimilarity scores, which are actually the absolute value of (rho - 1)
-    return(abs(rho_estimate - 1.0))  
+    return((1 - rho_estimate))  
   } else if (type == "cosine" ) {
     return(cosine(vec_a, vec_b))  
   } else if (type == "euclidean") {
@@ -834,8 +837,11 @@ retrieve_combination_similarity <- function(combo, section_vectors, type) {
 #  tibble section_vectors: NEEDSDOC
 # double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
 within.book.similarity <- function(section_vectors, rows, type_of_similarity = "spearman") {
+  # Ensure that sample doesn't try to sample more cases than there are rows
+  number_of_rows <- nrow(section_vectors)
+  if (rows > number_of_rows) rows <- number_of_rows
   
-  sub_section_vectors <- section_vectors[sample(1:nrow(section_vectors), rows),]
+  sub_section_vectors <- section_vectors[sample(1:number_of_rows, rows),]
   #browser()
   
   log_info("Starting sub_section_vectors...")
