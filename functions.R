@@ -337,7 +337,7 @@ select_top_variables <- function(all_vars, n, criterion = c("sum", "sd")) {
   log_info("{fn_name}: Number of variables is {number_of_variables}, minimum value in sections 1:{(n * (number_of_rows / number_of_variables))} is {min_val}.")
 
   original_length <- nrow(all_vars)
-  all_vars_reduced <- all_vars %>=% filter(n > min_val)
+  all_vars_reduced <- all_vars %>% filter(n > min_val)
   log_info("{fn_name}: Data frame reduced from {original_length} rows to {nrow(all_vars_reduced)}.")
 
   # Get a list of the distinct variables
