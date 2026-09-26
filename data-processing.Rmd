@@ -1804,6 +1804,32 @@ diss_scores_pivoted <- diss_scores_df %>% pivot_longer(cols = everything(), name
 
 ggplot(diss_scores_pivoted, aes(title, dissimilarities)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
 ```
+```{r}
+# How significant is what we observe in the above graph, that Caesar and Sallust tend to have a lower ? We can also use a one tailed test. Our hypothesis is that the first set, the works of Cicero, have a higher distribution of dissimilarity scores than Caesar and Sallust. The null hypothesis we must reject to prove this is that the Cicero's scores are lower. 
+
+ks.test(
+  # Cicero
+  jitter(na.omit(unlist(scores.correlation.per.text[
+      names(scores.correlation.per.text) %notin% c(
+        caesar_works_v, 
+        "catilinae_sallusti", 
+        "iugurthine_1"
+        )
+      ]))),
+  # Caesar and Sallust
+  jitter(na.omit(unlist(scores.correlation.per.text[
+      names(scores.correlation.per.text) %in% c(
+        caesar_works_v, 
+        "catilinae_sallusti", 
+        "iugurthine_1"
+        )
+      ]))),
+  alternative = "less"
+)
+
+# We can confidently reject the null hypothesis with a significant p-value of less than 2.2e-16
+```
+
 
 It looks like the variation within a single work provides some extra
 information: although there is a lot more variety in the dissimilarity
@@ -1820,7 +1846,7 @@ print(sort(unlist(dissimilarity_median)))
 
 With the exception of *BG* 3 and *BC* 1, this list cleanly separates Cicero from the two historians. On the face of it, this might seem to go against our argument. If the individual books of Caesar are more internally consistent (still need to get significance tests in! but I suspect they will be significant given the sample size), then that would suggest, in a vacuum at least, that Caesar's is a unified, highly worked over corpus. However, there are two elements of the context to keep in mind. First, if the whole of the Caesarian corpus is highly internally consistent, that would again suggest later reworking, as we know for a fact (at least, as close to fact as can be ascertained) that Caesar did not finish them. The second, and most important element, that really overrides the previous two, is that the consistency *between* books is simply not there. I think worthy of note here is that, despite the fact that history is clearly shown as a less "varied" genre than the works of Cicero, the cohesion between texts is still very high in Cicero while it is not in Caesar. This seems to even more strongly support divided publication, in my view.
 
-We should use a non-parametric test to determine the significance, but the question is what to compare against. We are arguing for a greater internal consistency in Cicero, but we want to know whether the internal consistency is unusual **for that genre**. So, we want to know how many texts in the Cicero corpus have a mean/median significantly different from the Cicero corpus at large, and we want to know how many texts in the Caesar corpus have a mean/median significantly different from the history corpus at large.
+We should use a non-parametric test to determine the significance, but the question is what to compare against. We are arguing for a greater internal consistency in Cicero, but we want to know whether the internal consistency is unusual **for that genre**. So, we want to know how many texts in the Cicero corpus have a distribution significantly different from the Cicero corpus at large, and we want to know how many texts in the Caesar corpus have a distribution significantly different from the history corpus at large.
 
 ```{r}
 
@@ -1828,11 +1854,67 @@ We should use a non-parametric test to determine the significance, but the quest
 # I would review Gries first, to make sure you use the right test; the K-S test might work.
 
 # corpus_segment needs to be a section of scores.correlation.per.text
-ks_test_map <- function(corpus_segment) {
+ks_test_map <- function(corpus_segment, alternative = "two.sided") {
   # corpus_segment is either Cicero texts, or "Caesar"/Sallust
+  set.seed(sum(utf8ToInt("caesarisfun")))
   
-  map(names(corpus_segment), ~ ks.test(corpus_segment[[.x]], corpus_segment))
+  # na.omit because before this I added NAs to make each vector in the list the same length for easy conversion to a data frame
+  # jittering is very small to keep roughly the same ranks; as of the .RData saved before 9/26/2026, the smallest differesnce between two values in the `scores.correlation.per.test variable is 1.200001e-08, so 0.00000001200001; the default behavior of jitter uses a factor of less than this value
+  map(corpus_segment, ~ ks.test(
+    jitter(na.omit(.x)), 
+    jitter(na.omit(unlist(corpus_segment))),
+    alternative = alternative
+    )$p.value
+    )
 }
+
+# I keep the alternative at the default "two.sided"
+p_values_ks <- c(
+  ks_test_map(scores.correlation.per.text[caesar_works_v]),
+  ks_test_map(
+    scores.correlation.per.text[
+      names(scores.correlation.per.text) %notin% c(
+        caesar_works_v, 
+        "catilinae_sallusti", 
+        "iugurthine_1"
+        )
+      ]
+    )
+)
+
+# Create a list of colors, so we can color-code based on p-value
+# Significant = "red" (i.e. reject hypothesis that they're the same distribution of similarity scores)
+# Not significant = "green" (i.e., can't be certain they are from different distributions)
+color_convert <- function(x) {
+  n <- length(x)
+  significance_threshold <- 0.05 / n
+  
+  map_chr(x, ~ if (.x < significance_threshold) "red" else "green")
+}
+
+colors_ks_test <- color_convert(p_values_ks)
+
+```
+
+We can use the `gt` package perhaps to visualize this. A long table with a name on one side, and a median dissimilarity value on the other, and cells color-coded.
+
+```{r, gt_dissimilarity_values}
+
+dissimilarity_median <- dissimilarity_median[names(p_values_ks)]
+
+diss_score_gt_tib <- tibble(
+  title = names(dissimilarity_median),
+  dissimilarity = unlist(dissimilarity_median)
+)
+
+diss_score_gt_tib %<>%
+  mutate(title = lookup_table[title])
+
+color_fn <- function(x) colors_ks_test
+
+diss_score_gt_tib |>
+  gt() |>
+  data_color(columns = dissimilarity, direction = "column", fn = color_fn)
 
 ```
 

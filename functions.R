@@ -48,6 +48,7 @@ get_title_segment <- function(string, mode = "book") {
 }
 
 # add a version of `attributes<-` which returns the object too
+caesar_works_v <- c("gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "civil_1", "civil_2", "civil_3", "alexandrine_1", "alexandrine_2", "african_1", "spanish_1")
 
 cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
 sallust_works <- "(catilinae_sallusti|iugurthine)"
