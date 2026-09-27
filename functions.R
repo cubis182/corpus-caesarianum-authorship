@@ -35,6 +35,22 @@ library(progress)
 
 # Utilities
 
+# z-score standardization
+scale_df <- function(df) {
+  require(magrittr)
+  
+  if (!is.data.frame(df)) stop(glue::glue("Need a data frame, got a {class(df)}"))
+  non_numeric <- df %>% select(!where(is.numeric))
+  numeric <- df %>% select(where(is.numeric))
+  
+  numeric %<>% scale() %>% as.data.frame()
+  
+  recombined <- bind_cols(non_numeric, numeric)
+  
+  # Return to the original order
+  recombined[,colnames(df)]
+}
+
 # modes: "title", "book", "section"
 get_title_segment <- function(string, mode = "book") {
   split_str <- unlist(strsplit(string, "_"))
@@ -50,7 +66,7 @@ get_title_segment <- function(string, mode = "book") {
 # add a version of `attributes<-` which returns the object too
 caesar_works_v <- c("gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "civil_1", "civil_2", "civil_3", "alexandrine_1", "alexandrine_2", "african_1", "spanish_1")
 
-cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro)"
+cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro|ligario|marcello)"
 sallust_works <- "(catilinae_sallusti|iugurthine)"
 # reorder works so ones by the same author go together.
 reorder_works <- function(source_data) {
@@ -287,7 +303,11 @@ has_all_feature_types <- function(row_from_source_data, character_vector_of_feat
 get_number_rows_with_feature_types <- function(vector_of_feature_values, source_data) {
   # browser()
   fn_name <- "get_number_rows..."
-
+  
+  # Added 9/27/2026: It was detecting the "3" in the title of "philippics_3", 
+  #   "gallic_3", etc. as 3rd person, so must remove title
+  source_data <- source_data[,colnames(source_data) %notin% c("title", "author", "path", "book", "section")]
+  
   count_of_feature_values <- sum(
     apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = vector_of_feature_values)
   )
@@ -477,6 +497,32 @@ get_vars_gorman <- function(mode = "book", source, presupplied_variables = NULL)
 #   each row a document or document section, and 
 #   the cells are the normalized frequencies within those documents.
 
+# helper function to "combinations_from_existing()"
+# this function takes the colnames from an all_vars_* variable, and
+# turns it into a data frame with each row as a new variable
+combinations_table_from_vector <- function(vars_unsplit) {
+  # lapply over the names, using strsplit on each one
+  split_vars <- lapply(X = vars_unsplit, FUN = strsplit, split = "[|]")
+  
+  split_vars <- unlist(split_vars, recursive = FALSE)
+  
+  # For each item in the list (which is a character vector), we construct 
+  #   a data frame where each column is the character vector. 
+  #   NAs should appear in rows that aren't attested
+  combinations_new <- data.frame(labels = letters[1:5])
+  
+  for (item in split_vars) {
+    combinations_new <- cbind(combinations_new, item[1:5])
+  }
+  
+  # Transpose the data frame
+  combinations_new <- t(combinations_new) |>
+    as_tibble(.name_repair = "unique") |>
+    slice(-1)
+  
+  combinations_new
+}
+
 # Pass an output from get_vars(), get the variables back in table form 
 #   so they can be passed into the get_vars() function with a new dataset. 
 #   That way, a new dataset can be processed with the same variables as another.
@@ -485,28 +531,12 @@ combinations_from_existing <- function(all_vars) {
   vars_unsplit <- all_vars |>
     dplyr::select(-title) |>
     colnames()
-
-
-  # lapply over the names, using strsplit on each one
-  split_vars <- lapply(X = vars_unsplit, FUN = strsplit, split = "[|]")
-
-  split_vars <- unlist(split_vars, recursive = FALSE)
-
-  # For each item in the list (which is a character vector), we construct 
-  #   a data frame where each column is the character vector. 
-  #   NAs should appear in rows that aren't attested
-  combinations_new <- data.frame(labels = letters[1:5])
-
-  for (item in split_vars) {
-    combinations_new <- cbind(combinations_new, item[1:5])
-  }
-
-  # Transpose the data frame
-  combinations_new <- t(combinations_new) |>
-    as_tibble(.name_repair = "unique") |>
-    slice(-1)
-
-  combinations_new
+  
+  # turn colnames into a data frame with five columns,
+  # where each row has a different feature value in
+  # each cell, with all unused cells filled with NAs.
+  # This is the format that get_vars_gorman() expects.
+  combinations_table_from_vector(vars_unsplit)
 }
 
 get_count_by_title_features <- function(title, feature_char, source_data, pipe = TRUE) {
@@ -532,7 +562,46 @@ get_count_by_title_features <- function(title, feature_char, source_data, pipe =
   (count_from_source_data / nrow(filtered_data)) * 1000
 }
 
-## CUSTOM FEATURE SET
+# NOTE: OBVIOUSLY ONLY USE THIS IF THE SAVED DATA WAS CREATED WITH THE SAME
+# ORIGINAL POSTAGGED-TEXTS DATA!
+#> If I want to replace a single variable that got run incorrectly before, 
+#> this function will replace only that one. Therefore, this function needs 
+#> to:
+#> -  retrieve the data from file AS A TIBBLE, accounting for the `params` set in the global
+#>      environment
+#> -  make sure the name(s) supplied to the function is a valid column name
+#> -  make sure we go through the colnames in the order they appear in the 
+#>      vector supplied to the function
+#> -  if prepended with an "X", remove it. NOT APPLICABLE WITH A TIBBLE
+#> -  use combinations_table_from_vector on the list of column names
+#> -  use get_vars_gorman by supplying the new 'combinations'
+#> -  use transpose_all_vars() on it
+#> -  replace each column with the new ones, write to file again using same 
+#> -    process as in data-processing.Rmd
+gorm_replace_feature_value_column <- function(.colnames, data, filename, mode = "book") {
+  
+  saved_data <- read_csv(filename)
+  
+  .colnames_in_data <- .colnames %in% colnames(saved_data)
+  if (anyv(.colnames %in% colnames(saved_data), FALSE)) {
+    stop(glue::glue("The columns {glue::glue_collapse(.colnames[not(.colnames_in_data)], sep = ', ')} were not found in the data set."))
+  }
+  
+  combos <- combinations_table_from_vector(.colnames)
+  
+  new_vars <- get_vars_gorman(
+    mode = mode, 
+    source = data, 
+    presupplied_variables = combos
+    ) %>%
+    transpose_all_vars()
+  
+  purrr::walk(.colnames, ~ saved_data[,.x] <<- new_vars[,.x])
+  
+  write_csv(saved_data %>% unnest(everything), file = filename, col_names = TRUE)
+}
+
+# CUSTOM FEATURE SET ----------------------------
 #> This feature set is a hodge-podge developed from research, with the sources
 #> described in more detail in the data-processing notebook.
 #> 
@@ -596,6 +665,9 @@ get_vars_custom <- function(mode = "book", source) {
     mutate(title = unlist(title))
   
 }
+
+
+# Custom feature set --------------------------------
 
 # Get n-grams of a feature from the column.
 # .unique tells whether to return unique values, or to return copies of every
@@ -664,6 +736,7 @@ count_ngrams <- function(source_data, pos_ngrams) {
   )
 }
 
+# Verify variable counts -----------------------------
 
 # Set pipe to FALSE if each combined variable is separated by periods instead
 verify_random_cell <- function(all_vars, source_data, pipe = TRUE) {
@@ -695,6 +768,8 @@ verify_random_cell <- function(all_vars, source_data, pipe = TRUE) {
   log_info("{fn_name}: count == cell: {signif(count_from_source_data, digits = 2) == signif(cell, digits = 2)}")
   (signif(count_from_source_data, digits = 2) == signif(cell, digits = 2))[[1]]
 }
+
+# Cluster verification functions ------------------------------
 
 # Wrapper around dist() and as.dist() which allows the user to supply a function 
 #   as a custom distance measure. 
