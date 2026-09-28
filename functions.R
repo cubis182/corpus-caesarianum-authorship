@@ -68,6 +68,54 @@ caesar_works_v <- c("gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", 
 
 cicero_works <- "(philippics|senectute|amicitia|brutus|deiotaro|ligario|marcello)"
 sallust_works <- "(catilinae_sallusti|iugurthine)"
+
+cicero_all <- c(
+  "amicitia_1",
+  "brutus_1",
+  "deiotaro_1",
+  "ligario_1",
+  "marcello_1",
+  "philippics_1",
+  "philippics_2",
+  "philippics_3",
+  "philippics_4",
+  "philippics_5",
+  "philippics_6",
+  "philippics_7",
+  "philippics_8",
+  "philippics_9",
+  "philippics_10",
+  "philippics_11",
+  "philippics_12",
+  "philippics_13",
+  "philippics_14",
+  "senectute_1"
+)
+
+caesar_all <- c(
+  "african_1",
+  "alexandrine_1",
+  "alexandrine_2",
+  "civil_1",
+  "civil_2",
+  "civil_3",
+  "gallic_1",
+  "gallic_2",
+  "gallic_3",
+  "gallic_4",
+  "gallic_5",
+  "gallic_6",
+  "gallic_7",
+  "gallic_8",
+  "spanish_1"
+)
+
+sallust_all <- c(
+  "catilinae_sallusti",
+  "iugurthine_1"
+)
+  
+  
 # reorder works so ones by the same author go together.
 reorder_works <- function(source_data) {
   
@@ -596,9 +644,9 @@ gorm_replace_feature_value_column <- function(.colnames, data, filename, mode = 
     ) %>%
     transpose_all_vars()
   
-  purrr::walk(.colnames, ~ saved_data[,.x] <<- new_vars[,.x])
+  purrr::walk(.colnames, \(name) saved_data[,name] <<- new_vars[,name])
   
-  write_csv(saved_data %>% unnest(everything), file = filename, col_names = TRUE)
+  write_csv(saved_data %>% unnest(everything()), file = filename, col_names = TRUE)
 }
 
 # CUSTOM FEATURE SET ----------------------------

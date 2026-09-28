@@ -537,11 +537,11 @@ caesar_simplex_vars <- simplex_vars_only %>%
 file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman.csv" else "./feature_csv_files/feature_values_wordonly.csv"
 
 # Used to select subsets of Gorman variables
-subset_of_corpus <- c(1:500)# c(1,250:500)
+subset_of_corpus <- c(1:100)# c(1,250:500)
 
 gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 # for this next adjustment, see Obsidian notebook 8/29/2026
-gorman.vars <- gorman.vars[,subset_of_corpus]
+# gorman.vars <- gorman.vars[,subset_of_corpus]
 # I have decided to z-standardize instead 9/26/2026
 # gorman.vars %<>% scale_df()
 
@@ -581,6 +581,64 @@ lookup_table <- setNames(
   c("alexandrine_1", "alexandrine_2", "african_1", "amicitia_1", "civil_1", "civil_2", "civil_3", "gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "philippics_1", "philippics_2", "philippics_3", "philippics_4", "philippics_5", "philippics_6", "philippics_7", "philippics_8", "philippics_9", "philippics_10", "philippics_11", "philippics_12", "philippics_13", "philippics_14", "senectute_1", "spanish_1", "deiotaro_1", "brutus_1", "catilinae_sallusti", "iugurthine_1", "ligario_1", "marcello_1")
 )
 ```
+
+## Find Optimal Feature Set
+
+My original approach to finding the best feature set was to cull the most and least common, and leave the middle. This is too arbitrary of an approach. Ultimately, the goal is to have a feature set that maximizes the differences between the *Corpus Caesarianum*, Sallust, and Cicero. Here's what we could do:
+1. Get a list of feature set sizes (50 features, 100 features, 150, maybe through 500)
+2. For each feature set size, sample that number of features from `colnames(gorman.vars)`
+3. With this sample of columns, select from `gorman.vars`, which we'll work with in step four
+4. Create a collector variable which will accept a character vector.
+5. Create a vector the size of the number of trials we want to perform on each sample size
+6. Sum up all the dissimilarity scores between the *Corpus Caesarianum* and everything else, sum up all the dissimilarity scores between Cicero and everything else, and sum up all the dissimilarity scores between Sallust and everything else. Add these three values together.
+7. If this is the largest score recorded so far, store the the column names to the variable created in step four.
+8. Append the score to the variable created in step five.
+9. Repeat 6-8 for the number of trials
+10. Repeat 2-9 for the number of feature set sizes determined in step one
+
+However, a scheme like that loses some data. What if the highest sum is one that maximizes the dissimilarity of a few texts, while the rest remain similar across authors? We want to maximize for ALL the texts in one author being farther from another author. We could measure this by taking the smallest distance as our metric in each case, and then adding up; maximizing *this* should get a more desirable outcome. 
+
+```{r}
+
+feature_set_sizes <- seq(from = 50, to = 500, by = 50)
+# Note: for testing, I am going to replace the above variable
+feature_set_sizes <- 250
+
+n_trials <- 10000
+
+best_set <- character(0)
+best_score <- double(0)
+scores <- double(0) # double(length = n_trials * length(feature_set_sizes))
+
+for (sample_n in feature_set_sizes) {
+  for (trial in 1:n_trials) {
+    features <- sample(colnames(gorman.vars %>% select(where(is.numeric))), size = sample_n)
+    
+    sub_gorman.vars <- gorman.vars %>% 
+      column_to_rownames("title")  %>%
+      select(all_of(features))
+    
+    gorman_dist <- get_dist(sub_gorman.vars, method = "spearman") %>%
+      as.matrix() # convert to matrix for easier subsetting
+    
+    stat_caesar <- gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
+    stat_cicero <- gorman_dist[cicero_all,c(caesar_all, sallust_all)] %>% min(na.rm = TRUE)
+    stat_sallust <- gorman_dist[sallust_all,c(cicero_all, caesar_all)] %>% min(na.rm = TRUE)
+    
+    final_stat <- sum(c(stat_cicero, stat_caesar, stat_sallust))
+    
+    if (final_stat > suppressWarnings(max(scores))) {
+      best_set <- features
+      best_score <- final_stat
+    }
+    
+    scores <- c(scores, final_stat)
+  }
+}
+```
+
+
+## Cluster Tests
 
 ```{r, create-test-structure}
 # Set up a data structure with each data set in it. The varieties with "caesar" or "cicero" in the title are the same as the others with the same name, but are restricted to that author alone.
