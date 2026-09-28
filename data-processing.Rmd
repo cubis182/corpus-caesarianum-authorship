@@ -600,9 +600,9 @@ However, a scheme like that loses some data. What if the highest sum is one that
 
 ```{r}
 
-feature_set_sizes <- seq(from = 50, to = 500, by = 50)
+feature_set_sizes <- seq(from = 25, to = 500, by = 25)
 # Note: for testing, I am going to replace the above variable
-feature_set_sizes <- 250
+feature_set_sizes <- 25
 
 n_trials <- 10000
 

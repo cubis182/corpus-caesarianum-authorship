@@ -1,0 +1,139 @@
+nest                   package:tidyr                   R Documentation
+
+_N_e_s_t _r_o_w_s _i_n_t_o _a _l_i_s_t-_c_o_l_u_m_n _o_f _d_a_t_a _f_r_a_m_e_s
+
+_D_e_s_c_r_i_p_t_i_o_n:
+
+     Nesting creates a list-column of data frames; unnesting flattens
+     it back out into regular columns. Nesting is implicitly a
+     summarising operation: you get one row for each group defined by
+     the non-nested columns. This is useful in conjunction with other
+     summaries that work with whole datasets, most notably models.
+
+     Learn more in ‘vignette("nest")’.
+
+_U_s_a_g_e:
+
+     nest(.data, ..., .by = NULL, .key = NULL, .names_sep = NULL)
+     
+_A_r_g_u_m_e_n_t_s:
+
+   .data: A data frame.
+
+     ...: <‘tidy-select’> Columns to nest; these will appear in the
+          inner data frames.
+
+          Specified using name-variable pairs of the form ‘new_col =
+          c(col1, col2, col3)’. The right hand side can be any valid
+          tidyselect expression.
+
+          If not supplied, then ‘...’ is derived as all columns _not_
+          selected by ‘.by’, and will use the column name from ‘.key’.
+
+          *[Deprecated]*: previously you could write ‘df |> nest(x, y,
+          z)’. Convert to ‘df |> nest(data = c(x, y, z))’.
+
+     .by: <‘tidy-select’> Columns to nest _by_; these will remain in
+          the outer data frame.
+
+          ‘.by’ can be used in place of or in conjunction with columns
+          supplied through ‘...’.
+
+          If not supplied, then ‘.by’ is derived as all columns _not_
+          selected by ‘...’.
+
+    .key: The name of the resulting nested column. Only applicable when
+          ‘...’ isn't specified, i.e. in the case of ‘df |> nest(.by =
+          x)’.
+
+          If ‘NULL’, then ‘"data"’ will be used by default.
+
+.names_sep: If ‘NULL’, the default, the inner names will come from the
+          former outer names. If a string, the new inner names will use
+          the outer names with ‘names_sep’ automatically stripped. This
+          makes ‘names_sep’ roughly symmetric between nesting and
+          unnesting.
+
+_D_e_t_a_i_l_s:
+
+     If neither ‘...’ nor ‘.by’ are supplied, ‘nest()’ will nest all
+     variables, and will use the column name supplied through ‘.key’.
+
+_N_e_w _s_y_n_t_a_x:
+
+     tidyr 1.0.0 introduced a new syntax for ‘nest()’ and ‘unnest()’
+     that's designed to be more similar to other functions. Converting
+     to the new syntax should be straightforward (guided by the message
+     you'll receive) but if you just need to run an old analysis, you
+     can easily revert to the previous behaviour using ‘nest_legacy()’
+     and ‘unnest_legacy()’ as follows:
+
+     library(tidyr)
+     nest <- nest_legacy
+     unnest <- unnest_legacy
+     
+_G_r_o_u_p_e_d _d_a_t_a _f_r_a_m_e_s:
+
+     ‘df |> nest(data = c(x, y))’ specifies the columns to be nested;
+     i.e. the columns that will appear in the inner data frame. ‘df |>
+     nest(.by = c(x, y))’ specifies the columns to nest _by_; i.e. the
+     columns that will remain in the outer data frame. An alternative
+     way to achieve the latter is to ‘nest()’ a grouped data frame
+     created by ‘dplyr::group_by()’. The grouping variables remain in
+     the outer data frame and the others are nested. The result
+     preserves the grouping of the input.
+
+     Variables supplied to ‘nest()’ will override grouping variables so
+     that ‘df |> group_by(x, y) |> nest(data = !z)’ will be equivalent
+     to ‘df |> nest(data = !z)’.
+
+     You can't supply ‘.by’ with a grouped data frame, as the groups
+     already represent what you are nesting by.
+
+_E_x_a_m_p_l_e_s:
+
+     df <- tibble(x = c(1, 1, 1, 2, 2, 3), y = 1:6, z = 6:1)
+     
+     # Specify variables to nest using name-variable pairs.
+     # Note that we get one row of output for each unique combination of
+     # non-nested variables.
+     df |> nest(data = c(y, z))
+     
+     # Specify variables to nest by (rather than variables to nest) using `.by`
+     df |> nest(.by = x)
+     
+     # In this case, since `...` isn't used you can specify the resulting column
+     # name with `.key`
+     df |> nest(.by = x, .key = "cols")
+     
+     # Use tidyselect syntax and helpers, just like in `dplyr::select()`
+     df |> nest(data = any_of(c("y", "z")))
+     
+     # `...` and `.by` can be used together to drop columns you no longer need,
+     # or to include the columns you are nesting by in the inner data frame too.
+     # This drops `z`:
+     df |> nest(data = y, .by = x)
+     # This includes `x` in the inner data frame:
+     df |> nest(data = everything(), .by = x)
+     
+     # Multiple nesting structures can be specified at once
+     iris |>
+       nest(petal = starts_with("Petal"), sepal = starts_with("Sepal"))
+     iris |>
+       nest(width = contains("Width"), length = contains("Length"))
+     
+     # Nesting a grouped data frame nests all variables apart from the group vars
+     fish_encounters |>
+       dplyr::group_by(fish) |>
+       nest()
+     
+     # That is similar to `nest(.by = )`, except here the result isn't grouped
+     fish_encounters |>
+       nest(.by = fish)
+     
+     # Nesting is often useful for creating per group models
+     mtcars |>
+       nest(.by = cyl) |>
+       dplyr::mutate(models = lapply(data, function(df) lm(mpg ~ wt, data = df)))
+     
+
