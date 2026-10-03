@@ -407,20 +407,22 @@ caesar_simplex_vars <- simplex_vars_only %>%
 file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman.csv" else "./feature_csv_files/feature_values_wordonly.csv"
 
 # Used to select subsets of Gorman variables
-subset_of_corpus <- c(1:100)# c(1,250:500)
+load("best_feature_set.RData")
+subset_of_corpus <- c("title", best_set) # c(1,250:500)
 
 gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 # for this next adjustment, see Obsidian notebook 8/29/2026
 # gorman.vars <- gorman.vars[,subset_of_corpus]
 # I have decided to z-standardize instead 9/26/2026
 # gorman.vars %<>% scale_df()
+# gorman.vars <- gorman.vars[,subset_of_corpus]
 
 caesar.gorman.vars <- gorman.vars %>% 
   filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
 
 file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
 
-sectioned.gorman.vars <- read.csv("./feature_csv_files/feature_values_gorman_by_section.csv");sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
+sectioned.gorman.vars <- read.csv(file.sectioned.gorman);sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
 sectioned.gorman.vars <- sectioned.gorman.vars[,subset_of_corpus]
 # standardize
 # sectioned.gorman.vars %<>% scale_df()
@@ -471,6 +473,7 @@ However, a scheme like that loses some data. What if the highest sum is one that
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
+feature_set_sizes <- seq(from = 25, to = 100, by = 25)
 
 n_trials <- 10000
 
@@ -486,14 +489,14 @@ for (sample_n in feature_set_sizes) {
       column_to_rownames("title")  %>%
       select(all_of(features))
     
-    gorman_dist <- get_dist(sub_gorman.vars, method = "spearman") %>%
+    gorman_dist <- get_dist(sub_gorman.vars, method = "pearson") %>%
       as.matrix() # convert to matrix for easier subsetting
     
-    stat_caesar <- gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
-    stat_cicero <- gorman_dist[cicero_all,c(caesar_all, sallust_all)] %>% min(na.rm = TRUE)
-    stat_sallust <- gorman_dist[sallust_all,c(cicero_all, caesar_all)] %>% min(na.rm = TRUE)
+    stat_caesar <- gorman_dist[caesar_all,cicero_all] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
+    # stat_cicero <- gorman_dist[cicero_all,c(caesar_all, sallust_all)] %>% min(na.rm = TRUE)
+    # stat_sallust <- gorman_dist[sallust_all,c(cicero_all, caesar_all)] %>% min(na.rm = TRUE)
     
-    final_stat <- sum(c(stat_cicero, stat_caesar, stat_sallust))
+    final_stat <- sum(c(stat_caesar))
     
     if (final_stat > suppressWarnings(max(scores))) {
       best_set <- features
@@ -1497,7 +1500,7 @@ gorman.vars %<>% column_to_rownames("title")
 rownames(object$caesar_gorman) <- lookup_table[rownames(object$caesar_gorman)]
 
 # Try standardizing?
-km_res <- kmeans(gorman.vars, 2, nstart = 50)
+km_res <- kmeans(gorman.vars, 3, nstart = 50)
 km_caesar_only <- kmeans(object$caesar_gorman, 2, nstart = 50)
 
 # attempting to use the more restricted variable set
