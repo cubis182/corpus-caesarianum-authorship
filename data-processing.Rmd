@@ -497,7 +497,7 @@ for (sample_n in feature_set_sizes) {
     gorman_dist <- get_dist(sub_gorman.vars, method = "pearson") %>%
       as.matrix() # convert to matrix for easier subsetting
     
-    stat_caesar <- gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
+    stat_caesar <- 0#gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
     stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
     stat_sallust <- 1 - (gorman_dist[sallust_all, sallust_all] %>% max(na.rm = TRUE))
     
