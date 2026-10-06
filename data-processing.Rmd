@@ -470,6 +470,11 @@ My original approach to finding the best feature set was to cull the most and le
 
 However, a scheme like that loses some data. What if the highest sum is one that maximizes the dissimilarity of a few texts, while the rest remain similar across authors? We want to maximize for ALL the texts in one author being farther from another author. We could measure this by taking the smallest distance as our metric in each case, and then adding up; maximizing *this* should get a more desirable outcome. 
 
+I tried adding multiple together, but the results did not really separate texts as well as I anticipated. I think we should consider more than just distance between texts; we also need to make sure that Sallust is compact and Cicero is (relatively) compact. Using the compactness of Cicero as a score should be done with care. Whatever we do here to optimize for Cicero, we cannot mention in our analysis, as that characteristic will be something we have generated artificially. Here are the new scores I have in mind:
+1. Minimum distance between *Corpus Caesarianum* and everything else.
+2. $1 - spanCic$, where $spanCic$ is the largest dissimilarity within Cicero. The smaller the largest dissimilarity, the better. 
+3. $1 - spanSallust$, so we minimize the dissimilarity between the two Sallust texts. This should help a little to prevent the issue of 
+
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
@@ -492,11 +497,11 @@ for (sample_n in feature_set_sizes) {
     gorman_dist <- get_dist(sub_gorman.vars, method = "pearson") %>%
       as.matrix() # convert to matrix for easier subsetting
     
-    stat_caesar <- gorman_dist[caesar_all,cicero_all] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
-    # stat_cicero <- gorman_dist[cicero_all,c(caesar_all, sallust_all)] %>% min(na.rm = TRUE)
-    # stat_sallust <- gorman_dist[sallust_all,c(cicero_all, caesar_all)] %>% min(na.rm = TRUE)
+    stat_caesar <- gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
+    stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
+    stat_sallust <- 1 - (gorman_dist[sallust_all, sallust_all] %>% max(na.rm = TRUE))
     
-    final_stat <- sum(c(stat_caesar))
+    final_stat <- sum(c(stat_caesar, stat_cicero, stat_sallust))
     
     if (final_stat > suppressWarnings(max(scores))) {
       best_set <- features
