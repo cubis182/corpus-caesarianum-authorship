@@ -982,3 +982,33 @@ within.book.similarity <- function(section_vectors, rows, type_of_similarity = "
   return(similarities)
   
 }
+
+plot_dist_corpus_project <- function(gorman_dist, data) {
+    
+  attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
+  attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
+  
+  
+  mat <- as.matrix(gorman_dist)
+  d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
+  d_long$value <- as.vector(mat)
+  d_long$value <- round(d_long$value, digits = 2)
+  d_long$x_axis <- rep(1:nrow(data), times = nrow(data))
+  d_long$y_axis <- rep(1:nrow(data), each = nrow(data))
+  d_long <- as.data.frame(d_long)
+  
+  graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
+  graph <- graph + 
+    geom_tile(
+      data = d_long,
+      aes(x = x_axis, y = y_axis, fill = value), 
+      inherit.aes = FALSE
+    ) +
+    geom_text(
+      data = d_long,
+      aes(x = x_axis, y = y_axis, label = value), 
+      color = "black", 
+      size.unit = "pt",
+      size = 4,
+      inherit.aes = FALSE) 
+}

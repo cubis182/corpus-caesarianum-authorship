@@ -473,12 +473,14 @@ However, a scheme like that loses some data. What if the highest sum is one that
 I tried adding multiple together, but the results did not really separate texts as well as I anticipated. I think we should consider more than just distance between texts; we also need to make sure that Sallust is compact and Cicero is (relatively) compact. Using the compactness of Cicero as a score should be done with care. Whatever we do here to optimize for Cicero, we cannot mention in our analysis, as that characteristic will be something we have generated artificially. Here are the new scores I have in mind:
 1. Minimum distance between *Corpus Caesarianum* and everything else.
 2. $1 - spanCic$, where $spanCic$ is the largest dissimilarity within Cicero. The smaller the largest dissimilarity, the better. 
-3. $1 - spanSallust$, so we minimize the dissimilarity between the two Sallust texts. This should help a little to prevent the issue of 
+3. $1 - spanSallust$, so we minimize the dissimilarity between the two Sallust texts. 
+
+I have continued testing with this algorithm, and, every time I do, the lowest number of features comes out best. At first, the minimum was 25 features, then 5, then 3, and each time the minimum was the best for minimizing the largest dissimilarities between Cicero and Sallust, and maximinizing the distance between Caesar and the other texts. So, I cannot use this as a guideline for choosing a number of features. 
 
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
-feature_set_sizes <- seq(from = 25, to = 100, by = 25)
+feature_set_sizes <- 100
 
 n_trials <- 10000
 
@@ -497,7 +499,8 @@ for (sample_n in feature_set_sizes) {
     gorman_dist <- get_dist(sub_gorman.vars, method = "pearson") %>%
       as.matrix() # convert to matrix for easier subsetting
     
-    stat_caesar <- 0#gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary...
+    stat_caesar <- 10 * gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary... 
+    # gorman_dist[caesar_all,cicero_all] %>% min(na.rm = TRUE)
     stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
     stat_sallust <- 1 - (gorman_dist[sallust_all, sallust_all] %>% max(na.rm = TRUE))
     
@@ -513,6 +516,18 @@ for (sample_n in feature_set_sizes) {
 }
 ```
 
+```{r, test-vis}
+
+gorman_best_set <- gorman.vars[,c("title", best_set)] |> column_to_rownames("title")
+test <- kmeans(gorman_best_set, centers = 3, nstart = 50)
+fviz_cluster(test, gorman_best_set) + labs(title = "(1 - max(Cicero dist))) + (1 - max(Sallust dist)) + min(Caesar to Cicero dist")
+
+gorman_dist <- get_dist(gorman_best_set, method = "pearson")
+
+graph <- plot_dist_corpus_project(gorman_dist, gorman_best_set)
+
+graph + theme(axis.text = element_text(size = 4))
+```
 
 ## Cluster Tests
 
@@ -1571,36 +1586,11 @@ if (!is.null(gorman.vars$title)) gorman.vars <- gorman.vars %>% mutate(title = l
 gorman_dist <- get_dist(gorman.vars, method = "spearman")
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
-attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
-attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
-
-mat <- as.matrix(gorman_dist)
-d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
-d_long$value <- as.vector(mat)
-d_long$value <- round(d_long$value, digits = 2)
-d_long$x_axis <- rep(nrow(gorman.vars):1, times = nrow(gorman.vars))
-d_long$y_axis <- rep(1:nrow(gorman.vars), each = nrow(gorman.vars))
-d_long <- as.data.frame(d_long)
-
-graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
-graph <- graph + 
-  geom_tile(
-    data = d_long,
-    aes(x = x_axis, y = y_axis, fill = value), 
-    inherit.aes = FALSE
-            ) +
-  geom_text(
-              data = d_long,
-              aes(x = x_axis, y = y_axis, label = value), 
-              color = "black", 
-              size.unit = "pt",
-              size = 4,
-              inherit.aes = FALSE) 
 
 dist_palette <- brewer.pal(n = 5, "YlOrRd")
 
 #Using the 5th percentile here. The 95th percentile is beyond any differences between texts, suggesting that difference doesn't guarantee different authorship. However, below about 0.2 is highly suggestive of same authorship, as that's lower than the lower tail (0.05) of the data
-graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
+plot_dist_corpus_project(gorman_dist) + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
 ggsave("Images/dissimilarity_matrix_between_books_by_correlation.png", dpi = "print")
 
 graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = 0.3)
