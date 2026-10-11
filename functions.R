@@ -114,6 +114,13 @@ sallust_all <- c(
   "catilinae_sallusti",
   "iugurthine_1"
 )
+
+# lookup table for name of "author"
+author_name_lookup <- c(
+  setNames(rep("cicero", length(cicero_all)), cicero_all),
+  setNames(rep("sallust", length(sallust_all)), sallust_all),
+  setNames(rep("caesar", length(caesar_all)), caesar_all)
+)
   
   
 # reorder works so ones by the same author go together.

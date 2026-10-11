@@ -477,26 +477,34 @@ I tried adding multiple together, but the results did not really separate texts 
 
 I have continued testing with this algorithm, and, every time I do, the lowest number of features comes out best. At first, the minimum was 25 features, then 5, then 3, and each time the minimum was the best for minimizing the largest dissimilarities between Cicero and Sallust, and maximinizing the distance between Caesar and the other texts. So, I cannot use this as a guideline for choosing a number of features. 
 
+The results from test to test don't look very similar. I have used `profvis` to profile and reduce some inefficiencies. `as.matrix()` is used in get_dist, which would be unnecessary if I turned `gorman.vars` into a matrix before entering the loop, saving time on every loop. I also removed all uses of `dplyr::select()`. However, the real issue is that I needed to do some basic math first. Even if we only select 10 features out of 500 (only half the set), the total number of potential combinations of features is a figure with about 20 zeroes on the end. We can only every get a tiny fraction of the total number of combinations. The chances of converging on a maximum are very low. So, bootstrapping alone is not going to do the job. We need a method of narrowing down.
+
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
-feature_set_sizes <- 100
+feature_set_sizes <- rep(100, 30)
 
-n_trials <- 10000
+n_trials <- 500000
 
 best_set <- character(0)
 best_score <- double(0)
 scores <- double(0) # double(length = n_trials * length(feature_set_sizes))
 
+# NOTE: THIS CODE ASSUMES `gorman.vars` STILL HAS THE $TITLE COLUMN!!!
+system.time({
+
+gorman.vars.mat <- as.matrix(gorman.vars[,-1])
+rownames(gorman.vars.mat) <- gorman.vars$title
+  
 for (sample_n in feature_set_sizes) {
   for (trial in 1:n_trials) {
-    features <- sample(colnames(gorman.vars %>% select(where(is.numeric))), size = sample_n)
+    features <- sample(colnames(gorman.vars.mat), size = sample_n)
     
-    sub_gorman.vars <- gorman.vars %>% 
-      column_to_rownames("title")  %>%
-      select(all_of(features))
+    # sub_gorman.vars <- gorman.vars %>% 
+    #  column_to_rownames("title")
+    sub_gorman.vars <- gorman.vars.mat[,features]
     
-    gorman_dist <- get_dist(sub_gorman.vars, method = "pearson") %>%
+    gorman_dist <- get_dist(as.matrix(sub_gorman.vars), method = "pearson") %>%
       as.matrix() # convert to matrix for easier subsetting
     
     stat_caesar <- 10 * gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary... 
@@ -514,6 +522,7 @@ for (sample_n in feature_set_sizes) {
     scores <- c(scores, final_stat)
   }
 }
+})
 ```
 
 ```{r, test-vis}
@@ -528,6 +537,22 @@ graph <- plot_dist_corpus_project(gorman_dist, gorman_best_set)
 
 graph + theme(axis.text = element_text(size = 4))
 ```
+
+What about a multinomial regression? We can first narrow down to one that distinguishes based on text. Maybe just Cicero and Sallust at first? This can help us hone in on a smaller feature set that we can effectively sample from.
+
+```{r}
+#NOTE, THESE ARE CURRENTLY JUST TESTS; NOT FINAL
+library(nnet)
+test <- gorman.vars
+resp <- author_name_lookup[test$title]
+test$title <- NULL
+test <- test[,1:50]
+test$resp <- resp
+
+m.01 <- multinom(test$resp ~ ., data = test, model = TRUE)
+
+```
+
 
 ## Cluster Tests
 
