@@ -247,7 +247,7 @@ variable_combinations <- function(combinations_n, source_data) {
   # length(select_combinations)
 
   # Get a table showing the number of times all the features in a combination are attested
-  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data)
+  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data %>% select(-title, -author, -book, -section))
 
   tib_select_combinations <- as_tibble(select_combinations)
 
@@ -358,6 +358,9 @@ has_all_feature_types <- function(row_from_source_data, character_vector_of_feat
 get_number_rows_with_feature_types <- function(vector_of_feature_values, source_data) {
   # browser()
   fn_name <- "get_number_rows..."
+  
+  # Remove X if present
+  vector_of_feature_values <- gsub(pattern = "X", replacement = "", vector_of_feature_values)
   
   # Added 9/27/2026: It was detecting the "3" in the title of "philippics_3", 
   #   "gallic_3", etc. as 3rd person, so must remove title
