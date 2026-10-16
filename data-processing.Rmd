@@ -408,14 +408,14 @@ file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_g
 
 # Used to select subsets of Gorman variables
 load("best_feature_set.RData")
-subset_of_corpus <- c("title", best_set) # c(1,250:500)
+subset_of_corpus <- c(1,250:500) # c("title", best_set)  
 
 gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 # for this next adjustment, see Obsidian notebook 8/29/2026
 # gorman.vars <- gorman.vars[,subset_of_corpus]
 # I have decided to z-standardize instead 9/26/2026
 # gorman.vars %<>% scale_df()
-# gorman.vars <- gorman.vars[,subset_of_corpus]
+gorman.vars <- gorman.vars[,subset_of_corpus]
 
 caesar.gorman.vars <- gorman.vars %>% 
   filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
@@ -482,47 +482,58 @@ The results from test to test don't look very similar. I have used `profvis` to 
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
-feature_set_sizes <- rep(100, 30)
+feature_set_sizes <- 100
 
-n_trials <- 500000
-
-best_set <- character(0)
-best_score <- double(0)
-scores <- double(0) # double(length = n_trials * length(feature_set_sizes))
+ideal_set <- function(feature_set_sizes, n_trials) {
+  best_set <- character(0)
+  best_score <- double(0)
+  scores <- double(0) # double(length = n_trials * length(feature_set_sizes))
 
 # NOTE: THIS CODE ASSUMES `gorman.vars` STILL HAS THE $TITLE COLUMN!!!
-system.time({
-
-gorman.vars.mat <- as.matrix(gorman.vars[,-1])
-rownames(gorman.vars.mat) <- gorman.vars$title
-  
-for (sample_n in feature_set_sizes) {
-  for (trial in 1:n_trials) {
-    features <- sample(colnames(gorman.vars.mat), size = sample_n)
+  system.time({
     
-    # sub_gorman.vars <- gorman.vars %>% 
-    #  column_to_rownames("title")
-    sub_gorman.vars <- gorman.vars.mat[,features]
+  gorman.vars.mat <- as.matrix(gorman.vars[,-1])
+  rownames(gorman.vars.mat) <- gorman.vars$title
     
-    gorman_dist <- get_dist(as.matrix(sub_gorman.vars), method = "pearson") %>%
-      as.matrix() # convert to matrix for easier subsetting
-    
-    stat_caesar <- 10 * gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary... 
-    # gorman_dist[caesar_all,cicero_all] %>% min(na.rm = TRUE)
-    stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
-    stat_sallust <- 1 - (gorman_dist[sallust_all, sallust_all] %>% max(na.rm = TRUE))
-    
-    final_stat <- sum(c(stat_caesar, stat_cicero, stat_sallust))
-    
-    if (final_stat > suppressWarnings(max(scores))) {
-      best_set <- features
-      best_score <- final_stat
+  for (sample_n in feature_set_sizes) {
+    for (trial in 1:n_trials) {
+      features <- sample(colnames(gorman.vars.mat), size = sample_n)
+      
+      # sub_gorman.vars <- gorman.vars %>% 
+      #  column_to_rownames("title")
+      sub_gorman.vars <- gorman.vars.mat[,features]
+      
+      gorman_dist <- get_dist(as.matrix(sub_gorman.vars), method = "pearson") %>%
+        as.matrix() # convert to matrix for easier subsetting
+      
+      stat_caesar <-  gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary... 
+      # gorman_dist[caesar_all,cicero_all] %>% min(na.rm = TRUE)
+      #stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
+      stat_sallust <- (gorman_dist[sallust_all, c(caesar_all, cicero_all)] %>% min(na.rm = TRUE))
+      
+      final_stat <- sum(c(stat_caesar, stat_sallust))
+      
+      if (final_stat > suppressWarnings(max(scores))) {
+        best_set <- features
+        best_score <- final_stat
+      }
+      
+      scores <- c(scores, final_stat)
     }
-    
-    scores <- c(scores, final_stat)
   }
+  })
+  
+  best_set
 }
-})
+
+# Count down from 250 to a smaller number, like 10.
+# On each iteration, update gorman.vars with the new set and try a smaller set of combinations
+for (i in 999:500) {
+  best_set <- ideal_set(feature_set_sizes = i, n_trials = i + 1)
+  
+  gorman.vars <- gorman.vars[c("title", best_set)]
+}
+
 ```
 
 ```{r, test-vis}
@@ -1580,7 +1591,7 @@ km_res <- kmeans(gorman.vars, 3, nstart = 50)
 km_caesar_only <- kmeans(object$caesar_gorman, 2, nstart = 50)
 
 # attempting to use the more restricted variable set
-fviz_cluster(km_res, gorman.vars, repel = TRUE, palette = cbbPalette) + 
+fviz_cluster(km_res, gorman.vars, repel = TRUE, stand = FALSE, palette = cbbPalette) + 
   labs(title = "Cluster plot of the *Corpus Caesarianum*, Sallust, and Cicero.") 
 ggsave("./Images/august-draft/cicero_caesar_split.png", dpi = "print")
 
@@ -1646,7 +1657,7 @@ gorman_dist <- get_dist(gorman.vars, method = "spearman")
 dist_palette <- brewer.pal(n = 5, "YlOrRd")
 
 #Using the 5th percentile here. The 95th percentile is beyond any differences between texts, suggesting that difference doesn't guarantee different authorship. However, below about 0.2 is highly suggestive of same authorship, as that's lower than the lower tail (0.05) of the data
-plot_dist_corpus_project(gorman_dist) + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
+graph <- plot_dist_corpus_project(gorman_dist, gorman.vars) + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
 ggsave("Images/dissimilarity_matrix_between_books_by_correlation.png", dpi = "print")
 
 graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = 0.3)

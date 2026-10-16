@@ -1019,6 +1019,6 @@ plot_dist_corpus_project <- function(gorman_dist, data) {
       aes(x = x_axis, y = y_axis, label = value), 
       color = "black", 
       size.unit = "pt",
-      size = 4,
+      size = 1.5,
       inherit.aes = FALSE) 
 }
