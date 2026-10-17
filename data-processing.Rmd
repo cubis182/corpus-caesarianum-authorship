@@ -490,7 +490,6 @@ ideal_set <- function(feature_set_sizes, n_trials) {
   scores <- double(0) # double(length = n_trials * length(feature_set_sizes))
 
 # NOTE: THIS CODE ASSUMES `gorman.vars` STILL HAS THE $TITLE COLUMN!!!
-  system.time({
     
   gorman.vars.mat <- as.matrix(gorman.vars[,-1])
   rownames(gorman.vars.mat) <- gorman.vars$title
@@ -508,7 +507,7 @@ ideal_set <- function(feature_set_sizes, n_trials) {
     gorman_dist <- get_dist(as.matrix(sub_gorman.vars), method = "pearson") %>%
       as.matrix() # convert to matrix for easier subsetting
     
-    stat_caesar <- 0 #  gorman_dist[caesar_all,c(cicero_all, sallust_all)] %>% min(na.rm = TRUE) # na.rm shouldn't be necessary... 
+    stat_caesar <- (gorman_dist[caesar_all, sallust_all] %>% min(na.rm = TRUE)) # na.rm shouldn't be necessary... 
     # gorman_dist[caesar_all,cicero_all] %>% min(na.rm = TRUE)
     stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
     stat_sallust <- 1 - (gorman_dist[sallust_all, sallust_all] %>% max(na.rm = TRUE))
@@ -525,19 +524,21 @@ ideal_set <- function(feature_set_sizes, n_trials) {
     scores <- c(scores, final_stat)
     
   }
-  })
+  
   best_set
 }
 
 gorman.vars <- gorman.vars %>% discard(~ if (is.numeric(.x)) sum(.x) == 0 else FALSE)
 
-# Count down from 250 to a smaller number, like 10.
-# On each iteration, update gorman.vars with the new set and try a smaller set of combinations
-while (ncol(gorman.vars) > 250) {
-  best_set <- ideal_set(feature_set_sizes = i, n_trials = i + 1)
-  
-  gorman.vars <- gorman.vars[c("title", best_set)]
-}
+system.time({
+  # Count down from 250 to a smaller number, like 10.
+  # On each iteration, update gorman.vars with the new set and try a smaller set of combinations
+  while (ncol(gorman.vars) > 250) {
+    best_set <- ideal_set(feature_set_sizes = i, n_trials = i + 1)
+    
+    gorman.vars <- gorman.vars[c("title", best_set)]
+  }
+})
 
 ```
 
@@ -545,7 +546,7 @@ while (ncol(gorman.vars) > 250) {
 
 gorman_best_set <- gorman.vars[,c("title", best_set)] |> column_to_rownames("title")
 test <- kmeans(gorman_best_set, centers = 3, nstart = 50)
-title <- "Minimum within Cicero dissimilarity plus minimum within Sallust dissimilarity"
+title <- "Minimum within Cicero dissimilarity plus minimum within Sallust dissimilarity and dissimilarity between Sallust / all others"
 fviz_cluster(test, gorman_best_set) + labs(title = title)
 
 gorman_dist <- get_dist(gorman_best_set, method = "spearman")
