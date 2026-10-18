@@ -412,7 +412,7 @@ file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_g
 load("best_feature_set.RData")
 subset_of_corpus <- TRUE # c("title", best_set)   # c(1,250:500) 
 
-gorman.vars <- read.csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
+gorman.vars <- read_csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 # for this next adjustment, see Obsidian notebook 8/29/2026
 # gorman.vars <- gorman.vars[,subset_of_corpus]
 # I have decided to z-standardize instead 9/26/2026
@@ -424,7 +424,7 @@ caesar.gorman.vars <- gorman.vars %>%
 
 file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
 
-sectioned.gorman.vars <- read.csv(file.sectioned.gorman);sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
+sectioned.gorman.vars <- read_csv(file.sectioned.gorman);sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
 sectioned.gorman.vars <- sectioned.gorman.vars[,subset_of_corpus]
 # standardize
 # sectioned.gorman.vars %<>% scale_df()
