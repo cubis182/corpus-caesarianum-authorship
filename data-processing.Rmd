@@ -11,6 +11,7 @@ params:
   use_att: TRUE
   use_parent: FALSE
   new_combos: TRUE
+  dist_method: "spearman"
 bibliography: rmd-notebook.bib
 ---
 
@@ -1726,7 +1727,7 @@ names(scores.correlation.per.text) <- titles
 
 if (!is.null(gorman.vars$title)) gorman.vars <- gorman.vars %>% mutate(title = lookup_table[title]) %>% column_to_rownames("title")
 
-gorman_dist <- get_dist(gorman.vars, method = "spearman")
+gorman_dist <- get_dist(gorman.vars, method = params$dist_method)
 #gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
 #gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
 
