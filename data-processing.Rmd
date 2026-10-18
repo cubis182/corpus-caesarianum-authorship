@@ -146,6 +146,7 @@ data %<>% prepare_data()
 summary(data)
 
 ```
+
 features in only one document. If we had a baseline genuine "Caesar"
 document, we might take the features from it to make the process of
 verification easier, with all documents compared with one baseline
@@ -456,33 +457,71 @@ lookup_table <- setNames(
 
 ## Find Optimal Feature Set
 
-My original approach to finding the best feature set was to cull the most and least common, and leave the middle. This is too arbitrary of an approach. Ultimately, the goal is to have a feature set that maximizes the differences between the *Corpus Caesarianum*, Sallust, and Cicero. Here's what we could do:
-1. Get a list of feature set sizes (50 features, 100 features, 150, maybe through 500)
-2. For each feature set size, sample that number of features from `colnames(gorman.vars)`
-3. With this sample of columns, select from `gorman.vars`, which we'll work with in step four
-4. Create a collector variable which will accept a character vector.
-5. Create a vector the size of the number of trials we want to perform on each sample size
-6. Sum up all the dissimilarity scores between the *Corpus Caesarianum* and everything else, sum up all the dissimilarity scores between Cicero and everything else, and sum up all the dissimilarity scores between Sallust and everything else. Add these three values together.
-7. If this is the largest score recorded so far, store the the column names to the variable created in step four.
-8. Append the score to the variable created in step five.
-9. Repeat 6-8 for the number of trials
-10. Repeat 2-9 for the number of feature set sizes determined in step one
+My original approach to finding the best feature set was to cull the
+most and least common, and leave the middle. This is too arbitrary of an
+approach. Ultimately, the goal is to have a feature set that maximizes
+the differences between the *Corpus Caesarianum*, Sallust, and Cicero.
+Here's what we could do: 1. Get a list of feature set sizes (50
+features, 100 features, 150, maybe through 500) 2. For each feature set
+size, sample that number of features from `colnames(gorman.vars)` 3.
+With this sample of columns, select from `gorman.vars`, which we'll work
+with in step four 4. Create a collector variable which will accept a
+character vector. 5. Create a vector the size of the number of trials we
+want to perform on each sample size 6. Sum up all the dissimilarity
+scores between the *Corpus Caesarianum* and everything else, sum up all
+the dissimilarity scores between Cicero and everything else, and sum up
+all the dissimilarity scores between Sallust and everything else. Add
+these three values together. 7. If this is the largest score recorded so
+far, store the the column names to the variable created in step four. 8.
+Append the score to the variable created in step five. 9. Repeat 6-8 for
+the number of trials 10. Repeat 2-9 for the number of feature set sizes
+determined in step one
 
-However, a scheme like that loses some data. What if the highest sum is one that maximizes the dissimilarity of a few texts, while the rest remain similar across authors? We want to maximize for ALL the texts in one author being farther from another author. We could measure this by taking the smallest distance as our metric in each case, and then adding up; maximizing *this* should get a more desirable outcome. 
+However, a scheme like that loses some data. What if the highest sum is
+one that maximizes the dissimilarity of a few texts, while the rest
+remain similar across authors? We want to maximize for ALL the texts in
+one author being farther from another author. We could measure this by
+taking the smallest distance as our metric in each case, and then adding
+up; maximizing *this* should get a more desirable outcome.
 
-I tried adding multiple together, but the results did not really separate texts as well as I anticipated. I think we should consider more than just distance between texts; we also need to make sure that Sallust is compact and Cicero is (relatively) compact. Using the compactness of Cicero as a score should be done with care. Whatever we do here to optimize for Cicero, we cannot mention in our analysis, as that characteristic will be something we have generated artificially. Here are the new scores I have in mind:
-1. Minimum distance between *Corpus Caesarianum* and everything else.
-2. $1 - spanCic$, where $spanCic$ is the largest dissimilarity within Cicero. The smaller the largest dissimilarity, the better. 
-3. $1 - spanSallust$, so we minimize the dissimilarity between the two Sallust texts. 
+I tried adding multiple together, but the results did not really
+separate texts as well as I anticipated. I think we should consider more
+than just distance between texts; we also need to make sure that Sallust
+is compact and Cicero is (relatively) compact. Using the compactness of
+Cicero as a score should be done with care. Whatever we do here to
+optimize for Cicero, we cannot mention in our analysis, as that
+characteristic will be something we have generated artificially. Here
+are the new scores I have in mind: 1. Minimum distance between *Corpus
+Caesarianum* and everything else. 2. $1 - spanCic$, where $spanCic$ is
+the largest dissimilarity within Cicero. The smaller the largest
+dissimilarity, the better. 3. $1 - spanSallust$, so we minimize the
+dissimilarity between the two Sallust texts.
 
-I have continued testing with this algorithm, and, every time I do, the lowest number of features comes out best. At first, the minimum was 25 features, then 5, then 3, and each time the minimum was the best for minimizing the largest dissimilarities between Cicero and Sallust, and maximinizing the distance between Caesar and the other texts. So, I cannot use this as a guideline for choosing a number of features. 
+I have continued testing with this algorithm, and, every time I do, the
+lowest number of features comes out best. At first, the minimum was 25
+features, then 5, then 3, and each time the minimum was the best for
+minimizing the largest dissimilarities between Cicero and Sallust, and
+maximinizing the distance between Caesar and the other texts. So, I
+cannot use this as a guideline for choosing a number of features.
 
-The results from test to test don't look very similar. I have used `profvis` to profile and reduce some inefficiencies. `as.matrix()` is used in get_dist, which would be unnecessary if I turned `gorman.vars` into a matrix before entering the loop, saving time on every loop. I also removed all uses of `dplyr::select()`. However, the real issue is that I needed to do some basic math first. Even if we only select 10 features out of 500 (only half the set), the total number of potential combinations of features is a figure with about 20 zeroes on the end. We can only every get a tiny fraction of the total number of combinations. The chances of converging on a maximum are very low. So, bootstrapping alone is not going to do the job. We need a method of narrowing down.
+The results from test to test don't look very similar. I have used
+`profvis` to profile and reduce some inefficiencies. `as.matrix()` is
+used in get_dist, which would be unnecessary if I turned `gorman.vars`
+into a matrix before entering the loop, saving time on every loop. I
+also removed all uses of `dplyr::select()`. However, the real issue is
+that I needed to do some basic math first. Even if we only select 10
+features out of 500 (only half the set), the total number of potential
+combinations of features is a figure with about 20 zeroes on the end. We
+can only every get a tiny fraction of the total number of combinations.
+The chances of converging on a maximum are very low. So, bootstrapping
+alone is not going to do the job. We need a method of narrowing down.
 
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
 feature_set_sizes <- 100
+
+record_of_scores <- data.frame(set_size = integer(), score = double())
 
 ideal_set <- function(feature_set_sizes, n_trials) {
   best_set <- character(0)
@@ -512,9 +551,8 @@ ideal_set <- function(feature_set_sizes, n_trials) {
     stat_cicero <- 1 - (gorman_dist[cicero_all,cicero_all] %>% max(na.rm = TRUE))
     stat_sallust <- 1 - (gorman_dist[sallust_all, sallust_all] %>% max(na.rm = TRUE))
     
-    final_stat <- sum(c(stat_caesar, stat_cicero, stat_sallust))
-    
     #browser()
+    final_stat <- sum(c(stat_caesar, stat_cicero, stat_sallust))
     
     if (final_stat > suppressWarnings(max(scores))) {
       best_set <- features
@@ -525,6 +563,8 @@ ideal_set <- function(feature_set_sizes, n_trials) {
     
   }
   
+  record_of_scores <<- rbind(record_of_scores, data.frame(set_size = length(best_set), score = best_score))
+  
   best_set
 }
 
@@ -533,7 +573,7 @@ gorman.vars <- gorman.vars %>% discard(~ if (is.numeric(.x)) sum(.x) == 0 else F
 system.time({
   # Count down from 250 to a smaller number, like 10.
   # On each iteration, update gorman.vars with the new set and try a smaller set of combinations
-  while (ncol(gorman.vars) > 250) {
+  while (ncol(gorman.vars) > 25) {
     best_set <- ideal_set(feature_set_sizes = i, n_trials = i + 1)
     
     gorman.vars <- gorman.vars[c("title", best_set)]
@@ -556,7 +596,10 @@ graph <- plot_dist_corpus_project(gorman_dist, gorman_best_set) + labs(title = t
 graph + theme(axis.text = element_text(size = 4))
 ```
 
-What about a multinomial regression? We can first narrow down to one that distinguishes based on text. Maybe just Cicero and Sallust at first? This can help us hone in on a smaller feature set that we can effectively sample from.
+What about a multinomial regression? We can first narrow down to one
+that distinguishes based on text. Maybe just Cicero and Sallust at
+first? This can help us hone in on a smaller feature set that we can
+effectively sample from.
 
 ```{r}
 #NOTE, THESE ARE CURRENTLY JUST TESTS; NOT FINAL
@@ -571,9 +614,17 @@ m.01 <- multinom(test$resp ~ ., data = test, model = TRUE)s
 
 ```
 
-Ultimately, I think the above solution is over-engineered. Also, it is not really designed for the purposes I am using, and I do not want to introduce complexity where it is unnecessary. The handbooks (particularly Moisl, but also Manning an Schuetze, if I remember right) don't seem to recommend a classifier for this approach anyway. 
+Ultimately, I think the above solution is over-engineered. Also, it is
+not really designed for the purposes I am using, and I do not want to
+introduce complexity where it is unnecessary. The handbooks
+(particularly Moisl, but also Manning an Schuetze, if I remember right)
+don't seem to recommend a classifier for this approach anyway.
 
-What if I stick with PCA? What I can do is this. I will collapse `gorman.vars` into three rows: cicero, sallust, and "caesar". Each row will be the sum of the rows in that segment of the corpus divided by the total number of texts. Then, I will use PCA, which should tell us which variables are the strongest. 
+What if I stick with PCA? What I can do is this. I will collapse
+`gorman.vars` into three rows: cicero, sallust, and "caesar". Each row
+will be the sum of the rows in that segment of the corpus divided by the
+total number of texts. Then, I will use PCA, which should tell us which
+variables are the strongest.
 
 ```{r}
 gorman.vars.collapsed <-gorman.vars %>% 
@@ -591,7 +642,23 @@ summary(pr_authors)
 
 # Will take these names and feed them back to the first code block in this section
 ```
-It appears that the most "powerful" features for separating the three texts are first person verbs. This is to be expected, but might also call into question our analysis. If we use first person as a primary indicator, small differences between the texts of the Corpus Caesarianum will be emphasized. One book using more speeches than another will be the primary reason for differences between texts, which we cannot strictly explain as differences caused by different authorship. However, I took the most influential features in PC1 after taking away all first person features, and the resulting dissimilarity matrix made out all texts to be virtually identical. It looks like the core of our feature set really lies in the use of first person. If we use a larger number of features, about 500, the picture is better if we use a different metric (spearman) for dissimilarity, and it does separate Cicero from Caesar, but there are some unexpected outliers. Philippics 2, Gallic 2, Alexandrine 2, all look very different: maybe another situation where "2" is getting counted incorrectly?
+
+It appears that the most "powerful" features for separating the three
+texts are first person verbs. This is to be expected, but might also
+call into question our analysis. If we use first person as a primary
+indicator, small differences between the texts of the Corpus Caesarianum
+will be emphasized. One book using more speeches than another will be
+the primary reason for differences between texts, which we cannot
+strictly explain as differences caused by different authorship. However,
+I took the most influential features in PC1 after taking away all first
+person features, and the resulting dissimilarity matrix made out all
+texts to be virtually identical. It looks like the core of our feature
+set really lies in the use of first person. If we use a larger number of
+features, about 500, the picture is better if we use a different metric
+(spearman) for dissimilarity, and it does separate Cicero from Caesar,
+but there are some unexpected outliers. Philippics 2, Gallic 2,
+Alexandrine 2, all look very different: maybe another situation where
+"2" is getting counted incorrectly?
 
 What if we perform PCA on only Caesar vs. Sallust?
 
@@ -601,7 +668,9 @@ pr_authors <- prcomp(gorman.vars.collapsed[c(1,3),]  %>% select(where(is.numeric
 summary(pr_authors)
 (sort(pr_authors$rotation[,1], decreasing = TRUE))[1:25]
 ```
-Use of the 1st person is still in nearly all of these. I wonder if another text should be added? 
+
+Use of the 1st person is still in nearly all of these. I wonder if
+another text should be added?
 
 ## Cluster Tests
 
@@ -1811,6 +1880,7 @@ diss_scores_pivoted <- diss_scores_df %>% pivot_longer(cols = everything(), name
 
 ggplot(diss_scores_pivoted, aes(title, dissimilarities)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
 ```
+
 ```{r}
 # How significant is what we observe in the above graph, that Caesar and Sallust tend to have a lower ? We can also use a one tailed test. Our hypothesis is that the first set, the works of Cicero, have a higher distribution of dissimilarity scores than Caesar and Sallust. The null hypothesis we must reject to prove this is that the Cicero's scores are lower. 
 
@@ -1837,13 +1907,18 @@ ks.test(
 # We can confidently reject the null hypothesis with a significant p-value of less than 2.2e-16
 ```
 
-
 It looks like the variation within a single work provides some extra
 information: although there is a lot more variety in the dissimilarity
 scores between books of the *Corpus Caesarianum*, as shown previously in
-[Dissimilarity Verification](#dissimilarity-verification), the actual variation within a single book is higher in Cicero. This can certainly be explained on generic grounds: for example, Brutus has various snippets of dialogue more or less expository in nature, which would register fairly strongly here. The same could probably be said of a speech as well. 
+[Dissimilarity Verification](#dissimilarity-verification), the actual
+variation within a single book is higher in Cicero. This can certainly
+be explained on generic grounds: for example, Brutus has various
+snippets of dialogue more or less expository in nature, which would
+register fairly strongly here. The same could probably be said of a
+speech as well.
 
-Let's get a variability score for each one (remember to ignore the NAs!):
+Let's get a variability score for each one (remember to ignore the
+NAs!):
 
 ```{r}
 dissimilarity_median <- map(scores.correlation.per.text, ~ median(.x, na.rm = TRUE))
@@ -1851,9 +1926,32 @@ dissimilarity_median <- map(scores.correlation.per.text, ~ median(.x, na.rm = TR
 print(sort(unlist(dissimilarity_median)))
 ```
 
-With the exception of *BG* 3 and *BC* 1, this list cleanly separates Cicero from the two historians. On the face of it, this might seem to go against our argument. If the individual books of Caesar are more internally consistent (still need to get significance tests in! but I suspect they will be significant given the sample size), then that would suggest, in a vacuum at least, that Caesar's is a unified, highly worked over corpus. However, there are two elements of the context to keep in mind. First, if the whole of the Caesarian corpus is highly internally consistent, that would again suggest later reworking, as we know for a fact (at least, as close to fact as can be ascertained) that Caesar did not finish them. The second, and most important element, that really overrides the previous two, is that the consistency *between* books is simply not there. I think worthy of note here is that, despite the fact that history is clearly shown as a less "varied" genre than the works of Cicero, the cohesion between texts is still very high in Cicero while it is not in Caesar. This seems to even more strongly support divided publication, in my view.
+With the exception of *BG* 3 and *BC* 1, this list cleanly separates
+Cicero from the two historians. On the face of it, this might seem to go
+against our argument. If the individual books of Caesar are more
+internally consistent (still need to get significance tests in! but I
+suspect they will be significant given the sample size), then that would
+suggest, in a vacuum at least, that Caesar's is a unified, highly worked
+over corpus. However, there are two elements of the context to keep in
+mind. First, if the whole of the Caesarian corpus is highly internally
+consistent, that would again suggest later reworking, as we know for a
+fact (at least, as close to fact as can be ascertained) that Caesar did
+not finish them. The second, and most important element, that really
+overrides the previous two, is that the consistency *between* books is
+simply not there. I think worthy of note here is that, despite the fact
+that history is clearly shown as a less "varied" genre than the works of
+Cicero, the cohesion between texts is still very high in Cicero while it
+is not in Caesar. This seems to even more strongly support divided
+publication, in my view.
 
-We should use a non-parametric test to determine the significance, but the question is what to compare against. We are arguing for a greater internal consistency in Cicero, but we want to know whether the internal consistency is unusual **for that genre**. So, we want to know how many texts in the Cicero corpus have a distribution significantly different from the Cicero corpus at large, and we want to know how many texts in the Caesar corpus have a distribution significantly different from the history corpus at large.
+We should use a non-parametric test to determine the significance, but
+the question is what to compare against. We are arguing for a greater
+internal consistency in Cicero, but we want to know whether the internal
+consistency is unusual **for that genre**. So, we want to know how many
+texts in the Cicero corpus have a distribution significantly different
+from the Cicero corpus at large, and we want to know how many texts in
+the Caesar corpus have a distribution significantly different from the
+history corpus at large.
 
 ```{r}
 
@@ -1903,7 +2001,9 @@ colors_ks_test <- color_convert(p_values_ks)
 
 ```
 
-We can use the `gt` package perhaps to visualize this. A long table with a name on one side, and a median dissimilarity value on the other, and cells color-coded.
+We can use the `gt` package perhaps to visualize this. A long table with
+a name on one side, and a median dissimilarity value on the other, and
+cells color-coded.
 
 ```{r, gt_dissimilarity_values}
 
@@ -1924,4 +2024,3 @@ diss_score_gt_tib |>
   data_color(columns = dissimilarity, direction = "column", fn = color_fn)
 
 ```
-
