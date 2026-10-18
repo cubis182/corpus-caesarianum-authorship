@@ -575,7 +575,7 @@ system.time({
   # Count down from 250 to a smaller number, like 10.
   # On each iteration, update gorman.vars with the new set and try a smaller set of combinations
   
-  target_feature_set_size <- 25
+  target_feature_set_size <- 100
   iterations <- ncol(gorman.vars) - target_feature_set_size
   
   record_of_matrices <- array(
@@ -598,6 +598,52 @@ system.time({
   }
 })
 
+# For visualizing the variation
+y <- 37:1
+x <- 1:37
+indexing_vector_y <- map(y, ~ .x:1) %>% unlist()
+indexing_vector_x <- map(x, ~ rep(.x, length(x) - (.x - 1) )) %>% unlist()
+indexing_matrix <- matrix(c(indexing_vector_x, indexing_vector_y), nrow = length(indexing_vector_x), ncol = 2)
+dist_lookup_table <- setNames(1:37, gorman.vars$title)
+
+# The lookup table just above makes it so that you can do 
+#   `record_of_matrices[dist_lookup_table["gallic_1"],dist_lookup_table["amicitia_1],]`
+# in order to find a specific (set) of cells
+
+anon <- function(coord) {
+  setNames(sd(record_of_matrices[coord[1], coord[2],]), paste(names(dist_lookup_table[coord]), collapse = "|"))
+}
+test <- apply(indexing_matrix, MARGIN=1, FUN = anon, simplify = FALSE) %>% unlist() # How can I attach each of these to a text?
+
+# Here are the text combinations with the greatest standard deviation over the course of feature culling
+sort(test, decreasing = TRUE)[1:20]
+
+par(las = 2) # make the axis lables perpendicular to axis
+# The top one, amicitia_1 and gallic_2, visualized; from left to right proceeds through time
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_2"],dist_lookup_table["amicitia_1"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+
+# Second
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_3"],dist_lookup_table["amicitia_1"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+
+# A BIG elbow is visible between gallic war and Cicero after about 600 iterations in both the above, so around 150 variables. This indicates to me that the max should be less than that.
+
+# Third
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_2"],dist_lookup_table["philippics_5"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+# Starts climbing before 600 iterations, but only climbs sharply at about 600 to 625; keeps climbing after iteration 700
+
+# Fourth
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_2"],dist_lookup_table["brutus_1"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+
+# Fifth
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_2"],dist_lookup_table["philippics_3"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+
+# Sixth
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_4"],dist_lookup_table["amicitia_1"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+# doesn't climb until 650
+
+# Another top one:
+par(las = 2); plot(record_of_matrices[dist_lookup_table["gallic_3"],dist_lookup_table["deiotaro_1"],], type = "l"); axis(side = 1, seq(0, 750, by = 25));
+# ~ 625 maximum
 ```
 
 ```{r, test-vis}
