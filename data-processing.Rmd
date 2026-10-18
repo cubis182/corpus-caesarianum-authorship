@@ -410,7 +410,7 @@ file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_g
 
 # Used to select subsets of Gorman variables
 load("best_feature_set.RData")
-subset_of_corpus <- TRUE # c("title", best_set)   # c(1,250:500) 
+subset_of_corpus <- c("title", best_set)   # c(1,250:500) 
 
 gorman.vars <- read_csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
 # for this next adjustment, see Obsidian notebook 8/29/2026
