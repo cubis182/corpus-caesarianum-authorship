@@ -653,7 +653,7 @@ test <- kmeans(gorman_best_set, centers = 3, nstart = 50)
 title <- "Minimum within Cicero dissimilarity plus minimum within Sallust dissimilarity and dissimilarity between Sallust / all others"
 fviz_cluster(test, gorman_best_set) + labs(title = title)
 
-gorman_dist <- get_dist(gorman_best_set, method = 3")
+gorman_dist <- get_dist(gorman_best_set, method = params$dist_method)
 
 graph <- plot_dist_corpus_project(gorman_dist, gorman_best_set) + labs(title = title)
 
