@@ -517,6 +517,8 @@ can only every get a tiny fraction of the total number of combinations.
 The chances of converging on a maximum are very low. So, bootstrapping
 alone is not going to do the job. We need a method of narrowing down.
 
+The solution to the above issue is given below. A much more manageable way to approach combinations is for us to select $k$ objects from $n$ where $k = n - 1$. We select the best feature set from those combinations (a manageable set, since in this case $C(n, k) = n$), replace the old feature set with the new one, and run it again. We do this until we have narrowed down to a smaller feature set size that is desirable for the project.s 
+
 ```{r}
 
 feature_set_sizes <- seq(from = 25, to = 500, by = 25)
