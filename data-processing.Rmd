@@ -1818,38 +1818,9 @@ remove_list <- c("BG 1", "BG 2", "BG 3", "BG 4", "BAlex. 1-21", "BHisp.", "BC 1"
 
 gorman.vars.2 <- gorman.vars |> rownames_to_column("title") |>  filter(title %notin% remove_list) |> column_to_rownames("title")
 
-gorman_dist <- get_dist(gorman.vars.2, method = "spearman")
-#gorman_dist <- proxy::dist(gorman.vars |> dplyr::select(-title), method = "cosine")
-#gorman_dist <- get_dist(gorman.vars |> dplyr::select(-title), method = "euclidean")
-attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
-attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
+gorman_dist.2 <- get_dist(gorman.vars.2, method = "spearman")
 
-mat <- as.matrix(gorman_dist)
-d_long <- expand.grid(Var1 = as.factor(rownames(mat)), Var2 = as.factor(colnames(mat)))
-d_long$value <- as.vector(mat)
-d_long$value <- round(d_long$value, digits = 2)
-
-rows = nrow(gorman.vars.2)
-d_long$x_axis <- rep(1:rows, times = rows)
-d_long$y_axis <- rep(rows:1, each = rows)
-d_long <- as.data.frame(d_long)
-
-graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
-graph <- graph + 
-  geom_tile(
-    data = d_long,
-    aes(x = x_axis, y = y_axis, fill = value), 
-    inherit.aes = FALSE
-  ) +
-  geom_text(
-    data = d_long,
-    aes(x = x_axis, y = y_axis, label = value), 
-    color = "black", 
-    size.unit = "pt",
-    size = 5,
-    inherit.aes = FALSE) 
-
-
+graph <- plot_dist_corpus_project(gorman_dist.2, gorman.vars.2)
 
 graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05), limits = c(0, 0.8))
 ggsave("Images/dissimilarity_matrix_between_books_by_correlation-2.png", dpi = "print")
@@ -1862,10 +1833,11 @@ used?
 ```{r}
 
 #These indices currently only select Caesar
-caesar_counts <- as_tibble(mat[17:30,17:30]) |> rowwise() |> mutate(means = mean(c_across(1:13)))
+mat <- as.matrix(gorman_dist)
+caesar_counts <- as_tibble(mat[21:35,21:35]) |> rowwise() |> mutate(means = mean(c_across(1:13)))
 caesar_counts$title <- colnames(caesar_counts)[-15]
 
-gallic_counts <- as_tibble(mat[22:29,22:29]) |> rowwise() |> mutate(means = mean(c_across(1:8)))
+gallic_counts <- as_tibble(mat[27:34,27:34]) |> rowwise() |> mutate(means = mean(c_across(1:8)))
 gallic_counts$title <- colnames(gallic_counts)[-9]
 ```
 
