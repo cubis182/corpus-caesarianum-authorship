@@ -2043,6 +2043,8 @@ We can use the `gt` package perhaps to visualize this. A long table with
 a name on one side, and a median dissimilarity value on the other, and
 cells color-coded.
 
+The interpretation is as follows: if a cell is green, it means that text is NOT significantly different in its distribution from other texts in the same corpus (i.e. in the Corpus Caesarianum or Cicero). Red means it is; this says nothing about authorship.
+
 ```{r, gt_dissimilarity_values}
 
 dissimilarity_median <- dissimilarity_median[names(p_values_ks)]
