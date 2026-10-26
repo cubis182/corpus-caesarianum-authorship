@@ -456,6 +456,13 @@ lookup_table <- setNames(
 )
 ```
 
+```{r}
+corpus_title <- setNames(
+  c(rep("Corpus Caesarianum", 15), rep("Cicero", 20), rep("Sallust", 2)),
+  c("BAlex. 1-21", "BAlex. 22-78", "BHisp.", "BAfr.", "BC 1", "BC 2", "BC 3", "BG 1", "BG 2", "BG 3", "BG 4", "BG 5", "BG 6", "BG 7", "BG 8", "De Amicitia", "Philippics 1", "Philippics 2", "Philippics 3", "Philippics 4", "Philippics 5", "Philippics 6", "Philippics 7", "Philippics 8", "Philippics 9", "Philippics 10", "Philippics 11", "Philippics 12", "Philippics 13", "Philippics 14", "De Senectute", "pro Rege Deiotaro", "Brutus", "pro Ligario", "pro Marcello", "Catilinae Coniuratio", "Bellum Iugurthinum")
+)
+```
+
 ## Find Optimal Feature Set
 
 My original approach to finding the best feature set was to cull the
@@ -2054,17 +2061,26 @@ diss_score_gt_tib <- tibble(
 )
 
 diss_score_gt_tib %<>%
-  mutate(title = lookup_table[title])
+  mutate(
+    title = lookup_table[title],
+    corpus = corpus_title[title])
 
 color_fn <- function(x) colors_ks_test
 
-diss_score_gt_tib <- diss_score_gt_tib |>
-  gt() |>
-  data_color(columns = dissimilarity, direction = "column", fn = color_fn)
+diss_score_gt <- diss_score_gt_tib |>
+  gt(
+    groupname_col = "corpus",
+  ) |>
+  data_color(columns = dissimilarity, direction = "column", fn = color_fn) |>
+  cols_label(
+    title = "Work/Book Number",
+    dissimilarity = "Dissimilarity Score"
+  ) 
+  
 
 if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("webshot2")
-gtsave(diss_score_gt_tib, "./Images/overview_table_cicero_caesar.png")
-diss_score_gt_tib
+gtsave(diss_score_gt, "./Images/overview_table_cicero_caesar.png")
+diss_score_gt
 ```
 ## BG 1
 
