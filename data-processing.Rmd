@@ -2062,15 +2062,13 @@ diss_score_gt_tib <- tibble(
 
 diss_score_gt_tib %<>%
   mutate(
-    title = lookup_table[title],
-    corpus = corpus_title[title])
+    title = lookup_table[title])
+    #corpus = corpus_title[title])
 
-color_fn <- function(x) colors_ks_test
+color_fn <- function(x) colors_ks_test[1:15]
 
-diss_score_gt <- diss_score_gt_tib |>
-  gt(
-    groupname_col = "corpus",
-  ) |>
+diss_score_gt <- diss_score_gt_tib[corpus_title[diss_score_gt_tib$title] == "Corpus Caesarianum" ,] |>
+  gt() |>
   data_color(columns = dissimilarity, direction = "column", fn = color_fn) |>
   cols_label(
     title = "Work/Book Number",
@@ -2079,7 +2077,23 @@ diss_score_gt <- diss_score_gt_tib |>
   
 
 if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("webshot2")
-gtsave(diss_score_gt, "./Images/overview_table_cicero_caesar.png")
+gtsave(diss_score_gt, "./Images/overview_table_caesar.png")
+diss_score_gt
+
+# Now Cicero
+color_fn <- function(x) colors_ks_test[16:length(colors_ks_test)]
+
+diss_score_gt <- diss_score_gt_tib[corpus_title[diss_score_gt_tib$title] == "Cicero" ,] |>
+  gt() |>
+  data_color(columns = dissimilarity, direction = "column", fn = color_fn) |>
+  cols_label(
+    title = "Work/Book Number",
+    dissimilarity = "Dissimilarity Score"
+  ) 
+  
+
+if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("webshot2")
+gtsave(diss_score_gt, "./Images/overview_table_caesar.png")
 diss_score_gt
 ```
 ## BG 1
