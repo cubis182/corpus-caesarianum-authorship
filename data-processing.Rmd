@@ -2058,10 +2058,13 @@ diss_score_gt_tib %<>%
 
 color_fn <- function(x) colors_ks_test
 
-diss_score_gt_tib |>
+diss_score_gt_tib <- diss_score_gt_tib |>
   gt() |>
   data_color(columns = dissimilarity, direction = "column", fn = color_fn)
 
+if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("webshot2")
+gtsave(diss_score_gt_tib, "./Images/overview_table_cicero_caesar.png")
+diss_score_gt_tib
 ```
 ## BG 1
 
@@ -2083,6 +2086,8 @@ log_debug(paste(rownames(bg1), collapse = "\n"))
 bg1_dist <- get_dist(bg1, method = params$dist_method)
 
 fviz_dist(bg1_dist, show_labels = FALSE)
+
+fclust::VAT(bg1)
 ```
 ```{r}
 # Get location of largest dissimilarity
