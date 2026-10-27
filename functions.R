@@ -993,7 +993,7 @@ within.book.similarity <- function(section_vectors, rows, type_of_similarity = "
   
 }
 
-plot_dist_corpus_project <- function(gorman_dist, data) {
+plot_dist_corpus_project <- function(gorman_dist, data, cell_text_size = 4) {
     
   attributes(gorman_dist)$Label <- as.factor(attributes(gorman_dist)$Label)
   attributes(gorman_dist)$Labels <- as.factor(attributes(gorman_dist)$Labels)
@@ -1019,6 +1019,6 @@ plot_dist_corpus_project <- function(gorman_dist, data) {
       aes(x = x_axis, y = y_axis, label = value), 
       color = "black", 
       size.unit = "pt",
-      size = 4,
+      size = cell_text_size,
       inherit.aes = FALSE) 
 }
