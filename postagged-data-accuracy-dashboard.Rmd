@@ -326,8 +326,10 @@ The first step is to discover the situations where the accuracy is low so we can
 
 ```{r, percentage-accuracy-per-column}
 
+# ADJUST X AXIS LABEL NAMING HERE
 col_names <- colnames(error_data)[7:19]
 names(col_names) <- col_names
+names(col_names)[names(col_names) == "tag"] <- "POS"
 col_names <- c(form = "^form$", col_names, head = "parent_form")
 
 
@@ -386,7 +388,7 @@ my_theme <- theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5,
 
 
 renderPlot({
-    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + labs(title = "Percentage accuracy of each feature in the postagged/postag-tests.csv file") + geom_col() + my_theme
+    ggplot(to_plot[to_plot$features %in% input$variables,], aes(features, accuracy)) + labs(title = "Percentage accuracy of each feature", subtitle = "Results stored in the postagged/postag-tests.csv file") + geom_col() + my_theme
   })
 
 ```
