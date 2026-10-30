@@ -524,7 +524,13 @@ can only every get a tiny fraction of the total number of combinations.
 The chances of converging on a maximum are very low. So, bootstrapping
 alone is not going to do the job. We need a method of narrowing down.
 
-The solution to the above issue is given below. A much more manageable way to approach combinations is for us to select $k$ objects from $n$ where $k = n - 1$. We select the best feature set from those combinations (a manageable set, since in this case $C(n, k) = n$), replace the old feature set with the new one, and run it again. We do this until we have narrowed down to a smaller feature set size that is desirable for the project.s 
+The solution to the above issue is given below. A much more manageable
+way to approach combinations is for us to select $k$ objects from $n$
+where $k = n - 1$. We select the best feature set from those
+combinations (a manageable set, since in this case $C(n, k) = n$),
+replace the old feature set with the new one, and run it again. We do
+this until we have narrowed down to a smaller feature set size that is
+desirable for the project.s
 
 ```{r}
 
@@ -1848,6 +1854,7 @@ graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midp
 ggsave("Images/dissimilarity_matrix_cicero_only.png", dpi = "print")
 
 ```
+
 Dissimilarity matrix with just Cicero, B Alex, and B Gall 5-8
 
 ```{r}
@@ -1898,18 +1905,6 @@ df %<>% rowwise() %>%
   )
 
 df %<>% pivot_wider(names_from = col2, values_from = pvalue)
-```
-
-# Post-clustering Analysis
-
-Sources: [@stamatatos2001]
-
-```{r}
-# try fpc::plotcluster
-
-# ANOVA to evaluate variables with r^2, see Stamatatos et al. 2001, p. 210
-
-# Use the ANOVA for the preliminary article, then add the classifier for the final one.
 ```
 
 # Investigating Dissimilarities
@@ -2082,7 +2077,10 @@ We can use the `gt` package perhaps to visualize this. A long table with
 a name on one side, and a median dissimilarity value on the other, and
 cells color-coded.
 
-The interpretation is as follows: if a cell is green, it means that text is NOT significantly different in its distribution from other texts in the same corpus (i.e. in the Corpus Caesarianum or Cicero). Red means it is; this says nothing about authorship.
+The interpretation is as follows: if a cell is green, it means that text
+is NOT significantly different in its distribution from other texts in
+the same corpus (i.e. in the Corpus Caesarianum or Cicero). Red means it
+is; this says nothing about authorship.
 
 ```{r, gt_dissimilarity_values}
 
@@ -2129,9 +2127,11 @@ if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("websho
 gtsave(diss_score_gt, "./Images/overview_table_ciceror.png")
 diss_score_gt
 ```
+
 ## BG 1
 
-Why is BG 1 so internally dissimilar, as seen in the table above? Let's look at the two sections that are farthest apart:
+Why is BG 1 so internally dissimilar, as seen in the table above? Let's
+look at the two sections that are farthest apart:
 
 ```{r, prepare-data}
 # Get dissimilarity matrix of sections in BG 1.
@@ -2145,6 +2145,7 @@ bg1 %<>% purrr::keep(is.numeric)
 log_debug(ncol(bg1))
 log_debug(paste(rownames(bg1), collapse = "\n"))
 ```
+
 ```{r}
 bg1_dist <- get_dist(bg1, method = params$dist_method)
 
@@ -2152,6 +2153,7 @@ fviz_dist(bg1_dist, show_labels = FALSE)
 
 fclust::VAT(bg1)
 ```
+
 ```{r}
 # Get location of largest dissimilarity
 mat_bg1 <- as.matrix(bg1_dist)
@@ -2171,16 +2173,34 @@ if (log_threshold() == logger::DEBUG) View(sectioned.gorman.vars %>% filter(titl
 
 Ch. 22:
 
-> Prima luce, cum summus mons a [Lucio] Labieno teneretur, ipse ab hostium castris non longius mille et quingentis passibus abesset neque, ut postea ex captivis comperit, aut ipsius adventus aut Labieni cognitus esset,
-Considius equo admisso ad eum accurrit, dicit montem, quem a Labieno occupari voluerit, ab hostibus teneri: id se a Gallicis armis atque insignibus cognovisse.
-Caesar suas copias in proximum collem subducit, aciem instruit. Labienus, ut erat ei praeceptum a Caesare ne proelium committeret, nisi ipsius copiae prope hostium castra visae essent, ut undique uno tempore in hostes impetus fieret, monte occupato nostros expectabat proelioque abstinebat.
-Multo denique die per exploratores Caesar cognovit et montem a suis teneri et Helvetios castra, movisse et Considium timore perterritum quod non vidisset pro viso sibi renuntiavisse. Eo die quo consuerat intervallo hostes sequitur et milia passuum tria ab eorum castris castra ponit.
+> Prima luce, cum summus mons a [Lucio] Labieno teneretur, ipse ab
+> hostium castris non longius mille et quingentis passibus abesset
+> neque, ut postea ex captivis comperit, aut ipsius adventus aut Labieni
+> cognitus esset, Considius equo admisso ad eum accurrit, dicit montem,
+> quem a Labieno occupari voluerit, ab hostibus teneri: id se a Gallicis
+> armis atque insignibus cognovisse. Caesar suas copias in proximum
+> collem subducit, aciem instruit. Labienus, ut erat ei praeceptum a
+> Caesare ne proelium committeret, nisi ipsius copiae prope hostium
+> castra visae essent, ut undique uno tempore in hostes impetus fieret,
+> monte occupato nostros expectabat proelioque abstinebat. Multo denique
+> die per exploratores Caesar cognovit et montem a suis teneri et
+> Helvetios castra, movisse et Considium timore perterritum quod non
+> vidisset pro viso sibi renuntiavisse. Eo die quo consuerat intervallo
+> hostes sequitur et milia passuum tria ab eorum castris castra ponit.
 
 Ch. 5:
 
-> Post eius mortem nihilo minus Helvetii id quod constituerant facere conantur, ut e finibus suis exeant.
-Ubi iam se ad eam rem paratos esse arbitrati sunt, oppida sua omnia, numero ad duodecim, vicos ad quadringentos, reliqua privata aedificia incendunt;
-frumentum omne, praeter quod secum portaturi erant, comburunt, ut domum reditionis spe sublata paratiores ad omnia pericula subeunda essent; trium mensum molita cibaria sibi quemque domo efferre iubent. Persuadent Rauracis et Tulingis et Latobrigis finitimis, uti eodem usi consilio oppidis suis vicisque exustis una cum iis proficiscantur, Boiosque, qui trans Rhenum incoluerant et in agrum Noricum transierant Noreiamque oppugnabant, receptos ad se socios sibi adsciscunt.
+> Post eius mortem nihilo minus Helvetii id quod constituerant facere
+> conantur, ut e finibus suis exeant. Ubi iam se ad eam rem paratos esse
+> arbitrati sunt, oppida sua omnia, numero ad duodecim, vicos ad
+> quadringentos, reliqua privata aedificia incendunt; frumentum omne,
+> praeter quod secum portaturi erant, comburunt, ut domum reditionis spe
+> sublata paratiores ad omnia pericula subeunda essent; trium mensum
+> molita cibaria sibi quemque domo efferre iubent. Persuadent Rauracis
+> et Tulingis et Latobrigis finitimis, uti eodem usi consilio oppidis
+> suis vicisque exustis una cum iis proficiscantur, Boiosque, qui trans
+> Rhenum incoluerant et in agrum Noricum transierant Noreiamque
+> oppugnabant, receptos ad se socios sibi adsciscunt.
 
 Smallest dissimilarity:
 
@@ -2201,42 +2221,101 @@ colnames(mat_bg1)[row]
 if (log_threshold() == logger::DEBUG) View(sectioned.gorman.vars %>% filter(title %in% c("gallic_1_30", "gallic_1_39")))
 ```
 
-The following two have:
- - all past tense verbs (VERIFY!!!)
- - extended sections of reported speech
+The following two have: - all past tense verbs (VERIFY!!!) - extended
+sections of reported speech
 
 Ch. 31:
 
-> Eo concilio dimisso, idem princeps civitatum qui ante fuerant ad Caesarem reverterunt petieruntque uti sibi secreto in occulto de sua omniumque salute cum eo agere liceret.
-Ea re impetrata sese omnes flentes Caesari ad pedes proiecerunt: non minus se id contendere et laborare ne ea quae dixissent enuntiarentur quam uti ea quae vellent impetrarent, propterea quod, si enuntiatum esset, summum in cruciatum se venturos viderent.
-Locutus est pro his Diviciacus Haeduus: Galliae totius factiones esse duas; harum alterius principatum tenere Haeduos, alterius Arvernos.
-Hi cum tantopere de potentatu inter se multos annos contenderent, factum esse uti ab Arvernis Sequanisque Germani mercede arcesserentur.
-Horum primo circiter milia XV Rhenum transisse; postea quam agros et cultum et copias Gallorum homines feri ac barbari adamassent, traductos plures; nunc esse in Gallia ad C et XX milium numerum.
-Cum his Haeduos eorumque clientes semel atque iterum armis contendisse; magnam calamitatem pulsos accepisse, omnem nobilitatem, omnem senatum, omnem equitatum amisisse.
-Quibus proeliis calamitatibusque fractos, qui et sua virtute et populi Romani hospitio atque amicitia plurimum ante in Gallia potuissent, coactos esse Sequanis obsides dare nobilissimos civitatis et iure iurando civitatem obstringere sese neque obsides repetituros neque auxilium a populo Romano imploraturos neque recusaturos quo minus perpetuo sub illorum dicione atque imperio essent.
-Unum se esse ex omni civitate Haeduorum qui adduci non potuerit ut iuraret aut liberos suos obsides daret.
-Ob eam rem se ex civitate profugisse et Romam ad senatum venisse auxilium postulatum, quod solus neque iure iurando neque obsidibus teneretur.
-Sed peius victoribus Sequanis quam Haeduis victis accidisse, propterea quod Ariovistus, rex Germanorum, in eorum finibus consedisset tertiamque partem agri Sequani, qui esset optimus totius Galliae, occupavisset et nunc de altera parte tertia Sequanos decedere iuberet, propterea quod paucis mensibus ante Harudum milia hominum XXIIII ad eum venissent, quibus locus ac sedes pararentur.
-Futurum esse paucis annis uti omnes ex Galliae finibus pellerentur atque omnes Germani Rhenum transirent; neque enim conferendum esse Gallicum cum Germanorum agro neque hanc consuetudinem victus cum illa comparandam.
-Ariovistum autem, ut semel Gallorum copias proelio vicerit, quod proelium factum sit ad Magetobrigam, superbe et crudeliter imperare, obsides nobilissimi cuiusque liberos poscere et in eos omnia exempla cruciatusque edere, si qua res non ad nutum aut ad voluntatem eius facta sit.
-Hominem esse barbarum, iracundum, temerarium: non posse eius imperia, diutius sustineri.
-Nisi quid in Caesare populoque Romano sit auxilii, omnibus Gallis idem esse faciendum quod Helvetii fecerint, ut domo emigrent, aliud domicilium, alias sedes, remotas a Germanis, petant fortunamque, quaecumque accidat, experiantur. Haec si enuntiata Ariovisto sint, non dubitare quin de omnibus obsidibus qui apud eum sint gravissimum supplicium sumat.
-Caesarem vel auctoritate sua atque exercitus vel recenti victoria vel nomine populi Romani deterrere posse ne maior multitudo Germanorum Rhenum traducatur, Galliamque omnem ab Ariovisti iniuria posse defendere.
+> Eo concilio dimisso, idem princeps civitatum qui ante fuerant ad
+> Caesarem reverterunt petieruntque uti sibi secreto in occulto de sua
+> omniumque salute cum eo agere liceret. Ea re impetrata sese omnes
+> flentes Caesari ad pedes proiecerunt: non minus se id contendere et
+> laborare ne ea quae dixissent enuntiarentur quam uti ea quae vellent
+> impetrarent, propterea quod, si enuntiatum esset, summum in cruciatum
+> se venturos viderent. Locutus est pro his Diviciacus Haeduus: Galliae
+> totius factiones esse duas; harum alterius principatum tenere Haeduos,
+> alterius Arvernos. Hi cum tantopere de potentatu inter se multos annos
+> contenderent, factum esse uti ab Arvernis Sequanisque Germani mercede
+> arcesserentur. Horum primo circiter milia XV Rhenum transisse; postea
+> quam agros et cultum et copias Gallorum homines feri ac barbari
+> adamassent, traductos plures; nunc esse in Gallia ad C et XX milium
+> numerum. Cum his Haeduos eorumque clientes semel atque iterum armis
+> contendisse; magnam calamitatem pulsos accepisse, omnem nobilitatem,
+> omnem senatum, omnem equitatum amisisse. Quibus proeliis
+> calamitatibusque fractos, qui et sua virtute et populi Romani hospitio
+> atque amicitia plurimum ante in Gallia potuissent, coactos esse
+> Sequanis obsides dare nobilissimos civitatis et iure iurando civitatem
+> obstringere sese neque obsides repetituros neque auxilium a populo
+> Romano imploraturos neque recusaturos quo minus perpetuo sub illorum
+> dicione atque imperio essent. Unum se esse ex omni civitate Haeduorum
+> qui adduci non potuerit ut iuraret aut liberos suos obsides daret. Ob
+> eam rem se ex civitate profugisse et Romam ad senatum venisse auxilium
+> postulatum, quod solus neque iure iurando neque obsidibus teneretur.
+> Sed peius victoribus Sequanis quam Haeduis victis accidisse, propterea
+> quod Ariovistus, rex Germanorum, in eorum finibus consedisset
+> tertiamque partem agri Sequani, qui esset optimus totius Galliae,
+> occupavisset et nunc de altera parte tertia Sequanos decedere iuberet,
+> propterea quod paucis mensibus ante Harudum milia hominum XXIIII ad
+> eum venissent, quibus locus ac sedes pararentur. Futurum esse paucis
+> annis uti omnes ex Galliae finibus pellerentur atque omnes Germani
+> Rhenum transirent; neque enim conferendum esse Gallicum cum Germanorum
+> agro neque hanc consuetudinem victus cum illa comparandam. Ariovistum
+> autem, ut semel Gallorum copias proelio vicerit, quod proelium factum
+> sit ad Magetobrigam, superbe et crudeliter imperare, obsides
+> nobilissimi cuiusque liberos poscere et in eos omnia exempla
+> cruciatusque edere, si qua res non ad nutum aut ad voluntatem eius
+> facta sit. Hominem esse barbarum, iracundum, temerarium: non posse
+> eius imperia, diutius sustineri. Nisi quid in Caesare populoque Romano
+> sit auxilii, omnibus Gallis idem esse faciendum quod Helvetii
+> fecerint, ut domo emigrent, aliud domicilium, alias sedes, remotas a
+> Germanis, petant fortunamque, quaecumque accidat, experiantur. Haec si
+> enuntiata Ariovisto sint, non dubitare quin de omnibus obsidibus qui
+> apud eum sint gravissimum supplicium sumat. Caesarem vel auctoritate
+> sua atque exercitus vel recenti victoria vel nomine populi Romani
+> deterrere posse ne maior multitudo Germanorum Rhenum traducatur,
+> Galliamque omnem ab Ariovisti iniuria posse defendere.
 
 Ch. 40:
 
-> Haec cum animadvertisset, convocato consilio omniumque ordinum ad id consilium adhibitis centurionibus, vehementer eos incusavit: primum, quod aut quam in partem aut quo consilio ducerentur sibi quaerendum aut cogitandum putarent.
-Ariovistum se consule cupidissime populi Romani amicitiam adpetisse; cur hunc tam temere quisquam ab officio discessurum iudicaret?
-Sibi quidem persuaderi cognitis suis postulatis atque aequitate condicionum perspecta eum neque suam neque populi Romani gratiam repudiaturum.
-Quod si furore atque amentia impulsum bellum intulisset, quid tandem vererentur? Aut cur de sua virtute aut de ipsius diligentia desperarent?
-Factum eius hostis periculum patrum nostrorum memoria Cimbris et Teutonis a C. Mario pulsis [cum non minorem laudem exercitus quam ipse imperator meritus videbatur]; factum etiam nuper in Italia servili tumultu, quos tamen aliquid usus ac disciplina, quam a nobis accepissent, sublevarint.
-Ex quo iudicari posse quantum haberet in se boni constantia, propterea quod quos aliquam diu inermes sine causa timuissent hos postea armatos ac victores superassent.
-Denique hos esse eosdem Germanos quibuscum saepe numero Helvetii congressi non solum in suis sed etiam in illorum finibus plerumque superarint, qui tamen pares esse nostro exercitui non potuerint.
-Si quos adversum proelium et fuga Gallorum commoveret, hos, si quaererent, reperire posse diuturnitate belli defatigatis Gallis Ariovistum, cum multos menses castris se ac paludibus tenuisset neque sui potestatem fecisset, desperantes iam de pugna et dispersos subito adortum magis ratione et consilio quam virtute vicisse.
-Cui rationi contra homines barbaros atque imperitos locus fuisset, hac ne ipsum quidem sperare nostros exercitus capi posse.
-Qui suum timorem in rei frumentariae simulationem angustiasque itineris conferrent, facere arroganter, cum aut de officio imperatoris desperare aut praescribere viderentur.
-Haec sibi esse curae;frumentum Sequanos, Leucos, Lingones subministrare, iamque esse in agris frumenta matura; de itinere ipsos brevi tempore iudicaturos.
-Quod non fore dicto audientes neque signa laturi dicantur, nihil se ea re commoveri: scire enim, quibuscumque exercitus dicto audiens non fuerit, aut male re gesta fortunam defuisse aut aliquo facinore comperto avaritiam esse convictam.
-Suam innocentiam perpetua vita, felicitatem Helvetiorum bello esse perspectam.
-Itaque se quod in longiorem diem conlaturus fuisset repraesentaturum et proxima nocte de quarta, vigilia castra moturum, ut quam primum intellegere posset utrum apud eos pudor atque officium an timor plus valeret.
-Quod si praeterea nemo sequatur, tamen se cum sola decima legione iturum, de qua non dubitet, sibique eam praetoriam cohortem futuram. Huic legioni Caesar et indulserat praecipue et propter virtutem confidebat maxime.
+> Haec cum animadvertisset, convocato consilio omniumque ordinum ad id
+> consilium adhibitis centurionibus, vehementer eos incusavit: primum,
+> quod aut quam in partem aut quo consilio ducerentur sibi quaerendum
+> aut cogitandum putarent. Ariovistum se consule cupidissime populi
+> Romani amicitiam adpetisse; cur hunc tam temere quisquam ab officio
+> discessurum iudicaret? Sibi quidem persuaderi cognitis suis postulatis
+> atque aequitate condicionum perspecta eum neque suam neque populi
+> Romani gratiam repudiaturum. Quod si furore atque amentia impulsum
+> bellum intulisset, quid tandem vererentur? Aut cur de sua virtute aut
+> de ipsius diligentia desperarent? Factum eius hostis periculum patrum
+> nostrorum memoria Cimbris et Teutonis a C. Mario pulsis [cum non
+> minorem laudem exercitus quam ipse imperator meritus videbatur];
+> factum etiam nuper in Italia servili tumultu, quos tamen aliquid usus
+> ac disciplina, quam a nobis accepissent, sublevarint. Ex quo iudicari
+> posse quantum haberet in se boni constantia, propterea quod quos
+> aliquam diu inermes sine causa timuissent hos postea armatos ac
+> victores superassent. Denique hos esse eosdem Germanos quibuscum saepe
+> numero Helvetii congressi non solum in suis sed etiam in illorum
+> finibus plerumque superarint, qui tamen pares esse nostro exercitui
+> non potuerint. Si quos adversum proelium et fuga Gallorum commoveret,
+> hos, si quaererent, reperire posse diuturnitate belli defatigatis
+> Gallis Ariovistum, cum multos menses castris se ac paludibus tenuisset
+> neque sui potestatem fecisset, desperantes iam de pugna et dispersos
+> subito adortum magis ratione et consilio quam virtute vicisse. Cui
+> rationi contra homines barbaros atque imperitos locus fuisset, hac ne
+> ipsum quidem sperare nostros exercitus capi posse. Qui suum timorem in
+> rei frumentariae simulationem angustiasque itineris conferrent, facere
+> arroganter, cum aut de officio imperatoris desperare aut praescribere
+> viderentur. Haec sibi esse curae;frumentum Sequanos, Leucos, Lingones
+> subministrare, iamque esse in agris frumenta matura; de itinere ipsos
+> brevi tempore iudicaturos. Quod non fore dicto audientes neque signa
+> laturi dicantur, nihil se ea re commoveri: scire enim, quibuscumque
+> exercitus dicto audiens non fuerit, aut male re gesta fortunam
+> defuisse aut aliquo facinore comperto avaritiam esse convictam. Suam
+> innocentiam perpetua vita, felicitatem Helvetiorum bello esse
+> perspectam. Itaque se quod in longiorem diem conlaturus fuisset
+> repraesentaturum et proxima nocte de quarta, vigilia castra moturum,
+> ut quam primum intellegere posset utrum apud eos pudor atque officium
+> an timor plus valeret. Quod si praeterea nemo sequatur, tamen se cum
+> sola decima legione iturum, de qua non dubitet, sibique eam praetoriam
+> cohortem futuram. Huic legioni Caesar et indulserat praecipue et
+> propter virtutem confidebat maxime.
