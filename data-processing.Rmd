@@ -2046,19 +2046,35 @@ ks_test_map <- function(corpus_segment, alternative = "two.sided") {
 }
 
 # I keep the alternative at the default "two.sided"
+
+
+# p_values_ks <- c(
+#   ks_test_map(scores.correlation.per.text[caesar_works_v]),
+#   ks_test_map(
+#     scores.correlation.per.text[
+#       names(scores.correlation.per.text) %notin% c(
+#         caesar_works_v, 
+#         "catilinae_sallusti", 
+#         "iugurthine_1"
+#         )
+#       ]
+#     )
+# )
+
+
+
 p_values_ks <- c(
-  ks_test_map(scores.correlation.per.text[caesar_works_v]),
+  ks_test_map(scores.correlation.per.text[caesar_works_v[c(1:7,9:10)]]),
   ks_test_map(
     scores.correlation.per.text[
       names(scores.correlation.per.text) %notin% c(
-        caesar_works_v, 
-        "catilinae_sallusti", 
+        caesar_works_v,
+        "catilinae_sallusti",
         "iugurthine_1"
         )
       ]
     )
 )
-
 # Create a list of colors, so we can color-code based on p-value
 # Significant = "red" (i.e. reject hypothesis that they're the same distribution of similarity scores)
 # Not significant = "green" (i.e., can't be certain they are from different distributions)
@@ -2096,15 +2112,27 @@ diss_score_gt_tib %<>%
     title = lookup_table[title])
     #corpus = corpus_title[title])
 
-color_fn <- function(x) colors_ks_test[1:15]
+color_fn <- function(x) colors_ks_test[1:9]
 
-diss_score_gt <- diss_score_gt_tib[corpus_title[diss_score_gt_tib$title] == "Corpus Caesarianum" ,] |>
+diss_score_gt <- diss_score_gt_tib[diss_score_gt_tib$title %in% 
+                                     c(
+                                        imap_chr(
+                                          rep("BG", 7), 
+                                          \(x, y) paste(x, y, collapse = "")
+                                        ),
+                                        "BC 1",
+                                        "BC 2"
+                                      ),] |>
   gt() |>
   data_color(columns = dissimilarity, direction = "column", fn = color_fn) |>
   cols_label(
     title = "Work/Book Number",
     dissimilarity = "Dissimilarity Score"
-  ) 
+  ) |>
+  tab_header(
+    title = "Median dissimilarity score within each text",
+    subtitle = "Red cells have a significantly different distribution from the others (conservative Kolmogorov-Smirnov test with Bonferroni correction applied)"
+  )
   
 
 if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("webshot2")
@@ -2112,7 +2140,7 @@ gtsave(diss_score_gt, "./Images/overview_table_caesar.png")
 diss_score_gt
 
 # Now Cicero
-color_fn <- function(x) colors_ks_test[16:length(colors_ks_test)]
+color_fn <- function(x) colors_ks_test[10:length(colors_ks_test)]
 
 diss_score_gt <- diss_score_gt_tib[corpus_title[diss_score_gt_tib$title] == "Cicero" ,] |>
   gt() |>
@@ -2120,7 +2148,11 @@ diss_score_gt <- diss_score_gt_tib[corpus_title[diss_score_gt_tib$title] == "Cic
   cols_label(
     title = "Work/Book Number",
     dissimilarity = "Dissimilarity Score"
-  ) 
+  ) |>
+  tab_header(
+    title = "Median dissimilarity score within each text",
+    subtitle = "Red cells have a significantly different distribution from the others (conservative Kolmogorov-Smirnov test with Bonferroni correction applied)"
+  )
   
 
 if ("webshot2" %notin% .packages(all.available = TRUE)) install.packages("webshot2")
