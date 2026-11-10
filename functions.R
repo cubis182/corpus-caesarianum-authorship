@@ -227,12 +227,12 @@ variable_count <- function(matrix, source_data) {
 
 # combinations_n <- 2
 
-# Get rid of values that don't appear in more than 20% of the corpus
+# Get rid of values that don't appear in more than 10% of the corpus
 cull <- function(combinations) {
   print(paste("Length before culling: ", as.character(length(combinations$a))))
 
-  # Get rid of features which occur in less than 5% of the corpus
-  filtered <- combinations |> filter(num > (nrow(data) / 10))
+  # Get rid of features which occur in not more than 10% of the corpus
+  filtered <- combinations |> filter(num > (nrow(data) / 5))
 
   print(paste("Length after culling: ", as.character(length(filtered$a))))
   return(filtered)
