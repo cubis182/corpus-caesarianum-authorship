@@ -872,8 +872,8 @@ def string_process_export(body_text: str, author: str, title: str, custom_pipeli
     )  # Call the neural pipeline on this list of documents
     # print(f"Pipeline took {(datetime.datetime.now() - t1).seconds} seconds")
 
-    tdqm = get_tqdm()
-    for s in tqdm(out_docs.sentences):
+    # tdqm = get_tqdm()
+    for s in out_docs.sentences:
         pass
         for word in s.words:
         
