@@ -232,7 +232,7 @@ cull <- function(combinations) {
   print(paste("Length before culling: ", as.character(length(combinations$a))))
 
   # Get rid of features which occur in not more than 10% of the corpus
-  filtered <- combinations |> filter(num > (nrow(data) / 5))
+  filtered <- combinations |> filter(num > (nrow(data) / 10))
 
   print(paste("Length after culling: ", as.character(length(filtered$a))))
   return(filtered)
