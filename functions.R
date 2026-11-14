@@ -247,7 +247,13 @@ variable_combinations <- function(combinations_n, source_data) {
   # length(select_combinations)
 
   # Get a table showing the number of times all the features in a combination are attested
-  combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data %>% select(-title, -author, -book, -section))
+  combination_freqs <- apply(
+    X = select_combinations, 
+    MARGIN = 2, 
+    FUN = variable_count, 
+    source_data = source_data %>% 
+      select(-title, -author, -book, -section)
+    )
   
   tib_select_combinations <- as_tibble(select_combinations)
 
