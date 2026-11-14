@@ -374,19 +374,19 @@ get_number_rows_with_feature_types <- function(combination, source_data) {
   
   # Keep only rows where the number of cases is equal to the number of features
   #  in the combination
-  rows_all <- keep(unique(rows), \(.x) {
-      # if a row appears more times than there are cases, that means a single
-      #  feature was counted multiple times in one row. That's a problem!
-      if (sum(rows == .x) > length(combination)) rlang::abort(
-        "Error: one of the features in ({paste0(combination, collapse=',')}) was flagged more than once in row {.x}"
-      )
-      sum(rows == .x) == length(combination)
-    }
-  )
+  
+  unq_rows <- unique(rows)
+  receiver <- rep(0, length(unq_rows))
+  for (i in seq_along(unq_rows)) {
+    if (sum(rows == unq_rows[i]) > length(combination)) rlang::abort(
+      "Error: one of the features in ({paste0(combination, collapse=',')}) was flagged more than once in row {.x}"
+    )
+    if (sum(rows == unq_rows[i]) == length(combination)) receiver[i] <- 1
+  }
   
   log_debug("{fn_name}: The feature values '{paste0(combination, collapse = ',')}' occurred {count_of_feature_values} times in the dataset.")
   
-  length(rows_all)
+  sum(receiver)
 }
 
 # Okay, now we create functions used down below for transposing the data
