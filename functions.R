@@ -478,7 +478,7 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
   # mutate(n = n * norm_val, title = title_str)
 
   # browser()
-  log_debug("Finished counting combinations for {title_str}")
+  log_info("Finished counting combinations for {title_str}")
   print(proc.time() - t1)
   
   
