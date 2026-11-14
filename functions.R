@@ -278,8 +278,7 @@ variable_combinations <- function(combinations_n, source_data) {
   arrange(tib_select_combinations, num)
 
   tib_select_combinations <- tib_select_combinations |>
-    filter(num > 0) |>
-    arrange(num)
+    filter(num > 0)
   
   return(tib_select_combinations |> dplyr::select(-num))
 }
