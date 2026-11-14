@@ -1044,8 +1044,8 @@ plot_dist_corpus_project <- function(gorman_dist, data, cell_text_size = 4) {
 index_to_row <- function(indices, matrix) {
   stopifnot(is.numeric(indices) && is.matrix(matrix))
   # getting the row number this way is slightly faster than nrow()
-  row_nums <- indices %% dim(m1)[[1]]
+  row_nums <- indices %% dim(matrix)[[1]]
   # Not ready yet! 0 should be replaced with the highest row number
-  row_nums[which(row_nums == 0)] <- dim(m1)[[1]]
+  row_nums[which(row_nums == 0)] <- dim(matrix)[[1]]
   row_nums
 }
