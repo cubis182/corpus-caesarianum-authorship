@@ -69,7 +69,7 @@ has_all_feature_types_og <- function(row_from_source_data, character_vector_of_f
   # if (!is.character(row_from_source_data)) {
   #   row_from_source_data %<>% mutate(across(where(is.factor), as.character))
   # }
-  browser()
+  
   # Only return true for this row if ALL characters in the vector on the left are in the row on the right
   # Note on optimization: %chin% is supposedly faster than %in%
   all(character_vector_of_feature_values %in% row_from_source_data)
@@ -80,6 +80,7 @@ get_number_rows_with_feature_types_og <- function(vector_of_feature_values, sour
   fn_name <- "get_number_rows..."
   
   # Remove X if present
+  # YOU FORGOT THAT AUX HAS AN X IN IT!!!!!!!
   vector_of_feature_values <- gsub(pattern = "X", replacement = "", vector_of_feature_values)
   
   # Added 9/27/2026: It was detecting the "3" in the title of "philippics_3", 
@@ -104,8 +105,7 @@ count_combinations_per_section_og <- function(combinations, source_data, title_s
 
   # more efficient than using rows
   combinations <- t(as.matrix(combinations))
-
-  counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types, source_data = source_data)
+  counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types_og, source_data = source_data)
   counts <- counts * norm_val
   return_value <- bind_cols(t(combinations), tibble(n = counts))
   return_value$title <- title_str
@@ -198,13 +198,33 @@ profvis({
   get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
 })
 ```
-And what about benchmark?
+
+Do the results look any different?
 
 ```{r}
-bm1 <- bench::mark(
+new_all_vars <- get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+old_all_vars <- get_vars_gorman_og(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+
+unique(new_all_vars$pasted[new_all_vars$n != old_all_vars$n])
+```
+I fixed some bugs using the above comparison, and realized I had introduced a bug earlier. I removed an 'X' from the feature labels, without remembering that AUX has an X in it which gets removed. Since that line of code is no longer necessary (we always use read_csv now), it can be safely removed. However, I do need to make sure these functions throw an error if a '.' or 'X' is found, so we can redirect the user to use a different function or set of parameters to read a CSV file into memory.
+
+Now for the benchmark; did I even save time?
+
+```{r, benchmark}
+bench::mark(
   get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs),
-  get_vars_gorman_og(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+    get_vars_gorman_og(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs),
+  check = FALSE
 )
+
+```
+Still could be faster: how about we profile again.
+
+```{r}
+profvis({
+  get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+})
 ```
 
 

@@ -10,7 +10,7 @@ editor_options:
 params:
   use_att: TRUE
   use_parent: FALSE
-  new_combos: TRUE
+  new_combos: FALSE
   dist_method: "spearman"
 bibliography: rmd-notebook.bib
 ---
@@ -163,7 +163,7 @@ accomplished in the following section.
 
 ```{r, get-combinations-of-features, include=FALSE}
 
-if (!exists("combinations")){
+if (!exists("type_value_pairs")){
   combos_filename <- "type_value_pairs.RData"
   if (!params$new_combos && file.exists(combos_filename)) combinations <- load(combos_filename) else {
   
@@ -289,10 +289,10 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-# profvis({
+profvis({
 
 all_vars_by_section <- get_vars_gorman("chapter", data, presupplied_variables = type_value_pairs)
-# })
+})
 
 # Ran a test of this function on the Bellum Hispaniense without culling 0-length variables.
 # Result: 3,257,298 variables
