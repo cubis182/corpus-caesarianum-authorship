@@ -168,8 +168,8 @@ accomplished in the following section.
 ```{r, get-combinations-of-features, include=FALSE}
 
 if (!exists("combinations")){
-  combos_filename <- "combinations.csv"
-  if (!params$new_combos && file.exists(combos_filename)) combinations <- read_csv(combos_filename) else {
+  combos_filename <- "type_value_pairs.RData"
+  if (!params$new_combos && file.exists(combos_filename)) combinations <- load(combos_filename) else {
   
   
   data_backup <- data
@@ -196,7 +196,13 @@ if (!exists("combinations")){
     #variable_combinations(5, data)
   )
   
-  write_csv(combinations, file = combos_filename,)
+  frequencies <- run_combos(data, "sample", pb = progress_bar$new(total = 1))
+  
+  frequencies_t <- transpose_all_vars(frequencies)
+  
+  type_value_pairs <- combinations_from_existing(frequencies_t)
+  
+  save(type_value_pairs, file = combos_filename)
   
   data <- data_backup
   
