@@ -3,6 +3,12 @@ title: "tests_functions"
 output: html_document
 ---
 
+```{r, setup, render=FALSE}
+
+library(testthat)
+
+```
+
 # Unit Tests
 
 ## Gorman Variable Creation
