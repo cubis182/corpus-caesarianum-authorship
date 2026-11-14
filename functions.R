@@ -462,16 +462,13 @@ select_top_variables <- function(all_vars, n, criterion = c("sum", "sd")) {
 # variable in it.
 
 # character select : A character value which is the section/book we're using in this function
+# NOTE: THIS FUNCTION IS NOT TO BE USED OUTSIDE OF get_vars_gorman()
+#  IT ASSUMES combinations HAS ALREADY BEEN TRANSPOSED AND TURNED INTO A MATRIX
+#  IT ALSO ASSUMES SOURCE_DATA IS A MATRIX
 count_combinations_per_section <- function(combinations, source_data, title_str) {
   # browser()
   t1 <- proc.time()
   norm_val <- 1000 / nrow(source_data)
-
-  # save processing time by converting source_data to matrix now
-  source_data <- as.matrix(source_data)
-
-  # more efficient than using rows
-  combinations <- t(as.matrix(combinations))
 
   counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types, source_data = source_data)
   counts <- counts * norm_val
@@ -550,6 +547,10 @@ get_vars_gorman <- function(mode = "book", source, presupplied_variables = NULL)
       mutate(title = unlist(title))
   } else {
     # browser()
+    
+    # more efficient than using rows
+    combinations <- t(as.matrix(combinations))
+    
     all_vars <- source_data |>
       # For debugging:
       # slice_sample(n = 100) |>
@@ -557,7 +558,7 @@ get_vars_gorman <- function(mode = "book", source, presupplied_variables = NULL)
       # check whether this line is necessary
       # mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
       group_by(title) %>%
-      group_map(~ count_combinations_per_section(presupplied_variables, source_data = .x, title_str = .y)) |>
+      group_map(~ count_combinations_per_section(presupplied_variables, source_data = as.matrix(.x), title_str = .y)) |>
       bind_rows() |>
       mutate(title = unlist(title)) |>
       unite(col = "pasted", 1:5, sep = "|", na.rm = TRUE)
