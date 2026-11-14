@@ -363,23 +363,30 @@ has_all_feature_types <- function(row_from_source_data, character_vector_of_feat
   all(character_vector_of_feature_values %in% row_from_source_data)
 }
 
-get_number_rows_with_feature_types <- function(vector_of_feature_values, source_data) {
-  # browser()
-  fn_name <- "get_number_rows..."
-  
-  # Remove X if present
-  vector_of_feature_values <- gsub(pattern = "X", replacement = "", vector_of_feature_values)
-  
-  # Added 9/27/2026: It was detecting the "3" in the title of "philippics_3", 
-  #   "gallic_3", etc. as 3rd person, so must remove title
+get_number_rows_with_feature_types <- function(combination, source_data) {
   source_data <- source_data[,colnames(source_data) %notin% c("title", "author", "path", "book", "section")]
   
-  count_of_feature_values <- sum(
-    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types, character_vector_of_feature_values = vector_of_feature_values)
+  combination <- combination[complete.cases(combination)]
+  
+  indices <- which(source_data %in% combination)
+  
+  rows <- index_to_row(indices, source_data)
+  
+  # Keep only rows where the number of cases is equal to the number of features
+  #  in the combination
+  rows_all <- keep(unique(rows), \(.x) {
+      # if a row appears more times than there are cases, that means a single
+      #  feature was counted multiple times in one row. That's a problem!
+      if (sum(rows == .x) > length(combination)) rlang::abort(
+        "Error: one of the features in ({paste0(combination, collapse=',')}) was flagged more than once in row {.x}"
+      )
+      sum(rows == .x) == length(combination)
+    }
   )
-  log_debug("{fn_name}: The feature values '{paste0(vector_of_feature_values, collapse = ',')}' occurred {count_of_feature_values} times in the dataset.")
-
-  count_of_feature_values
+  
+  log_debug("{fn_name}: The feature values '{paste0(combination, collapse = ',')}' occurred {count_of_feature_values} times in the dataset.")
+  
+  length(rows_all)
 }
 
 # Okay, now we create functions used down below for transposing the data
@@ -465,30 +472,6 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
 
   # more efficient than using rows
   combinations <- t(as.matrix(combinations))
-  
-  get_number_rows_with_feature_types <- function(combination, source_data) {
-    source_data <- source_data[,colnames(source_data) %notin% c("title", "author", "path", "book", "section")]
-    
-    combination <- combination[complete.cases(combination)]
-    
-    indices <- which(source_data %in% combination)
-    
-    rows <- index_to_row(indices, source_data)
-    
-    # Keep only rows where the number of cases is equal to the number of features
-    #  in the combination
-    rows_all <- keep(unique(rows), \(.x) {
-      # if a row appears more times than there are cases, that means a single
-      #  feature was counted multiple times in one row. That's a problem!
-      if (sum(rows == .x) > length(combination)) rlang::abort(
-        "Error: one of the features in ({paste0(combination, collapse=',')}) was flagged more than once in row {.x}"
-        )
-      sum(rows == .x) == length(combination)
-      }
-    )
-    
-    length(rows_all)
-  }
 
   counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types, source_data = source_data)
   counts <- counts * norm_val
