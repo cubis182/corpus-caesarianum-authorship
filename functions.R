@@ -417,9 +417,9 @@ transpose_all_vars <- function(all_vars) {
 #' Reduces output of transpose_all_vars to top n variables; maximum value for n is 18,000
 #'
 #'@param all_vars Result of `get_vars_*()` function.
-#'@param n Number of variables to cull to
+#'@param n Number of variables to cull to; defaults to max
 #'@param criterion "sum" culls to top n variables by raw frequency, "sd" culls to top n variables by standard deviation
-select_top_variables <- function(all_vars, n, criterion = c("sum", "sd")) {
+select_top_variables <- function(all_vars, n = length(unique(all_vars$pasted)), criterion = c("sum", "sd")) {
   # For logging
   fn_name <- get_logger_meta_variables(log_level = INFO)$fn
 
