@@ -171,7 +171,7 @@ replace_ambiguous <- function(data, use_parent) {
 # CANNOT be used, unless the use_parent parameter is defined in the YAML header.
 prepare_data <- function(data, use_parent = params$use_parent) {
   data %<>% 
-    mutate(person = as.factor(person))
+    mutate(Person = as.factor(Person))
   
   # The Bellum Alexandrinum may represent two clear stages of composition,
   # and we might want to respond to Gaertner's argument that the completion
