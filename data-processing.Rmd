@@ -294,7 +294,7 @@ if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 # profvis({
 
-all_vars_by_section <- get_vars_gorman("chapter", data, presupplied_variables=NULL)
+all_vars_by_section <- get_vars_gorman("chapter", data, presupplied_variables = type_value_pairs)
 # })
 
 # Ran a test of this function on the Bellum Hispaniense without culling 0-length variables.
@@ -352,9 +352,8 @@ again.
 # them back into the get_vars function to get the same variables, but with
 # the frequencies calculated book-by-book this time.
 
-combinations <- combinations_from_existing(all_vars_by_section_culled)
 rm(all_vars_by_section_culled)
-all_vars_by_book <- get_vars_gorman("book", data, combinations)
+all_vars_by_book <- get_vars_gorman("book", data, type_value_pairs)
 
 ```
 
