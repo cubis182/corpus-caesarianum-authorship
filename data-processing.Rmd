@@ -197,6 +197,7 @@ if (!exists("combinations")){
   )
   
   frequencies <- run_combos(data, "sample", pb = progress_bar$new(total = 1))
+  frequencies <- subset(frequencies, n >= 25)
   
   frequencies_t <- transpose_all_vars(frequencies)
   
