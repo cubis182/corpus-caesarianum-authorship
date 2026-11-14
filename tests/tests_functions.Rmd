@@ -7,7 +7,7 @@ output: html_document
 
 ## Gorman Variable Creation
 
-### run_combos()
+### get_vars_gorman()
 
 The primary barrier is the fact that running variables with an existing feature set is actually slower than running them without one (i.e., it's slower when the `presupplied_variables` argument is filled).
 
