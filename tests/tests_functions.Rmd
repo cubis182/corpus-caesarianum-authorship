@@ -1,0 +1,19 @@
+---
+title: "tests_functions"
+output: html_document
+---
+
+# Unit Tests
+
+## Gorman Variable Creation
+
+### run_combos()
+
+The primary barrier is the fact that running variables with an existing feature set is actually slower than running them without one (i.e., it's slower when the `presupplied_variables` argument is filled).
+
+I put the source code of the original below.
+
+```{r, v1-source-code}
+
+```
+
