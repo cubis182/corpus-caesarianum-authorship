@@ -20,6 +20,195 @@ The primary barrier is the fact that running variables with an existing feature 
 I put the source code of the original below.
 
 ```{r, v1-source-code}
+get_vars_gorman_og <- function(mode = "book", source, presupplied_variables = NULL) {
+  if (mode == "book") {
+    # browser()
+    source_data <- source |>
+      rowwise() |>
+      mutate(title = get_title_segment(title))
+  } else if (mode == "commentary") {
+    source_data <- source |>
+      rowwise() |>
+      mutate(title = get_title_segment(title, "title"))
+  } else if (mode == "chapter") {
+    source_data <- source
+  } else {
+    return(NULL)
+  }
+  
+  # TOP BRANCH WON'T RUN IN THESE TESTS!!!!
+  if (is.null(presupplied_variables)) {
+    all_vars <- source_data |>
+      group_by(title) %>%
+      # lazy_dt() |>
+      group_map(~ run_combos(.x, .y, pb = progress_bar$new(total = length(unique(source_data$title))))) |>
+      bind_rows() |>
+      mutate(title = unlist(title))
+  } else {
+    
+    all_vars <- source_data |>
+      # For debugging:
+      # slice_sample(n = 100) |>
+      rowwise() |>
+      # check whether this line is necessary
+      # mutate(title = unlist(strsplit(title, "_"))[1:2] |> paste(collapse="_")) |>
+      group_by(title) %>%
+      group_map(~ count_combinations_per_section_og(presupplied_variables, source_data = .x, title_str = .y)) |>
+      bind_rows() |>
+      mutate(title = unlist(title)) |>
+      unite(col = "pasted", 1:5, sep = "|", na.rm = TRUE)
+  }
+
+  return(all_vars)
+}
+
+has_all_feature_types_og <- function(row_from_source_data, character_vector_of_feature_values) {
+  # Unnecessary when using apply() around this function
+  # row_from_source_data %<>% mutate(across(everything(), as.character))
+
+  # if (!is.character(row_from_source_data)) {
+  #   row_from_source_data %<>% mutate(across(where(is.factor), as.character))
+  # }
+  browser()
+  # Only return true for this row if ALL characters in the vector on the left are in the row on the right
+  # Note on optimization: %chin% is supposedly faster than %in%
+  all(character_vector_of_feature_values %in% row_from_source_data)
+}
+
+get_number_rows_with_feature_types_og <- function(vector_of_feature_values, source_data) {
+  # browser()
+  fn_name <- "get_number_rows..."
+  
+  # Remove X if present
+  vector_of_feature_values <- gsub(pattern = "X", replacement = "", vector_of_feature_values)
+  
+  # Added 9/27/2026: It was detecting the "3" in the title of "philippics_3", 
+  #   "gallic_3", etc. as 3rd person, so must remove title
+  source_data <- source_data[,colnames(source_data) %notin% c("title", "author", "path", "book", "section")]
+  
+  count_of_feature_values <- sum(
+    apply(X = source_data, MARGIN = 1, FUN = has_all_feature_types_og, character_vector_of_feature_values = vector_of_feature_values)
+  )
+  log_debug("{fn_name}: The feature values '{paste0(vector_of_feature_values, collapse = ',')}' occurred {count_of_feature_values} times in the dataset.")
+
+  count_of_feature_values
+}
+
+count_combinations_per_section_og <- function(combinations, source_data, title_str) {
+  # browser()
+  t1 <- proc.time()
+  norm_val <- 1000 / nrow(source_data)
+
+  # save processing time by converting source_data to matrix now
+  source_data <- as.matrix(source_data)
+
+  # more efficient than using rows
+  combinations <- t(as.matrix(combinations))
+
+  counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types, source_data = source_data)
+  counts <- counts * norm_val
+  return_value <- bind_cols(t(combinations), tibble(n = counts))
+  return_value$title <- title_str
+  # dplyr::rowwise() %>%
+  # summarize(
+  #   n = get_number_rows_with_feature_types(c_across(everything()), source_data)
+  # ) %>%
+  # bind_cols(combinations, .) |>
+  # mutate(n = n * norm_val, title = title_str)
+
+  # browser()
+  log_info("Finished counting combinations for {title_str}")
+  print(proc.time() - t1)
+  
+  
+  return_value
+}
+```
+
+Any further changes will be documented in commits to the repo on 11/14/2026
+
+First, to load our test_data:
+
+```{r}
+source("../functions.R")
+
+# NOTE: REQUIRES HAVING RUN {get-combinations-of-features} CELL IN DATA-PROCESSING.RMD
+load("../type_value_pairs.RData")
+
+test_data <- fread("../postagged/postagged-texts.csv", na.strings = "", header = TRUE, stringsAsFactors = TRUE)
+
+# only care about speed; let's focus on testing Caesar alone for simplicity
+
+test_data %<>% prepare_data()
+
+# Not only subsample, but remove parents
+test_data <- test_data[1:1000,1:18]
+```
+Then to profile it:
+
+```{r}
+library(profvis)
+
+profvis::profvis({
+  get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+})
+```
+
+It looks like a few places are expensive: the call to `%in%`, the use of `apply()` with `get_number_rows_with_feature_types()`, so I am trying to eliminate that.
+
+My first attempt is to replace `get_number_rows...()` with something more efficient, 
+shown in the snippet below:
+
+```{r, eval=FALSE}
+get_number_rows_with_feature_types <- function(combination, source_data) {
+    combination <- combination[complete.cases(combination)]
+    
+    indices <- which(source_data %in% combination)
+    
+    rows <- index_to_row(indices, source_data)
+    
+    # Keep only rows where the number of cases is equal to the number of features
+    #  in the combination
+    rows_all <- keep(unique(rows), \(.x) {
+      # if a row appears more times than there are cases, that means a single
+      #  feature was counted multiple times in one row. That's a problem!
+      if (sum(rows == .x) > length(combination)) rlang::abort(
+        "Error: one of the features in ({paste0(combination, collapse=',')}) was flagged more than once in row {.x}"
+        )
+      sum(rows == .x) == length(combination)
+      }
+    )
+    
+    length(rows_all)
+  }
+```
+
+The above makes use of vectorized functions instead of manually looping first by group, then by feature combinations, then by row. Instead of going by row, we can search through the whole matrix
+
+Let's first make sure it doesn't throw an error:
+
+```{r}
+get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+```
+
+What does profvis have to say this time?
+
+```{r}
+profvis({
+  get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+})
+```
+And what about benchmark?
+
+```{r}
+bm1 <- bench::mark(
+  get_vars_gorman(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs),
+  get_vars_gorman_og(mode = "chapter", source = test_data, presupplied_variables = type_value_pairs)
+)
+```
+
+
+## Utils
 
 ```{r, test-that-index_to_rows}
 testthat::test_that("index_to_rows() gets_valid_row", {
