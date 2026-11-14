@@ -1030,3 +1030,15 @@ plot_dist_corpus_project <- function(gorman_dist, data, cell_text_size = 4) {
       size = cell_text_size,
       inherit.aes = FALSE) 
 }
+
+# Utils ----------------------
+
+# TODO NEEDS TEST, make sure results are all valid row numbers (seq_along(dim(matrix)[[1]]))
+index_to_row <- function(indices, matrix) {
+  stopifnot(is.numeric(indices) && is.matrix(matrix))
+  # getting the row number this way is slightly faster than nrow()
+  row_nums <- indices %% dim(m1)[[1]]
+  # Not ready yet! 0 should be replaced with the highest row number
+  row_nums[which(row_nums == 0)] <- dim(m1)[[1]]
+  row_nums
+}
