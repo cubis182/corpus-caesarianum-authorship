@@ -364,6 +364,8 @@ has_all_feature_types <- function(row_from_source_data, character_vector_of_feat
 }
 
 get_number_rows_with_feature_types <- function(combination, source_data) {
+  fn_name <- "get_number_rows..."
+  
   source_data <- source_data[,colnames(source_data) %notin% c("title", "author", "path", "book", "section")]
   
   combination <- combination[complete.cases(combination)]
@@ -384,7 +386,7 @@ get_number_rows_with_feature_types <- function(combination, source_data) {
     if (sum(rows == unq_rows[i]) == length(combination)) receiver[i] <- 1
   }
   
-  log_debug("{fn_name}: The feature values '{paste0(combination, collapse = ',')}' occurred {count_of_feature_values} times in the dataset.")
+  log_debug("{fn_name}: The feature values '{paste0(combination, collapse = ',')}' occurred {sum(receiver)} times in the dataset.")
   
   sum(receiver)
 }
@@ -469,7 +471,6 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
   # browser()
   t1 <- proc.time()
   norm_val <- 1000 / nrow(source_data)
-
   counts <- apply(combinations, MARGIN = 2, FUN = get_number_rows_with_feature_types, source_data = source_data)
   counts <- counts * norm_val
   return_value <- bind_cols(t(combinations), tibble(n = counts))
@@ -549,7 +550,7 @@ get_vars_gorman <- function(mode = "book", source, presupplied_variables = NULL)
     # browser()
     
     # more efficient than using rows
-    combinations <- t(as.matrix(combinations))
+    presupplied_variables <- t(as.matrix(presupplied_variables))
     
     all_vars <- source_data |>
       # For debugging:
