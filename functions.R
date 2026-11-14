@@ -248,7 +248,7 @@ variable_combinations <- function(combinations_n, source_data) {
 
   # Get a table showing the number of times all the features in a combination are attested
   combination_freqs <- apply(X = select_combinations, MARGIN = 2, FUN = variable_count, source_data = source_data %>% select(-title, -author, -book, -section))
-
+  
   tib_select_combinations <- as_tibble(select_combinations)
 
   # Get the length of the column
@@ -281,7 +281,7 @@ variable_combinations <- function(combinations_n, source_data) {
     filter(num > 0) |>
     arrange(num)
   
-  return(tib_select_combinations |> cull() |> dplyr::select(-num))
+  return(tib_select_combinations |> dplyr::select(-num))
 }
 
 # Requires a row from a tibble that only includes valid column names and no numerics / other data types
