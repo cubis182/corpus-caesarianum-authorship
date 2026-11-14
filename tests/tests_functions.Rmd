@@ -15,5 +15,14 @@ I put the source code of the original below.
 
 ```{r, v1-source-code}
 
+```{r, test-that-index_to_rows}
+testthat::test_that("index_to_rows() gets_valid_row", {
+  m1 <- as.matrix(penguins)
+  for (i in seq(1, 1000)) {
+    sampled <- sample(length(m1), 1)
+    testthat::expect_lte(index_to_row(sampled, m1), nrow(m1))
+    testthat::expect_gt(index_to_row(sampled, m1), 0)
+  }
+})
 ```
 
