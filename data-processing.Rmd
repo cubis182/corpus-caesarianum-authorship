@@ -171,6 +171,7 @@ if (!exists("type_value_pairs")){
   data_backup <- data
 
   #Weighting by book gives about a 50/50 split between Caesar and Cicero
+  set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
   data <- data |>
     rowwise() |>
     #inelegant, but it works
@@ -289,10 +290,10 @@ if (!("future.apply" %in% (.packages()))) library(future.apply)
 if (!("profvis" %in% (.packages()))) library(profvis)
 if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
-profvis({
+# profvis({
 
 all_vars_by_section <- get_vars_gorman("chapter", data, presupplied_variables = type_value_pairs)
-})
+# })
 
 # Ran a test of this function on the Bellum Hispaniense without culling 0-length variables.
 # Result: 3,257,298 variables
@@ -317,7 +318,7 @@ analysis. The following cells take care of this transposition.
 ```{r}
 # Wait until we have all the results to we can select the top variables for ALL sections together
 all_vars_by_section_culled <- all_vars_by_section |>
-  select_top_variables(n = 1000, "sum") 
+  select_top_variables(criterion = "sum") 
 ```
 
 ```{r}
