@@ -163,6 +163,8 @@ will perform feature selection on the whole corpus, before counting
 those features in individual documents. The same procedure is
 accomplished in the following section.
 
+## Gorman Variable Collection Step 1
+
 ```{r, get-combinations-of-features, include=FALSE}
 
 if (!exists("combinations")){
