@@ -1639,6 +1639,26 @@ run_stats <- function(dist_matrix, clustering_input) {
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
 ```
 
+### Compare old and new feature sets
+
+On 11/16/2026, I merged the new, simplified feature set algorithm with the main branch of this Git repo. However, I saved the old data into the following two files:
+
+```{r}
+preopti_set <- "./preopti_best_feature_set.RData"
+preopti_features <- "./feature_csv_files/preopti_feature_values_wordonly.csv"
+```
+
+```{r}
+load(preopti_set)
+preopti_best_set <- best_set
+# load new feature set for later; this is not one of the files
+load("./best_feature_set.RData")
+
+gorman_preopti <- load_vars(preopti_features, preopti_best_set)
+```
+
+
+
 # Draft 8/23/2026
 
 I will use K-means, because nothing in this dataset is considered an
