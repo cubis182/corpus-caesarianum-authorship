@@ -539,7 +539,7 @@ desirable for the project.s
 
 ```{r}
 
-feature_set_sizes <- seq(from = 25, to = 500, by = 25)
+feature_set_sizes <- seq(from = 25, to = ncol(gorman.vars) - 1, by = 25)
 feature_set_sizes <- 100
 
 record_of_scores <- data.frame(set_size = integer(), score = double())
@@ -595,7 +595,7 @@ system.time({
   # Count down from 250 to a smaller number, like 10.
   # On each iteration, update gorman.vars with the new set and try a smaller set of combinations
   
-  target_feature_set_size <- 100
+  target_feature_set_size <- 130 # old system: 100
   iterations <- ncol(gorman.vars) - target_feature_set_size
   
   record_of_matrices <- array(
