@@ -166,7 +166,8 @@ accomplished in the following section.
 if (!exists("type_value_pairs")){
   combos_filename <- "type_value_pairs.RData"
   if (!params$new_combos && file.exists(combos_filename)) combinations <- load(combos_filename) else {
-  type_value_pairs <- gorman_combinations(data, combos_filename)
+    set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
+    type_value_pairs <- gorman_combinations(data, combos_filename)
   }
 }
 
@@ -176,6 +177,15 @@ If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
 
 For now, I need to test to see how variable the feature set is with this method.
+
+```{r}
+set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
+test_feature_sets <- map(seq(100), ~ gorman_combinations(data, combos_filename))
+```
+
+```{r, test-variability}
+
+```
 
 ## Custom Variable Set
 

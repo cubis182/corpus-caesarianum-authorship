@@ -313,8 +313,7 @@ variable_combinations <- function(combinations_n, source_data) {
 #'
 #' @examples
 gorman_combinations <- function(data, to_disk, use_parent = params$use_parent) {
-  #Weighting by book gives about a 50/50 split between Caesar and Cicero
-  set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
+  # Weighing by author equally now
   data <- data |>
     mutate(author = author_name_lookup[title]) |>
     dplyr::slice_sample(n = 20000, by = author)
