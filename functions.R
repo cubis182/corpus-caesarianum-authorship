@@ -297,6 +297,52 @@ variable_combinations <- function(combinations_n, source_data) {
   return(tib_select_combinations |> dplyr::select(-num))
 }
 
+
+#' Title
+#' 
+#' This function should not be used outside of its intended space.
+#' It is simply a wrapper to make re-running this code easy.
+#' A side effect of the function is saving the results to disk
+#' in file given in the to_disk variable.
+#'
+#' @param data 
+#' @param use_parent 
+#'
+#' @returns
+#' @export
+#'
+#' @examples
+gorman_combinations <- function(data, to_disk, use_parent = params$use_parent) {
+  #Weighting by book gives about a 50/50 split between Caesar and Cicero
+  set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
+  data <- data |>
+    mutate(author = author_name_lookup[title]) |>
+    dplyr::slice_sample(n = 20000, by = author)
+  
+  #Let's get every combination of variables.
+  
+  cols <- if (use_parent) colnames(data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(data |> tidytable::select(tag:Gender))
+  
+  combinations <- bind_rows(
+    tibble(a = cols), # Do it this way because we want to keep all of the single variables
+    variable_combinations(2, data),
+    variable_combinations(3, data),
+    variable_combinations(4, data),
+    variable_combinations(5, data)
+  )
+  
+  frequencies <- run_combos(data, "sample", combinations)
+  frequencies <- subset(frequencies, n >= 25)
+  
+  frequencies_t <- transpose_all_vars(frequencies)
+  
+  type_value_pairs <- combinations_from_existing(frequencies_t)
+  
+  save(type_value_pairs, file = to_disk)
+  
+  type_value_pairs
+}
+
 # Requires a row from a tibble that only includes valid column names and no numerics / other data types
 # Discards any data points that occur less than 30 times
 # USE THIS TO COUNT A VARIABLE OR SET OF VARIABLES!!!!
@@ -496,7 +542,7 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
   return_value
 }
 
-run_combos <- function(source_data, title_str, pb) {
+run_combos <- function(source_data, title_str, combinations) {
   t1 <- proc.time()
 
   all_vars <- count_var_combos(combinations, source_data) |>
@@ -506,8 +552,6 @@ run_combos <- function(source_data, title_str, pb) {
   # browser()
 
   names(all_vars)[1] <- "pasted"
-
-  # browser()
 
   # Normalize frequencies by occurrence per 1000 words
   norm_val <- 1000 / nrow(source_data)
@@ -521,7 +565,6 @@ run_combos <- function(source_data, title_str, pb) {
 
   delta_time <- proc.time() - t1
   log_debug(paste(names(delta_time), delta_time, sep = ": ", collapse = ", "))
-  pb$tick()
   
   return(all_vars)
 }
