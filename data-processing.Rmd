@@ -155,7 +155,7 @@ would be somewhat arbitrary, since none of his works are history.
 Sallust's style is quite distinct from the other two, so it is difficult
 to imagine the most common features in Sallust will be helpful in
 distinguishing all the authors in the corpus either. As a result, we
-will perform feature selection on the whole corpus, before counting
+will perform feature selection on the whole corpus, before ccounting
 those features in individual documents. The same procedure is
 accomplished in the following section.
 
@@ -166,46 +166,7 @@ accomplished in the following section.
 if (!exists("type_value_pairs")){
   combos_filename <- "type_value_pairs.RData"
   if (!params$new_combos && file.exists(combos_filename)) combinations <- load(combos_filename) else {
-  
-  
-  data_backup <- data
-
-  #Weighting by book gives about a 50/50 split between Caesar and Cicero
-  set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
-  data <- data |>
-    rowwise() |>
-    #inelegant, but it works
-    mutate(commentary = across(title, get_title_segment)) |>
-    ungroup() |>
-    mutate(author = author_name_lookup[title]) |>
-    dplyr::slice_sample(n = 20000, by = author)
-  
-  data$commentary <- as.factor(unlist(data$commentary))
-  
-  #Let's get every combination of variables.
-  
-  cols <- if (params$use_parent) colnames(data |> tidytable::select(tag:parent_Deprel & !parent_form & !parent_lemma)) else colnames(data |> tidytable::select(tag:Gender))
-  
-  combinations <- bind_rows(
-    tibble(a = cols), # Do it this way because we want to keep all of the single variables
-    variable_combinations(2, data),
-    variable_combinations(3, data),
-    variable_combinations(4, data),
-    variable_combinations(5, data)
-  )
-  
-  frequencies <- run_combos(data, "sample", pb = progress_bar$new(total = 1))
-  frequencies <- subset(frequencies, n >= 25)
-  
-  frequencies_t <- transpose_all_vars(frequencies)
-  
-  type_value_pairs <- combinations_from_existing(frequencies_t)
-  
-  save(type_value_pairs, file = combos_filename)
-  
-  data <- data_backup
-  
-  rm(data_backup)
+  type_value_pairs <- gorman_combinations(data, combos_filename)
   }
 }
 

@@ -378,6 +378,7 @@ get_var_combos <- function(var_combn, source_data) {
 # culled.
 
 count_var_combos <- function(var_combn, source_data) {
+  
   list_combn <- apply(var_combn, MARGIN = 1, get_var_combos, source_data = source_data) |> bind_rows()
 
   # unlist()
@@ -544,7 +545,7 @@ count_combinations_per_section <- function(combinations, source_data, title_str)
 
 run_combos <- function(source_data, title_str, combinations) {
   t1 <- proc.time()
-
+  
   all_vars <- count_var_combos(combinations, source_data) |>
     unite(col = "pasted", -N, sep = "|", na.rm = TRUE) |>
     as_tibble(.name_repair = "universal_quiet")
