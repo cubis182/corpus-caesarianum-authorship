@@ -1641,7 +1641,9 @@ run_stats <- function(dist_matrix, clustering_input) {
 
 ### Compare old and new feature sets
 
-On 11/16/2026, I merged the new, simplified feature set algorithm with the main branch of this Git repo. However, I saved the old data into the following two files:
+On 11/16/2026, I merged the new, simplified feature set algorithm with
+the main branch of this Git repo. However, I saved the old data into the
+following two files:
 
 ```{r}
 preopti_set <- "./preopti_best_feature_set.RData"
@@ -1656,10 +1658,6 @@ load("./best_feature_set.RData")
 
 gorman_preopti <- load_vars(preopti_features, preopti_best_set)
 ```
-
-Maybe we can 
-
-
 
 # Draft 8/23/2026
 
