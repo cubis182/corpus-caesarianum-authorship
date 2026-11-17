@@ -189,12 +189,20 @@ test_feature_sets <- map(seq(1000), ~ gorman_combinations(data, combos_filename)
 stringified <- map(test_feature_sets, ~ unite(.x, col = "pasted", sep = "|", na.rm = TRUE))
 ```
 
-```{r, test-variability}
+We can then choose to select only the ones that appeared in all of our tests just above:
 
+```{r}
 tab <- table(unlist(stringified))
-ggplot(tibble(x = names(tab), y = as.vector(tab)), aes(x, y)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
+nm <- names(tab[tab == 1000])
 
+type_value_pairs <- test_feature_sets[[1]] %>%
+  unite(col = "index", sep = "|", remove = FALSE, na.rm = TRUE) %>%
+  subset(index %in% nm) %>%
+  mutate(index = NULL)
+
+save(type_value_pairs, file = combos_filename)
 ```
+
 
 ## Custom Variable Set
 
