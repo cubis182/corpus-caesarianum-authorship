@@ -185,6 +185,9 @@ test_feature_sets <- map(seq(100), ~ gorman_combinations(data, combos_filename))
 
 ```{r, test-variability}
 
+tab <- table(unlist(test_feature_sets))
+ggplot(tibble(x = names(tab), y = as.vector(tab)), aes(x, y)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
+
 ```
 
 ## Custom Variable Set
