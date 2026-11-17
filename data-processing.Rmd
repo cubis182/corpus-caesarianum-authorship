@@ -177,7 +177,8 @@ if (!exists("type_value_pairs")){
     #inelegant, but it works
     mutate(commentary = across(title, get_title_segment)) |>
     ungroup() |>
-    dplyr::slice_sample(n = 2000, by = commentary)
+    mutate(author = author_name_lookup[title]) |>
+    dplyr::slice_sample(n = 20000, by = author)
   
   data$commentary <- as.factor(unlist(data$commentary))
   
@@ -212,6 +213,8 @@ if (!exists("type_value_pairs")){
 
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
+
+For now, I need to test to see how variable the feature set is with this method.
 
 ## Custom Variable Set
 
