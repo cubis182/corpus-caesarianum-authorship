@@ -415,22 +415,15 @@ file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_g
 
 # Used to select subsets of Gorman variables
 load("best_feature_set.RData")
-subset_of_corpus <- c("title", best_set)   # c(1,250:500) 
 
-gorman.vars <- read_csv(file.vars.gorman); gorman.vars$title <- gsub(" ", "", gorman.vars$title)
-# for this next adjustment, see Obsidian notebook 8/29/2026
-# gorman.vars <- gorman.vars[,subset_of_corpus]
-# I have decided to z-standardize instead 9/26/2026
-# gorman.vars %<>% scale_df()
-gorman.vars <- gorman.vars[,subset_of_corpus]
+gorman.vars <- load_vars(file.vars.gorman)
 
 caesar.gorman.vars <- gorman.vars %>% 
   filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
 
 file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
 
-sectioned.gorman.vars <- read_csv(file.sectioned.gorman);sectioned.gorman.vars$title <- gsub(" ", "", sectioned.gorman.vars$title)
-sectioned.gorman.vars <- sectioned.gorman.vars[,subset_of_corpus]
+sectioned.gorman.vars <- load_vars(file.sectioned.gorman)
 # standardize
 # sectioned.gorman.vars %<>% scale_df()
 
@@ -444,10 +437,6 @@ custom_vars_book <- read.csv("feature_csv_files/feature_values_custom_by_book.cs
 custom_vars_section <- read.csv("feature_csv_files/feature_values_custom_by_section.csv")
 custom_caesar_book <- custom_vars_book %>%
   filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
-
-sectioned.gorman.vars %<>% reorder_works()
-
-gorman.vars %<>% reorder_works()
 
 custom_vars_book %<>% reorder_works()
 custom_vars_section %<>% reorder_works()
@@ -539,7 +528,7 @@ desirable for the project.s
 
 ```{r}
 
-feature_set_sizes <- seq(from = 25, to = 500, by = 25)
+feature_set_sizes <- seq(from = 25, to = ncol(gorman.vars) - 1, by = 25)
 feature_set_sizes <- 100
 
 record_of_scores <- data.frame(set_size = integer(), score = double())
@@ -595,7 +584,7 @@ system.time({
   # Count down from 250 to a smaller number, like 10.
   # On each iteration, update gorman.vars with the new set and try a smaller set of combinations
   
-  target_feature_set_size <- 100
+  target_feature_set_size <- 130 # old system: 100
   iterations <- ncol(gorman.vars) - target_feature_set_size
   
   record_of_matrices <- array(
@@ -1649,6 +1638,28 @@ run_stats <- function(dist_matrix, clustering_input) {
 # prediction.strength:
 # Note the following: Clustering methods for prediction.strength must have a k-argument for the number of clusters, must operate on n times p data matrices and must otherwise follow the specifications in clusterboot
 ```
+
+### Compare old and new feature sets
+
+On 11/16/2026, I merged the new, simplified feature set algorithm with the main branch of this Git repo. However, I saved the old data into the following two files:
+
+```{r}
+preopti_set <- "./preopti_best_feature_set.RData"
+preopti_features <- "./feature_csv_files/preopti_feature_values_wordonly.csv"
+```
+
+```{r}
+load(preopti_set)
+preopti_best_set <- best_set
+# load new feature set for later; this is not one of the files
+load("./best_feature_set.RData")
+
+gorman_preopti <- load_vars(preopti_features, preopti_best_set)
+```
+
+Maybe we can 
+
+
 
 # Draft 8/23/2026
 

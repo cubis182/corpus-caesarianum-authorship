@@ -847,6 +847,36 @@ verify_random_cell <- function(all_vars, source_data, pipe = TRUE) {
 
 # Cluster verification functions ------------------------------
 
+#' Title
+#' 
+#' For use in first cell of Clustering section in data-processing.Rmd
+#'
+#' @param filename Character vector with path to .csv file
+#' @param subset Character vector of subset of feature columns
+#'
+#' @returns 
+#' @export
+#'
+#' @examples
+#' 
+#' file.vars.gorman <- "./feature_csv_files/feature_values_wordonly.csv"
+#' # assume user is in corpus-caesarianum-authorship git repo
+#' load("best_feature_set.RData")
+#' gorman.vars <- load_vars(file.vars.gorman)
+#' gorman.vars
+#' 
+load_vars <- function(filename, subset = best_set) {
+  subset_of_corpus <- c("title", subset)   # c(1,250:500) 
+  return_value <- read_csv(filename)
+  return_value$title <- gsub(" ", "", return_value$title)
+  # for this next adjustment, see Obsidian notebook 8/29/2026
+  # gorman.vars <- gorman.vars[,subset_of_corpus]
+  # I have decided to z-standardize instead 9/26/2026
+  # gorman.vars %<>% scale_df()
+  return_value %<>% reorder_works()
+  return_value[,subset_of_corpus]
+}
+
 # Wrapper around dist() and as.dist() which allows the user to supply a function 
 #   as a custom distance measure. 
 # The first two arguments of the custom method must be the vectors to be compared.
