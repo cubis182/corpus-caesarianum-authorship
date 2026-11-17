@@ -176,16 +176,22 @@ if (!exists("type_value_pairs")){
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
 
-For now, I need to test to see how variable the feature set is with this method.
+For now, I need to test to see how variable the feature set is with this method. I run the feature set 1,000 times; I found with testing 100 times that the feature set is actually fairly stable. 72% of the features appeared in all 100 tests. That gives a number of 369, which is more than we need, meaning we can, if we wish, make this feature selection process deterministic. Only keep the ones that appear in all samples. However, that might change when we scale up to 1,000, so I am running it again:
 
 ```{r}
 set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
-test_feature_sets <- map(seq(100), ~ gorman_combinations(data, combos_filename))
+# tell the function to shut up.
+log_threshold(INFO)
+test_feature_sets <- map(seq(1000), ~ gorman_combinations(data, combos_filename))
+```
+
+```{r}
+stringified <- map(test_feature_sets, ~ unite(.x, col = "pasted", sep = "|", na.rm = TRUE))
 ```
 
 ```{r, test-variability}
 
-tab <- table(unlist(test_feature_sets))
+tab <- table(unlist(stringified))
 ggplot(tibble(x = names(tab), y = as.vector(tab)), aes(x, y)) + geom_col() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
 
 ```

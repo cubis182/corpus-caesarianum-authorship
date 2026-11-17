@@ -641,7 +641,7 @@ combinations_table_from_vector <- function(vars_unsplit) {
   
   # Transpose the data frame
   combinations_new <- t(combinations_new) |>
-    as_tibble(.name_repair = "unique") |>
+    as_tibble(.name_repair = "unique_quiet") |>
     slice(-1)
   
   combinations_new
