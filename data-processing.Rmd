@@ -574,7 +574,7 @@ system.time({
   # Count down from 250 to a smaller number, like 10.
   # On each iteration, update gorman.vars with the new set and try a smaller set of combinations
   
-  target_feature_set_size <- 130 # old system: 100
+  target_feature_set_size <- 100 # 130: without sampling at variable selection stage 
   iterations <- ncol(gorman.vars) - target_feature_set_size
   
   record_of_matrices <- array(
