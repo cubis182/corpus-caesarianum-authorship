@@ -176,7 +176,14 @@ if (!exists("type_value_pairs")){
 If we need to re-run the data, we would go to this cell, run all
 previous cells, and get started.
 
-For now, I need to test to see how variable the feature set is with this method. I run the feature set 1,000 times; I found with testing 100 times that the feature set is actually fairly stable. 72% of the features appeared in all 100 tests. That gives a number of 369, which is more than we need, meaning we can, if we wish, make this feature selection process deterministic. Only keep the ones that appear in all samples. However, that might change when we scale up to 1,000, so I am running it again:
+For now, I need to test to see how variable the feature set is with this
+method. I run the feature set 1,000 times; I found with testing 100
+times that the feature set is actually fairly stable. 72% of the
+features appeared in all 100 tests. That gives a number of 369, which is
+more than we need, meaning we can, if we wish, make this feature
+selection process deterministic. Only keep the ones that appear in all
+samples. However, that might change when we scale up to 1,000, so I am
+running it again:
 
 ```{r}
 set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
@@ -189,7 +196,8 @@ test_feature_sets <- map(seq(1000), ~ gorman_combinations(data, combos_filename)
 stringified <- map(test_feature_sets, ~ unite(.x, col = "pasted", sep = "|", na.rm = TRUE))
 ```
 
-We can then choose to select only the ones that appeared in all of our tests just above:
+We can then choose to select only the ones that appeared in all of our
+tests just above:
 
 ```{r}
 tab <- table(unlist(stringified))
@@ -202,7 +210,6 @@ type_value_pairs <- test_feature_sets[[1]] %>%
 
 save(type_value_pairs, file = combos_filename)
 ```
-
 
 ## Custom Variable Set
 
@@ -283,17 +290,9 @@ if (!("dtplyr" %in% (.packages()))) library(dtplyr)
 
 # profvis({
 
+log_threshold(SUCCESS)
 all_vars_by_section <- get_vars_gorman("chapter", data, presupplied_variables = type_value_pairs)
 # })
-
-# Ran a test of this function on the Bellum Hispaniense without culling 0-length variables.
-# Result: 3,257,298 variables
-# Test removing variables evidenced 0 times:
-# Still 3,257,298. 
-# Removing variables evidenced 1 or 0 times:
-# 1,302,834
-# Removing variables below the 25% quartile:
-# Still 1,302,834, since the lower quartile is always 1
   
 ```
 

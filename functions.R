@@ -437,7 +437,7 @@ get_number_rows_with_feature_types <- function(combination, source_data) {
     if (sum(rows == unq_rows[i]) == length(combination)) receiver[i] <- 1
   }
   
-  log_debug("{fn_name}: The feature values '{paste0(combination, collapse = ',')}' occurred {sum(receiver)} times in the dataset.")
+  # log_debug("{fn_name}: The feature values '{paste0(combination, collapse = ',')}' occurred {sum(receiver)} times in the dataset.")
   
   sum(receiver)
 }
