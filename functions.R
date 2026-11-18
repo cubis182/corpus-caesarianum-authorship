@@ -914,7 +914,7 @@ verify_random_cell <- function(all_vars, source_data, pipe = TRUE) {
 #' gorman.vars
 #' 
 load_vars <- function(filename, subset = best_set) {
-  subset_of_corpus <- c("title", subset)   # c(1,250:500) 
+  subset_of_corpus <- TRUE# c("title", subset)   # c(1,250:500) 
   return_value <- read_csv(filename)
   return_value$title <- gsub(" ", "", return_value$title)
   # for this next adjustment, see Obsidian notebook 8/29/2026
