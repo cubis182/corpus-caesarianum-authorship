@@ -1973,7 +1973,8 @@ diss_scores_pivoted <- diss_scores_df %>%
   mutate(title = factor(lookup_table[title], levels=unique(lookup_table[title])))
   
 
-ggplot(diss_scores_pivoted, aes(title, dissimilarities)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
+ggplot(diss_scores_pivoted, aes(title, dissimilarities)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0)) + labs(title = "Boxplot of dissimilarities within each text", subtitle = "Higher distribution suggests more internal variability")
+ggsave("Images/boxplot_internal_dissimilarity.png", dpi = "print")
 ```
 
 ```{r}
