@@ -406,14 +406,14 @@ file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_g
 # Used to select subsets of Gorman variables
 load("best_feature_set.RData")
 
-gorman.vars <- load_vars(file.vars.gorman)
+gorman.vars <- load_vars(file.vars.gorman, subset = TRUE)
 
 caesar.gorman.vars <- gorman.vars %>% 
   filter(!str_starts(title, cicero_works) & !str_starts(title, sallust_works))
 
 file.sectioned.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman_by_section.csv" else "./feature_csv_files/feature_values_wordonly_by_section.csv"
 
-sectioned.gorman.vars <- load_vars(file.sectioned.gorman)
+sectioned.gorman.vars <- load_vars(file.sectioned.gorman, subset = TRUE)
 # standardize
 # sectioned.gorman.vars %<>% scale_df()
 
@@ -1980,7 +1980,7 @@ ks.test(
   alternative = "less"
 )
 
-# We can confidently reject the null hypothesis with a significant p-value of less than 2.2e-16
+# We cannot reject the null hypothesis
 ```
 
 It looks like the variation within a single work provides some extra
