@@ -2377,3 +2377,55 @@ Ch. 40:
 > sola decima legione iturum, de qua non dubitet, sibique eam praetoriam
 > cohortem futuram. Huic legioni Caesar et indulserat praecipue et
 > propter virtutem confidebat maxime.
+
+## Divisa in partes tres....
+
+We want a section that is highly similar to 1.1 in BG. Let's create the dist matrix:
+
+```{r}
+# Get dissimilarity matrix of sections in BG 1 and BC, since I would like to identify similarities across the corpus.
+bg1bc <- sectioned.gorman.vars[sectioned.gorman.vars$path %in% c("gallic_1", "civil_1", "civil_2", "civil_3"),]
+
+# 54 sections
+
+bg1bc %<>% column_to_rownames("title")
+log_debug(ncol(bg1bc))
+bg1bc %<>% purrr::keep(is.numeric)
+log_debug(ncol(bg1bc))
+log_debug(paste(rownames(bg1bc), collapse = "\n"))
+```
+```{r}
+bg1bc_dist <- get_dist(bg1bc, method = params$dist_method)
+
+fviz_dist(bg1bc_dist, show_labels = FALSE)
+
+fclust::VAT(bg1bc)
+```
+
+```{r}
+# Get location of largest dissimilarity
+mat_bg1bc <- as.matrix(bg1bc_dist)["gallic_1_1",]
+smallest <- min(mat_bg1bc[mat_bg1bc > 0])
+
+names(mat_bg1bc[mat_bg1bc == smallest])
+
+#> civil_2_35 is most similar,
+#> second is civil_3_48, which I give below:
+```
+> Iamque frumenta maturescere incipiebant atque ipsa spes inopiam sustentabat, quod celeriter se habituros copiam confidebant. crebraeque voces militum in vigiliis colloquiisque audiebantur prius se cortice ex arboribus victuros, quam Pompeium e manibus dimissuros.
+libenter etiam ex perfugis cognoscebant equos eorum tolerari, reliqua vero iumenta interisse; uti autem ipsos valetudine non bona cum angustiis loci et odore taetro ex multitudine cadaverum et cotidianis laboribus, insuetos operum, tum aquae summa inopia adfectos.
+omnia enim flumina atque omnes rivos, qui ad mare pertinebant, Caesar aut averterat aut magnis operibus obstruxerat, atque ut erant loca montuosa et ad specus angustiae vallium, has sublicis in terram demissis praesepserat terramque adgesserat, ut aquam continerent.
+ita illi necessario loca sequi demissa ac palustria et puteos fodere cogebantur atque hunc laborem ad cotidiana opera addebant; qui tamen fontes a quibusdam praesidiis aberant longius et celeriter aestibus exarescebant.
+at Caesaris exercitus optima valetudine summaque aquae copia utebatur, tum commeatus omni genere praeter frumentum abundabat; quibus cotidie melius subterere tempus maioremque spem maturitate frumentorum proponi videbant.
+
+- *BC* 3.49
+
+> Gallia est omnis divisa in partes tres, quarum unam incolunt Belgae, aliam Aquitani, tertiam qui ipsorum lingua Celtae, nostra Galli appellantur.
+Hi omnes lingua, institutis, legibus inter se differunt. Gallos ab Aquitanis Garumna flumen, a Belgis Matrona et Sequana dividit.
+Horum omnium fortissimi sunt Belgae, propterea quod a cultu atque humanitate provinciae longissime absunt, minimeque ad eos mercatores saepe commeant atque ea quae ad effeminandos animos pertinent important,
+proximique sunt Germanis, qui trans Rhenum incolunt, quibuscum continenter bellum gerunt. Qua de causa Helvetii quoque reliquos Gallos virtute praecedunt, quod fere cotidianis proeliis cum Germanis contendunt, cum aut suis finibus eos prohibent aut ipsi in eorum finibus bellum gerunt.
+Eorum una pars, quam Gallos obtinere dictum est, initium capit a flumine Rhodano, continetur Garumna flumine, Oceano, finibus Belgarum, attingit etiam ab Sequanis et Helvetiis flumen Rhenum, vergit ad septentriones.
+Belgae ab extremis Galliae finibus oriuntur, pertinent ad inferiorem partem fluminis Rheni, spectant in septentrionem et orientem solem.
+Aquitania a Garumna flumine ad Pyrenaeos montes et eam partem Oceani quae est ad Hispaniam pertinet; spectat inter occasum solis et septentriones.
+
+- *BG* 1.1
