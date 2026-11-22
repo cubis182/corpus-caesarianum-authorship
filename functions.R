@@ -895,7 +895,7 @@ verify_random_cell <- function(all_vars, source_data, pipe = TRUE) {
 
 # Cluster verification functions ------------------------------
 
-#' Title
+#' load_vars
 #' 
 #' For use in first cell of Clustering section in data-processing.Rmd
 #'

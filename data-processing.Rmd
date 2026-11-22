@@ -1815,6 +1815,21 @@ gorman_dist <- get_dist(gorman.vars, method = params$dist_method)
 
 dist_palette <- brewer.pal(n = 5, "BrBG")
 
+history_corr <- na.omit(unlist(scores.correlation.per.text[
+      names(scores.correlation.per.text) %in% c(
+        caesar_works_v, 
+        "catilinae_sallusti", 
+        "iugurthine_1"
+        )
+      ]))
+cicero_corr <- na.omit(unlist(scores.correlation.per.text[
+      names(scores.correlation.per.text) %notin% c(
+        caesar_works_v, 
+        "catilinae_sallusti", 
+        "iugurthine_1"
+        )
+      ]))
+
 #Using the 5th percentile here. The 95th percentile is beyond any differences between texts, suggesting that difference doesn't guarantee different authorship. However, below about 0.2 is highly suggestive of same authorship, as that's lower than the lower tail (0.05) of the data
 graph <- plot_dist_corpus_project(gorman_dist, gorman.vars) + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05))
 graph
@@ -1952,32 +1967,38 @@ scores.correlation.per.text %<>% map(even_out)
   
 diss_scores_df <- do.call(data.frame, scores.correlation.per.text)
 
-diss_scores_pivoted <- diss_scores_df %>% pivot_longer(cols = everything(), names_to = "title", values_to = "dissimilarities", values_drop_na = TRUE)
+diss_scores_pivoted <- diss_scores_df %>% 
+  pivot_longer(cols = everything(), names_to = "title", values_to = "dissimilarities", values_drop_na = TRUE) %>%
+  reorder_works() %>%
+  mutate(title = factor(lookup_table[title], levels=unique(lookup_table[title])))
+  
 
 ggplot(diss_scores_pivoted, aes(title, dissimilarities)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 90, hjust = 1.0))
 ```
 
 ```{r}
 # How significant is what we observe in the above graph, that Caesar and Sallust tend to have a lower ? We can also use a one tailed test. Our hypothesis is that the first set, the works of Cicero, have a higher distribution of dissimilarity scores than Caesar and Sallust. The null hypothesis we must reject to prove this is that the Cicero's scores are lower. 
-
-ks.test(
-  # Cicero
-  jitter(na.omit(unlist(scores.correlation.per.text[
-      names(scores.correlation.per.text) %notin% c(
-        caesar_works_v, 
-        "catilinae_sallusti", 
-        "iugurthine_1"
-        )
-      ]))),
-  # Caesar and Sallust
-  jitter(na.omit(unlist(scores.correlation.per.text[
+history_corr <- na.omit(unlist(scores.correlation.per.text[
       names(scores.correlation.per.text) %in% c(
         caesar_works_v, 
         "catilinae_sallusti", 
         "iugurthine_1"
         )
-      ]))),
-  alternative = "less"
+      ]))
+cicero_corr <- na.omit(unlist(scores.correlation.per.text[
+      names(scores.correlation.per.text) %notin% c(
+        caesar_works_v, 
+        "catilinae_sallusti", 
+        "iugurthine_1"
+        )
+      ]))
+
+ks.test(
+  # Cicero
+  jitter(cicero_corr),
+  # Caesar and Sallust
+  jitter(history_corr),
+  alternative = "greater"
 )
 
 # We cannot reject the null hypothesis
