@@ -126,6 +126,18 @@ author_name_lookup <- c(
   setNames(rep("sallust", length(sallust_all)), sallust_all),
   setNames(rep("caesar", length(caesar_all)), caesar_all)
 )
+
+# lookup table for the classifier in data-processing.Rmd
+# don't include supplementary corpus
+classifier_name_lookup <- c(
+  setNames(rep("cicero", length(cicero_all)), cicero_all),
+  setNames(rep("sallust", length(sallust_all)), sallust_all),
+  setNames(rep("caesar"), 6, 
+           c("civil_1", "civil_2", "gallic_1", "gallic_2", 
+             "gallic_3", "gallic_4")),
+  setNames(rep("contributor"), 5, "civil_3", "gallic_5", "gallic_6",
+           "gallic_7", "gallic_8",)
+)
   
   
 # reorder works so ones by the same author go together.
