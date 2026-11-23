@@ -202,7 +202,8 @@ prepare_data <- function(data, use_parent = params$use_parent) {
 
   data %<>%
     rowwise() %>%
-    mutate(title = gsub(" ", "", paste(title, "_", book, "_", section)))
+    mutate(title = gsub(" ", "", paste(title, "_", book, "_", section))) %>%
+    ungroup()
 
   data %<>% replace_ambiguous(use_parent)
   
