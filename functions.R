@@ -207,7 +207,7 @@ prepare_data <- function(data, use_parent = params$use_parent) {
   data %<>% replace_ambiguous(use_parent)
   
   # Remove all words which have "X" as their part of speech
-  data %<>% filter_out(tag == "X")
+  data %<>% filter_out(tag %in% c("X", "PUNCT"))
 
   data
 }
