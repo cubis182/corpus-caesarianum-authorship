@@ -2429,3 +2429,32 @@ Belgae ab extremis Galliae finibus oriuntur, pertinent ad inferiorem partem flum
 Aquitania a Garumna flumine ad Pyrenaeos montes et eam partem Oceani quae est ad Hispaniam pertinet; spectat inter occasum solis et septentriones.
 
 - *BG* 1.1
+
+# Verification with Classifier
+
+```{r, section-setup}
+# get a clean environment with only the functions
+rm(list = setdiff(ls(), "params"))
+source("functions.R")
+
+file.vars.gorman <- if (params$use_parent) "./feature_csv_files/feature_values_gorman.csv" else "./feature_csv_files/feature_values_wordonly.csv"
+
+# Used to select subsets of Gorman variables
+load("best_feature_set.RData")
+
+gorman.vars <- load_vars(file.vars.gorman, subset = TRUE)
+```
+
+
+We have a categorical response variable (author), and several hundred numeric (ratio) predictors. Before we can proceed with classification, we have some cleanup to do.
+
+```{r, add_authors}
+gorman.vars.splitauth <- gorman.vars %>%
+  mutate(authors = classifier_name_lookup[title]) %>%
+  filter(!is.na(authors))
+
+gorman.vars.unitar <- gorman.vars %>%
+  mutate(authors = author_name_lookup[title])
+```
+
+
