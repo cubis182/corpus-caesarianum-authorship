@@ -1732,6 +1732,12 @@ gorman.vars %<>% column_to_rownames("title")
 
 rownames(object$caesar_gorman) <- lookup_table[rownames(object$caesar_gorman)]
 
+# hierarchical
+gorman_dist <- get_dist(gorman.vars, method = params$dist_method)
+gorman_cut <- hcut(gorman_dist, hc_func = "agnes", hc_metric = params$dist_method)
+
+fviz_dend(gorman_cut, type = "phylogenic", repel = TRUE, phylo_layout = "layout_with_drl")
+
 # Try standardizing?
 km_res <- kmeans(gorman.vars, 3, nstart = 50)
 km_caesar_only <- kmeans(object$caesar_gorman, 2, nstart = 50)
