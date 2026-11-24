@@ -1126,17 +1126,16 @@ plot_dist_corpus_project <- function(gorman_dist, data, cell_text_size = 4) {
   d_long$x_axis <- rep(1:nrow(data), times = nrow(data))
   d_long$y_axis <- rep(1:nrow(data), each = nrow(data))
   d_long <- as.data.frame(d_long)
-  
-  graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = attributes(gorman_dist)$Labels)
+  graph <- fviz_dist(gorman_dist, show_labels = TRUE) + scale_x_discrete(labels = attributes(gorman_dist)$Labels) + scale_y_discrete(labels = rev(attributes(gorman_dist)$Labels))
   graph <- graph + 
     geom_tile(
       data = d_long,
-      aes(x = x_axis, y = y_axis, fill = value), 
+      aes(x = x_axis, y = rev(y_axis), fill = value), 
       inherit.aes = FALSE
     ) +
     geom_text(
       data = d_long,
-      aes(x = x_axis, y = y_axis, label = value), 
+      aes(x = x_axis, y = rev(y_axis), label = value), 
       color = "black", 
       size.unit = "pt",
       size = cell_text_size,
