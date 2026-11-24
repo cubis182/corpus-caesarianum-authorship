@@ -68,6 +68,17 @@ vectorized_title_segment <- function(character, mode = 'book') {
   map_chr(character, ~ get_title_segment(.x))
 }
 
+# For converting to readable names in graph labels.
+lookup_table <- setNames(
+  c("BAlex. 1-21", "BAlex. 22-78", "BAfr.", "De Amicitia", "BC 1", "BC 2", "BC 3", "BG 1", "BG 2", "BG 3", "BG 4", "BG 5", "BG 6", "BG 7", "BG 8", "Philippics 1", "Philippics 2", "Philippics 3", "Philippics 4", "Philippics 5", "Philippics 6", "Philippics 7", "Philippics 8", "Philippics 9", "Philippics 10", "Philippics 11", "Philippics 12", "Philippics 13", "Philippics 14", "De Senectute", "BHisp.", "pro Rege Deiotaro", "Brutus", "Catilinae Coniuratio", "Bellum Iugurthinum", "pro Ligario", "pro Marcello"),
+  c("alexandrine_1", "alexandrine_2", "african_1", "amicitia_1", "civil_1", "civil_2", "civil_3", "gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "philippics_1", "philippics_2", "philippics_3", "philippics_4", "philippics_5", "philippics_6", "philippics_7", "philippics_8", "philippics_9", "philippics_10", "philippics_11", "philippics_12", "philippics_13", "philippics_14", "senectute_1", "spanish_1", "deiotaro_1", "brutus_1", "catilinae_sallusti", "iugurthine_1", "ligario_1", "marcello_1")
+)
+
+corpus_title <- setNames(
+  c(rep("Corpus Caesarianum", 15), rep("Cicero", 20), rep("Sallust", 2)),
+  c("BAlex. 1-21", "BAlex. 22-78", "BHisp.", "BAfr.", "BC 1", "BC 2", "BC 3", "BG 1", "BG 2", "BG 3", "BG 4", "BG 5", "BG 6", "BG 7", "BG 8", "De Amicitia", "Philippics 1", "Philippics 2", "Philippics 3", "Philippics 4", "Philippics 5", "Philippics 6", "Philippics 7", "Philippics 8", "Philippics 9", "Philippics 10", "Philippics 11", "Philippics 12", "Philippics 13", "Philippics 14", "De Senectute", "pro Rege Deiotaro", "Brutus", "pro Ligario", "pro Marcello", "Catilinae Coniuratio", "Bellum Iugurthinum")
+)
+
 # add a version of `attributes<-` which returns the object too
 caesar_works_v <- c("gallic_1", "gallic_2", "gallic_3", "gallic_4", "gallic_5", "gallic_6", "gallic_7", "gallic_8", "civil_1", "civil_2", "civil_3", "alexandrine_1", "alexandrine_2", "african_1", "spanish_1")
 
@@ -132,10 +143,10 @@ author_name_lookup <- c(
 classifier_name_lookup <- c(
   setNames(rep("cicero", length(cicero_all)), cicero_all),
   setNames(rep("sallust", length(sallust_all)), sallust_all),
-  setNames(rep("caesar"), 6, 
+  setNames(rep("caesar", 6), 
            c("civil_1", "civil_2", "gallic_1", "gallic_2", 
              "gallic_3", "gallic_4")),
-  setNames(rep("contributor"), 5, c("civil_3", "gallic_5", "gallic_6",
+  setNames(rep("contributor", 5), c("civil_3", "gallic_5", "gallic_6",
            "gallic_7", "gallic_8"))
 )
   
