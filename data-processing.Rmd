@@ -1847,7 +1847,7 @@ graph <- plot_dist_corpus_project(gorman_dist.2, gorman.vars.2, 6) +
   labs(title = "Dissimilarity scores between texts of the *Corpus Caesarianum*", subtitle = "Scores computed with Spearman's ρ") + 
   theme(plot.title = element_markdown())
 
-graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05), limits = c(0, 0.8))
+graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(history_corr), probs = 0.05), limits = c(0, 0.8))
 ggsave("Images/dissimilarity_matrix_caesar_only.png", dpi = "print")
 
 ```
@@ -1881,7 +1881,7 @@ graph <- plot_dist_corpus_project(gorman_dist.2, gorman.vars.2, cell_text_size =
   labs(title = str_wrap("Select dissimilarity scores from the *Corpus Caesarianum* and Cicero", width = 50), subtitle = "Scores computed with Spearman's ρ") + 
   theme(plot.title = element_markdown())
 
-graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(scores.correlation.per.text), probs = 0.05), limits = c(0, 0.8))
+graph + scale_fill_gradient2(low = dist_palette[1], high = dist_palette[5], midpoint = quantile(unlist(history_corr), probs = 0.05), limits = c(0, 0.8))
 ggsave("Images/dissimilarity_matrix_between_books_by_correlation-2.png", dpi = "print")
 
 ```
