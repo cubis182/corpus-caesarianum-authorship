@@ -190,7 +190,7 @@ set.seed(utf8ToInt("caesarsux (Cicero wrote this)"))
 # tell the function to shut up.
 log_threshold(INFO)
 ntests <- 1000
-pb <- progress_bar$new(format = "[:bar] :percent in :elapsedfull")
+pb <- progress_bar$new(total = ntests,  format = "[:bar] :percent in :elapsedfull")
 test_feature_sets <- map(seq(ntests), ~ {pb$tick(); gorman_combinations(data, combos_filename)})
 ```
 
