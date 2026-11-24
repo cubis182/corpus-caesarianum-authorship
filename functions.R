@@ -135,8 +135,8 @@ classifier_name_lookup <- c(
   setNames(rep("caesar"), 6, 
            c("civil_1", "civil_2", "gallic_1", "gallic_2", 
              "gallic_3", "gallic_4")),
-  setNames(rep("contributor"), 5, "civil_3", "gallic_5", "gallic_6",
-           "gallic_7", "gallic_8",)
+  setNames(rep("contributor"), 5, c("civil_3", "gallic_5", "gallic_6",
+           "gallic_7", "gallic_8"))
 )
   
   
