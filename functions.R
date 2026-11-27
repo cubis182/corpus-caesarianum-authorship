@@ -608,6 +608,9 @@ get_vars_gorman <- function(mode = "book", source, presupplied_variables = NULL)
       mutate(title = get_title_segment(title, "title"))
   } else if (mode == "chapter") {
     source_data <- source
+  } else if (mode == "groups") {
+    source_data <- source |>
+      mutate(title = groups)
   } else {
     return(NULL)
   }
