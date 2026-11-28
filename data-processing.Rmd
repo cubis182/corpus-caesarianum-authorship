@@ -1794,7 +1794,7 @@ titles <- unique(sectioned.gorman.vars$path)
 #Get the spearman correlation coefficients, add them to a list, with the label being the title
 
 
-scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$path, FUN = within.book.similarity, rows = 20, type_of_similarity = "spearman")
+scores.correlation.per.text <- tapply(sectioned.gorman.vars, INDEX = sectioned.gorman.vars$path, FUN = within.book.similarity, rows = 40, type_of_similarity = "spearman")
 
 names(scores.correlation.per.text) <- titles
 
