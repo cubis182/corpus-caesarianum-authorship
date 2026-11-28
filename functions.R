@@ -1089,10 +1089,7 @@ retrieve_combination_similarity <- function(combo, section_vectors, type) {
   
 }
 
-#Parameters:
-#  character book: Name of commentary book. Valid values: "gallic _ 1", "gallic _ 2", etc.
-#  tibble section_vectors: NEEDSDOC
-# double prop: The proportion of sections to sample from to save on computation; should be 1 in the final article
+
 within.book.similarity <- function(section_vectors, rows, type_of_similarity = "spearman") {
   # Ensure that sample doesn't try to sample more cases than there are rows
   number_of_rows <- nrow(section_vectors)
